@@ -48,7 +48,7 @@ const THREE = new Proxy({
   InstancedMesh: class extends Obj { constructor(g, m, n) { super(); assert.ok(n > 0); this.instanceMatrix = {}; this.instanceColor = {}; } setMatrixAt() {} setColorAt() {} },
   Matrix4: class { compose() {} }, Quaternion: class { setFromEuler() {} }, Euler: class { set() {} },
   QuadraticBezierCurve3: class {}, MeshStandardMaterial: class { dispose() {} }, MeshBasicMaterial: class { dispose() {} },
-  BufferGeometryUtils: { mergeBufferGeometries: (p) => { assert.ok(p.length > 5); return new Geo(); } },
+  BufferGeometryUtils: { mergeGeometries: (p) => { assert.ok(p.length > 5); return new Geo(); } },
   DoubleSide: 2,
 }, { get: (o, k) => (k in o ? o[k] : Geo) });
 const kit = new Function('THREE', 'rotOff', `

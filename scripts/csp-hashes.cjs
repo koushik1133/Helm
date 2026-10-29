@@ -127,15 +127,15 @@ function withHashes(csp, hashes, styleHashes) {
 // the same CDN and run script despite the hash-based policy. So:
 //   • every page: only the pinned Sentry bundle directory (dormant until a DSN is
 //     set — telemetry.js loads https://browser.sentry-cdn.com/8.55.2/bundle.min.js);
-//   • the 3D builder only: the exact three.js r128 directories it loads
-//     (public/builder-3d.js, every file also SRI-pinned).
+//   • the 3D builder: nothing extra any more - three.js r186 is self-hosted under
+//     public/vendor/three-0.186.1/ and loaded as same-origin ES modules (public/three-boot.js),
+//     so 'self' covers it. SCRIPT_SRC_BUILDER is kept (= base) so a future builder-only
+//     source still has exactly one place to go.
 // A source ending in "/" matches by path prefix (CSP3 §6.7.2.12), so nothing
 // else on those CDNs is allowed. server.js builds its policies from these
 // constants; scripts/gen-csp.mjs fails when vercel.json / public/_headers drift.
 const SCRIPT_SRC_BASE = ["'self'", 'https://browser.sentry-cdn.com/8.55.2/'];
-const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
-  'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
-  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/'];
+const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE];
 // Pages (clean URL or .html) whose policy may use SCRIPT_SRC_BUILDER.
 const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html', '/try', '/try.html', '/(builder|try)', '/(builder|try)\\.html', '/capture', '/capture\\.html', '/capture.html', '/(capture|capture\\.html)', '/([a-z0-9-]+)/events/([^/]+)/floor-plan', '/:studio/events/:ref/floor-plan',
   '/([a-z0-9-]+)/(events/[^/]+/floor-plan|builder)', '/:studio/builder']);   // 0067 pretty floor-plan URL serves builder.html; la-1018 /<studio>/builder too

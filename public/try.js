@@ -2,8 +2,8 @@
    from builder.html by scripts/gen-try.mjs). Loaded FIRST, in <head>:
      1. no Supabase: the config is blanked, so store-api.js runs its browser-only
         localStorage tier (layouts live in this browser and nowhere else);
-     2. network guard: only same-origin static GETs and the pinned three.js CDN
-        directories are allowed — every API / Supabase / write request is refused;
+     2. network guard: only same-origin static GETs are allowed (three.js is self-hosted
+        under /vendor/) — every API / Supabase / write request is refused;
      3. theme (the builder's inline theme script is not carried over);
      4. after load: a pre-made wedding banquet, the 2D / 3D / Measure toggle (m / ft),
         a 5-item "Add item" tray, rotate and reset (builder.js window.__helmSandbox hook). */
@@ -14,7 +14,7 @@
   try { Object.defineProperty(W, 'SUPABASE_CONFIG', { value: Object.freeze({ url: '', anonKey: '' }), writable: false, configurable: false }); } catch (e) {}
 
   /* ---- 2. network guard ---- */
-  var CDN = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/', 'https://cdn.jsdelivr.net/npm/three@'];
+  var CDN = [];   // three.js is same-origin now (/vendor/three-<ver>/, loaded by /three-boot.js)
   function okUrl(u, method) {
     if (String(method || 'GET').toUpperCase() !== 'GET') return false;
     var url; try { url = new URL(String(u), location.href); } catch (e) { return false; }

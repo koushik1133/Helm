@@ -14,6 +14,30 @@ npm tarball integrity for 2.118.0 (r30, verified against the registry 2026-10-26
 Loaded by `public/store-api.js` → `loadSupabaseLib()`. The version, file name
 and integrity are in the `SUPABASE_JS` constant there.
 
+## three.js 0.186.1 (r186) — the builder's 3D view
+
+Source: npm `three@0.186.1` (published 2026-09-24), tarball integrity
+`sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA==`.
+Licence: MIT, Copyright 2010-2026 three.js authors (banner kept in every file).
+
+Built by `scripts/vendor-three.mjs` (dev-time esbuild minify only): `three.module.min.js` =
+`build/three.module.js` + `build/three.core.js` bundled into one ES module; each addon is
+`examples/jsm/<path>` minified with its bare `'three'` import rewritten to the relative core file,
+so no importmap is needed. `node scripts/vendor-three.mjs --check` re-hashes everything against
+`scripts/three-vendor.SHA384SUMS`.
+
+Loaded only by `public/three-boot.js` (dynamic `import()` from `public/builder-3d.js` on the first
+3D / Render use). Same-origin, so `script-src 'self'` covers it; no CDN host in any CSP.
+
+| File | sha384 |
+|---|---|
+| `three-0.186.1/addons/controls/OrbitControls.js` | `sha384-mRj9SLRBCpbNLJNWuAgI0lVou2CvzmApyYJhoHA5z1KMGJx+hGzWx7sNqE0FLjPp` |
+| `three-0.186.1/addons/controls/TransformControls.js` | `sha384-oB0s0+j4QZri4fdyHnZM//Smq+ygOPZG41j6g29Z4fB3PBOhAiA9y6Xwb95gJkS5` |
+| `three-0.186.1/addons/loaders/GLTFLoader.js` | `sha384-s1W6NvCVpzAJr8N0uermT4mHg71dtbooMJ7JOfvrMzYscRwqdytW3MgyRg+KMIED` |
+| `three-0.186.1/addons/utils/BufferGeometryUtils.js` | `sha384-Mldi6k0a3Je+fd+qbCYfg6/quNYVkBrYztsQJ3tmofWN6vt+fmZl2kygU3zzUraQ` |
+| `three-0.186.1/addons/utils/SkeletonUtils.js` | `sha384-YDk7ED8kkTj8Sr8O8624JO3W2l6TmabXBy5IR8qNsqRjUWbSygeJTo2C0gAz0aA6` |
+| `three-0.186.1/three.module.min.js` | `sha384-eZH+Pcr30iKKjwjbpwrnDAgDtIdAPelzi9C6s/tx+5fiQS1SgwamixZGtfLHPjHN` |
+
 ## Sentry (CDN, SRI-pinned, not vendored)
 
 `public/telemetry.js` loads `https://browser.sentry-cdn.com/8.55.2/bundle.min.js`
