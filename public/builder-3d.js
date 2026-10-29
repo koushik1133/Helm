@@ -1582,7 +1582,8 @@
     const transformHelper=transform.getHelper();   // r169+: TransformControls is no longer an Object3D - its gizmo is the helper (traverse/add/visible go through this)
     // R62: the handles are drawn LAST (after the name tags / badges, which are depth-test-free sprites too) - the
     // tags used to paint over a small gizmo sitting at the item's base, so Move / Rotate / Scale looked dead
-    transformHelper.traverse(o=>{ o.renderOrder=999; });
+    transform.traverse = transformHelper.traverse.bind(transformHelper);   // r186: TransformControls isn't an Object3D anymore, so route traverse through its helper
+    transform.traverse(o=>{ o.renderOrder=999; });
     transform.addEventListener('dragging-changed', e=>{ controls.enabled=!e.value;
       if(e.value){ const it=curItem(); gizmoBase = it?{x:it.x,y:it.y,width:it.width,height:it.height,cx:it.x+it.width/2,cy:it.y+it.height/2}:null; }
       else { gizmoBase=null; if(store.selectedId){ commit(); } renderAll(); } });
