@@ -77,7 +77,7 @@ export async function avScan(bytes: Uint8Array): Promise<AvResult> {
   try {
     const headers: Record<string, string> = { "Content-Type": "application/octet-stream" };
     if (cfg.token) headers["Authorization"] = "Bearer " + cfg.token;
-    const r = await fetch(cfg.url.toString(), { method: "POST", headers, body: bytes, signal: ctl.signal, redirect: "error" });
+    const r = await fetch(cfg.url.toString(), { method: "POST", headers, body: new Blob([bytes as BlobPart]), signal: ctl.signal, redirect: "error" });
     const text = (await r.text()).slice(0, 4096);
     if (!r.ok) { console.error("verify-upload: AV status", r.status); return "error"; }
     let j: any = null;

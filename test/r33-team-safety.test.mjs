@@ -145,7 +145,7 @@ await t('comms-dispatch: the team_safety e-mail for every event (names only, Tea
     admin_change_applied: [/Meera was deactivated - Aurora Events/, /Their records are kept; an admin can reactivate them\./],
     admin_deactivated: [/Meera was deactivated/, /Ravi \(the studio owner\) deactivated Meera/],
     admin_demoted: [/Meera is now Event manager/, /from Admin to Event manager/],
-    owner_transfer_started: [/Anil wants to make Ravi the owner of Aurora Events/, /must accept it in Settings -> Team within 7 days/],
+    owner_transfer_started: [/Anil wants to make Ravi the owner of Aurora Events/, /must accept it in Control Center -> Team within 7 days/],
     owner_transfer_accepted: [/Ravi is now the owner of Aurora Events/, /Anil stays an admin/],
     owner_transfer_cancelled: [/hand-over was cancelled/, /Nothing changed\./],
     owner_transfer_declined: [/Ravi declined/, /Anil stays the owner/],
