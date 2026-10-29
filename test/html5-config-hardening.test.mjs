@@ -426,7 +426,8 @@ t('SIM-01: /sim-pay is redirected to /404 on every production host (staging + lo
 t('CORS-02 / HSTS-01: server.js local API sends no Access-Control-* and carries HSTS', () => {
   const src = read('server.js');
   // Only the pinned static-asset ACAO (canonical origin) may appear — never '*', never credentials.
-  const acao = [...src.matchAll(/'Access-Control-Allow-Origin':\s*'([^']*)'/g)].map((m) => m[1]);
+  // INF-02 (R64): it is now set by bracket-assignment (asset-scoped), so accept `: '…'` or `] = '…'`.
+  const acao = [...src.matchAll(/Access-Control-Allow-Origin'\]?\s*[:=]\s*'([^']*)'/g)].map((m) => m[1]);
   assert.deepEqual(acao, ['https://www.helm.events']);
   assert.ok(!/Access-Control-Allow-(Credentials|Headers|Methods)/.test(src));
   assert.ok((src.match(/includeSubDomains; preload/g) || []).length >= 4);

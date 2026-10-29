@@ -85,9 +85,11 @@ const cspMap = (v) => Object.fromEntries((v || '').split(';').map((d) => d.trim(
 let n = 0;
 const t = (name, fn) => { fn(); n++; };
 
+// INF-02 (R64): access-control-allow-origin is NOT in this per-page list — it is
+// asset-scoped now (pinned on static assets, absent on HTML documents), verified
+// in its own block at the end of this file.
 const SECURITY_KEYS = ['strict-transport-security', 'cross-origin-opener-policy', 'cross-origin-resource-policy',
-  'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy',
-  'access-control-allow-origin'];
+  'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy'];
 
 // every page (clean + .html where applicable) + token/docs routes
 const paths = ['/', '/i', '/i/some-slug', '/docs/USER-MANUAL', '/docs/USER-MANUAL.html'];
@@ -292,15 +294,30 @@ t('microphone: only /chat and the crew work link may use it (voice notes), self 
 
 console.log(`headers-parity: ${n} assertion group(s) passed.`);
 
-/* ---- no wildcard ACAO anywhere; legacy *.vercel.app aliases are noindex ---- */
+/* ---- INF-02 (R64): ACAO is asset-scoped (pinned on assets, absent on documents),
+        never a wildcard; legacy *.vercel.app aliases are noindex ---- */
 {
-  for (const r of vercel.headers) for (const h of r.headers) {
+  const ACAO = 'https://www.helm.events';
+  // never a wildcard anywhere (vercel.json + _headers)
+  for (const r of vercel.headers) for (const h of r.headers)
     if (h.key.toLowerCase() === 'access-control-allow-origin') assert.notEqual(h.value.trim(), '*', 'vercel.json must not send wildcard ACAO');
+  for (const m of readFileSync(join(PUB, '_headers'), 'utf8').matchAll(/Access-Control-Allow-Origin:\s*(.*)/gi))
+    assert.notEqual(m[1].trim(), '*', '_headers must not send wildcard ACAO');
+  // static ASSET responses carry the pinned, exact origin on all three header sources
+  for (const a of ['/store-api.js', '/theme.css', '/vendor/supabase-x.js', '/home-assets/hero-poster.jpg', '/fonts/inter.woff2', '/favicon.ico']) {
+    assert.equal(vercelHeaders(a)['access-control-allow-origin'], ACAO, 'vercel.json asset ACAO ' + a);
+    assert.equal(netlifyHeaders(a)['access-control-allow-origin'], ACAO, '_headers asset ACAO ' + a);
+    assert.equal(serverHeaders(a)['access-control-allow-origin'], ACAO, 'server.js asset ACAO ' + a);
   }
-  assert.equal(vercelHeaders('/store-api.js')['access-control-allow-origin'], 'https://www.helm.events');
+  // same-origin HTML documents get NO Access-Control-* header (the INF-02 fix)
+  for (const d of ['/', '/dashboard', '/login', '/approve', '/index.html', '/dashboard.html']) {
+    assert.equal(vercelHeaders(d)['access-control-allow-origin'], undefined, 'vercel.json doc ACAO ' + d);
+    assert.equal(netlifyHeaders(d)['access-control-allow-origin'], undefined, '_headers doc ACAO ' + d);
+    assert.equal(serverHeaders(d.replace(/\.html$/, ''))['access-control-allow-origin'], undefined, 'server.js doc ACAO ' + d);
+  }
   for (const host of ['helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
     const r = vercel.headers.find((x) => x.has && x.has.some((c) => c.type === 'host' && c.value === host));
     assert.ok(r && r.source === '/(.*)' && /noindex/.test(r.headers.find((h) => h.key === 'X-Robots-Tag').value), host + ' must be noindex');
   }
-  console.log('ok — no wildcard ACAO; legacy aliases noindex');
+  console.log('ok — ACAO asset-scoped (pinned on assets, absent on documents); no wildcard; legacy aliases noindex');
 }
