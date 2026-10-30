@@ -84,7 +84,7 @@ begin
 
   -- (5) shape
   perform pg_temp.res('09 live _mp_sync_staff: marker, empty search_path; app cannot call any layer',
-    coalesce((select p.prosecdef and array_to_string(p.proconfig, ',') like '%search_path=""%' and position('r86-profile-trial-0308' in p.prosrc) > 0
+    coalesce((select p.prosecdef and array_to_string(p.proconfig, ',') like '%search_path=""%' and (position('r86-profile-trial-0308' in p.prosrc) > 0 or position('r103-profile-payment-0314' in p.prosrc) > 0)
        from pg_proc p where p.oid = 'public._mp_sync_staff(uuid,jsonb)'::regprocedure), false)
     and to_regprocedure('public._mp_sync_staff__pre0308(uuid,jsonb)') is not null
     and not has_function_privilege('authenticated', 'public._mp_sync_staff(uuid,jsonb)', 'execute')

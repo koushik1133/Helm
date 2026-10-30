@@ -68,6 +68,8 @@ run "r92-task-lifecycle-0311" "R92-TASK-LIFECYCLE-0311: ALL PASS \(28/28\)" psql
 run "r96-cancel-task-0312" "R96-CANCEL-TASK-0312: ALL PASS \(27/27\)" psql -q -f tests/db/r96-cancel-task-0312.sql
 # r97 (0313): layout_rules limits checked by the database (only changed keys; inserts re-check only the R97 keys), custom event types under RLS; rolled back
 run "r97-layout-rules-0313" "R97-LAYOUT-RULES-0313: ALL PASS \(24/24\)" psql -q -f tests/db/r97-layout-rules-0313.sql
+# r103 (0314): "Complete your profile" saves for the owner of a studio waiting for its first payment; business writes + other people's profiles stay blocked; Staff sync skipped until paid; re-applies itself twice, rolled back
+run "r103-profile-payment-0314" "R103-PROFILE-PAYMENT-0314: ALL PASS \(13/13\)" psql -q -f tests/db/r103-profile-payment-gate-0314.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
