@@ -48,8 +48,9 @@ t('studio: library optgroup, saves the KEY (musicTrack), preview button plays li
 });
 t('CSP: invitation pages allow same-origin media + images', () => {
   const v = JSON.parse(read('vercel.json'));
-  for (const src of ['/invite', '/invite\\.html', '/invite-studio', '/i/(.*)', '/([a-z0-9-]+)/invite/([^/]+)']) {
-    const hs = v.headers.filter((x) => x.source === src).flatMap((x) => x.headers).filter((x) => x.key === 'Content-Security-Policy');
+  // r83: pages sharing one CSP share one rule, so resolve by URL (last matching rule wins, as on Vercel)
+  for (const src of ['/invite', '/invite.html', '/invite-studio', '/i/abc', '/demo/invite/abc']) {
+    const hs = v.headers.filter((x) => !x.has && new RegExp('^' + x.source + '$').test(src)).flatMap((x) => x.headers).filter((x) => x.key === 'Content-Security-Policy');
     assert.ok(hs.length, src); const csp = hs[hs.length - 1].value;
     assert.match(csp, /media-src 'self'/, src); assert.match(csp, /img-src 'self'/, src);
   }
