@@ -77,14 +77,15 @@ t('seen keys: one per page, one per Settings section (builder key unchanged)', (
   assert.match(r('builder.js'), /const BUILDER_TOUR_SEEN='helm_tour_seen_builder';/);
 });
 
-t('Roles & access tour: view vs ✎ edit, admin always full, the Finance switches', () => {
+t('Roles & access tour: can see vs can change, admin always full, the Finance switches', () => {
   const A = load().P.stepsFor('control', 'access');
   assert.ok(A.length >= 5 && A.length <= 8);
   const by = (sel) => A.find((s) => [].concat(s.sel).includes(sel));
   assert.match(by('#roleTabs').desc, /role/);
   assert.match(by('#roleTabs .rtab[data-role="admin"]').title, /Admin always has full access/);
   assert.match(by('#matrix .chip:not(.perm) .cview').desc, /see it/);
-  assert.match(by('#matrix .chip:not(.perm) .pen').title, /✎ Edit/);
+  assert.match(by('#matrix .chip:not(.perm) .pen').title, /Can change/);
+  assert.match(by('#mgrClose').title, /Managers can close events/);
   assert.match(by('#matrix .chip:not(.perm) .pen').desc, /change things/);
   assert.match(by('#matrix .chip[data-area="discount_approve"]').title, /Finance: approve discounts/);
   assert.match(by('#matrix .chip[data-area="discount_approve"]').desc, /Nobody can approve their own/);
@@ -115,7 +116,7 @@ t('startPage runs this section\'s tour, skips what is not on screen, and remembe
   T.startPage([{ title: 'Shell', desc: 'shell tour' }], 'helm_tour_shell'); await tick(); await tick();
   const h = () => box.root.querySelector('h4').textContent;
   assert.equal(h(), 'Pick a role'); assert.equal(box.root.querySelector('.tstep').textContent, 'Step 1 of 3');
-  box.root.querySelector('.next').onclick(); assert.equal(h(), '✎ Edit', 'missing targets skipped');
+  box.root.querySelector('.next').onclick(); assert.equal(h(), 'Can change', 'missing targets skipped');
   box.root.querySelector('.next').onclick(); assert.equal(h(), 'Saved straight away');
   assert.equal(box.root.querySelector('.next').textContent, 'Done');
   box.root.querySelector('.next').onclick();
