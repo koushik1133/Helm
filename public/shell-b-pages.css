@@ -63,6 +63,17 @@ html[data-shell="b"][data-theme="dark"] :is(.app, .page, .wrap, main) { backgrou
   html[data-shell="b"] header.hb-header .hb-split .hb-chev.hb-solo { width: 44px; min-width: 44px; height: 44px; padding: 0; justify-content: center; }
   html[data-shell="b"] header.hb-header .hb-split .hb-chev.hb-solo .hb-svg:last-child { display: none; }
 }
+/* r76 (320px QA): burger + title + privacy + search + bell + split needed ~362px, pushing the "+" off a 320px screen.
+   Below 360px only: 40px icon squares, 32px caret, no tool gaps, a slimmer title floor. 375px+ is unchanged. */
+@media (max-width: 359.98px) {
+  html[data-shell="b"] header.hb-header { padding: 0 6px !important; gap: 2px; }
+  html[data-shell="b"] header.hb-header > :not(.hb-tools):not(.hb-burger):not(nav):not(.mark):not(.spacer):not(.account) { min-width: 56px; }
+  html[data-shell="b"] header.hb-header .hb-tools { gap: 0; }
+  html[data-shell="b"] header.hb-header :is(.hb-burger, .hb-tools .hb-ibtn, .hb-tools .hb-bell .bpb-btn) { width: 40px; min-width: 40px; height: 40px; }
+  html[data-shell="b"] header.hb-header .hb-split .hb-new:not(.hb-chev) { min-width: 40px; padding: 0 10px; }
+  html[data-shell="b"] header.hb-header .hb-split .hb-chev { width: 32px; min-width: 32px; }
+  html[data-shell="b"] header.hb-header .hb-split .hb-chev.hb-solo { width: 40px; min-width: 40px; height: 40px; }
+}
 /* 5c. quotes: row actions on one horizontally scrollable line instead of a 470px stack */
 @media (max-width: 600px) {
   html[data-shell="b"] td .row-actions { flex-wrap: nowrap; overflow-x: auto; max-width: 70vw; justify-content: flex-start !important; scrollbar-width: thin; }
