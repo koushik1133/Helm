@@ -5,6 +5,7 @@ html.helm-demo { --hb-bg:#ffffff; --hb-bg2:#f5f7fc; --hb-line:#e3e8f2; --hb-ink:
   --ok:#0f7a43; --ok-bg:#e7f6ee; --wt:#8f5f00; --wt-bg:#fdf3e1; --rk:#b42318; --rk-bg:#fdecec;
   --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace; color-scheme:light; }
 html.helm-demo[data-pt="emerald"]  { --hb-bg:#ffffff; --hb-bg2:#f4f8f6; --hb-line:#e0eae5; --hb-ink:#0b2a22; --hb-ink2:#2f4a42; --hb-ink3:#5a7068; --hb-acc:#047857; --hb-acc-ink:#ffffff; --hb-acc-soft:#e3f4ed; --hb-acc-text:#036b4d; }
+/* MIDNIGHT: parked R98, owner may restore. These rules are kept but unused - no allow-list (shell-proto.js, public-theme.js, the picker) can set midnight any more. */
 html.helm-demo[data-pt="midnight"] { --hb-bg:#ffffff; --hb-bg2:#f5f5fb; --hb-line:#e4e4f0; --hb-ink:#12133a; --hb-ink2:#3a3c5e; --hb-ink3:#62658a; --hb-acc:#4338ca; --hb-acc-ink:#ffffff; --hb-acc-soft:#eeedfc; --hb-acc-text:#3f34c2; }
 html.helm-demo[data-pt="graphite"] { --hb-bg:#ffffff; --hb-bg2:#f5f5f5; --hb-line:#e5e5e5; --hb-ink:#000000; --hb-ink2:#333333; --hb-ink3:#666666; --hb-acc:#000000; --hb-acc-ink:#ffffff; --hb-acc-soft:#f0f0f0; --hb-acc-text:#000000; }
 html.helm-demo[data-pt="studio"]   { --hb-bg:#FAF8F5; --hb-bg2:#F4F1EC; --hb-line:#E7E2DA; --hb-ink:#1F1A24; --hb-ink2:#4A4351; --hb-ink3:#6E6676; --hb-acc:#5B2A86; --hb-acc-ink:#ffffff; --hb-acc-soft:#F1EBF7; --hb-acc-text:#5B2A86; }

@@ -141,6 +141,7 @@ html[data-shell="b"] .bpui-loading { color: var(--hb-ink2); }
 /* 13b. Dark midnight/emerald: the base dark accent (#5b52e6 / #08795a) is too dim as TEXT on its own soft tint
    (chips/tags/avatars using color: var(--accent) on var(--accent-soft) measured 2.5-2.7:1). Lift the page-level accent
    just enough for >=3:1 on the soft tint while keeping >=4.3:1 for white text on accent buttons. */
+/* MIDNIGHT: parked R98, owner may restore. These rules are kept but unused - no allow-list (shell-proto.js, public-theme.js, the picker) can set midnight any more. */
 html[data-shell="b"][data-theme="dark"][data-hb-theme="midnight"]:root { --accent: #6b63f0; --accent-2: #6b63f0; --bpui-accent: #6b63f0; }
 html[data-shell="b"][data-theme="dark"][data-hb-theme="emerald"]:root { --accent: #0a8a66; --accent-2: #0a8a66; --bpui-accent: #0a8a66; }
 @media (prefers-color-scheme: dark) {

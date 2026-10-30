@@ -25,7 +25,7 @@
   try { localStorage.removeItem("helm.dash.v"); } catch (e) {}
   {
     /* SHELL_V: bump this whenever any shell-* file changes, so browsers refetch (was Date.now(), which defeated caching) */
-    var SHELL_V = "157", root = document.documentElement, head = document.head;
+    var SHELL_V = "158", root = document.documentElement, head = document.head;
     window.HELM_SHELL_V = SHELL_V;
     root.setAttribute("data-shell", v);
     /* 0181 free trial: a studio last seen in its trial is locked before first paint (cached flag, same as trial-early.js);
@@ -38,7 +38,7 @@
       /* one-time move to the new default (Oct 2026): a device still on the OLD default (cobalt / nothing saved) starts on emerald */
       if (localStorage.getItem("helm.theme.v") !== "2") { if (!th || th === "cobalt") { th = "emerald"; localStorage.setItem("helm.shellb.theme", th); } localStorage.setItem("helm.theme.v", "2"); }
     } catch (e) {}
-    root.setAttribute("data-hb-theme", /^(cobalt|midnight|emerald|graphite|studio)$/.test(th || "") ? th : "emerald");   /* theme before first paint; default = EMERALD (light) */
+    root.setAttribute("data-hb-theme", /^(cobalt|emerald|graphite|studio)$/.test(th || "") ? th : "emerald");   /* R98: midnight parked (a saved midnight falls back to emerald; the stored value is left untouched); theme before first paint; default = EMERALD (light) */
     if (window.HELM_DARK_MODE !== true) { root.setAttribute("data-theme", "light"); root.classList.add("hb-nodark"); }   /* dark mode off: always light (store-api.js light lock) */
     try { if (localStorage.getItem("helm.shellb.pin") === "1") root.classList.add("hb-pinned"); } catch (e) {}   /* reserve the right rail width up-front */
     try { if (sessionStorage.getItem("helm.priv.state") !== "shown") root.classList.add("hb-priv-on"); } catch (e) { root.classList.add("hb-priv-on"); }   /* privacy mode: amounts hidden before first paint (default) */

@@ -10,6 +10,7 @@ html[data-pt] { --acc-ink:#ffffff; --acc-text:var(--accent); --yes:#0d7a3c; --pa
   --shadow:0 1px 2px color-mix(in srgb,var(--ink) 5%,transparent),0 8px 24px -14px color-mix(in srgb,var(--ink) 22%,transparent);
   color-scheme:light; }
 html[data-pt="cobalt"]   { --bg:#f5f7fc; --panel:#ffffff; --panel-2:#f8f9fd; --line:#e3e8f2; --line-2:#edf0f7; --ink:#0b1b3f; --ink-2:#34405c; --ink-3:#5f6b88; --accent:#2450f0; --accent-2:#1d44d8; --accent-soft:#eaeffe; --acc-text:#1d44d8; }
+/* MIDNIGHT: parked R98, owner may restore. These rules are kept but unused - no allow-list (shell-proto.js, public-theme.js, the picker) can set midnight any more. */
 html[data-pt="midnight"] { --bg:#f5f5fb; --panel:#ffffff; --panel-2:#f8f8fc; --line:#e4e4f0; --line-2:#eeeef6; --ink:#12133a; --ink-2:#3a3c5e; --ink-3:#62658a; --accent:#4338ca; --accent-2:#3f34c2; --accent-soft:#eeedfc; --acc-text:#3f34c2; }
 html[data-pt="emerald"]  { --bg:#f4f8f6; --panel:#ffffff; --panel-2:#f7faf9; --line:#e0eae5; --line-2:#ebf2ee; --ink:#0b2a22; --ink-2:#2f4a42; --ink-3:#5a7068; --accent:#047857; --accent-2:#036b4d; --accent-soft:#e3f4ed; --acc-text:#036b4d; }
 html[data-pt="graphite"] { --bg:#f5f5f5; --panel:#ffffff; --panel-2:#fafafa; --line:#e5e5e5; --line-2:#efefef; --ink:#000000; --ink-2:#333333; --ink-3:#666666; --accent:#000000; --accent-2:#333333; --accent-soft:#f0f0f0; --acc-text:#000000; }

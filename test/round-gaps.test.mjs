@@ -12,7 +12,7 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 t('onboarding loads HelmCountry + smart import after store-api; wizard uses real HelmCountry names', () => {
   const h = read('public/onboarding.html');
   const i = (s) => h.indexOf(s);
-  assert.ok(i('country-profile.js?v=7') > 0 && i('country-profile.js') < i('store-api.js?v=315'));
+  assert.ok(i('country-profile.js?v=7') > 0 && i('country-profile.js') < i('store-api.js?v=316'));
   for (const s of ['xlsx-lite.js?v=2', 'smart-import-core.js?v=6', 'smart-import.js?v=6']) assert.ok(i(s) > i('store-api.js'), s);
   global.HelmCountry = req('../public/country-profile.js');
   const W = req('../public/onboarding-wizard.js');

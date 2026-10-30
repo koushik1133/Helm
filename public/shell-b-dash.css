@@ -121,7 +121,8 @@ html[data-shell="b"] .hd-card[hidden] { display: none !important; }
 html[data-shell="b"] .hd-head { display: flex; align-items: center; gap: 10px; padding: 18px var(--hd-pad) 12px; color: var(--hd-ink-3); }
 html[data-shell="b"] .hd-head h3 { margin: 0; font: 600 15px/20px var(--hd-f-ui); letter-spacing: -.005em; color: var(--hd-ink); }
 html[data-shell="b"] .hd-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-html[data-shell="b"] .hd-more-link { display: inline-flex; align-items: center; gap: 4px; font: 500 12.5px/18px var(--hd-f-ui); color: var(--hd-acc-text); text-decoration: none; }
+/* R98: ".hd-dash a { color: inherit }" out-ranked this, so "View all" was ink in cobalt/emerald/graphite but plum in studio; now the accent text in every theme */
+html[data-shell="b"] .hd-more-link, html[data-shell="b"] .hd-dash a.hd-more-link { display: inline-flex; align-items: center; gap: 4px; font: 500 12.5px/18px var(--hd-f-ui); color: var(--hd-acc-text); text-decoration: none; }
 html[data-shell="b"] .hd-more-link .hd-ic { width: 13px; height: 13px; transition: transform var(--hd-t-fast) var(--hd-ease); }
 html[data-shell="b"] .hd-more-link:hover .hd-ic { transform: translateX(2px); }
 html[data-shell="b"] .hd-body { padding: 4px var(--hd-pad) var(--hd-pad); }
@@ -785,3 +786,13 @@ html[data-shell="b"] .hd-quotes .stat .st-short { display: none; }
   html[data-shell="b"] .hd-quotes .stat .st-short { display: inline; }
   html[data-shell="b"] .hd-quotes .stat .st-full { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
+
+/* R98: the hero "New quote" split (button with the number chip + chevron) is ONE pill in every theme: one solid accent,
+   the shadow on the wrapper (not per half), square inner seam, thin translucent divider; hover/focus per half, no lift. */
+html[data-shell="b"] .hd-create-slot.hd-split { border-radius: 10px; box-shadow: var(--hd-sh-1); }
+html[data-shell="b"] .hd-split > .hd-btn.hd-primary { background: var(--hd-acc); color: var(--hd-acc-ink); border-color: transparent; box-shadow: none; filter: none; transform: none; }
+html[data-shell="b"] .hd-split > #createBtn:not([hidden]) { border-radius: 10px 0 0 10px; }
+html[data-shell="b"] .hd-split > .hd-btn.hd-split-tog { border-radius: 0 10px 10px 0; border-left: 1px solid color-mix(in srgb, var(--hd-acc-ink) 32%, transparent); }
+html[data-shell="b"] .hd-split > .hd-btn.hd-primary:hover, html[data-shell="b"] .hd-split > .hd-split-tog[aria-expanded="true"] { background: color-mix(in srgb, var(--hd-acc) 84%, var(--hd-ink-2)); filter: none; }
+html[data-shell="b"] .hd-split > .hd-btn.hd-primary:active { background: color-mix(in srgb, var(--hd-acc) 74%, var(--hd-ink-2)); transform: none; }
+html[data-shell="b"] .hd-split > .hd-btn.hd-primary:focus-visible { outline: 2px solid var(--hd-acc-ink); outline-offset: -4px; position: relative; z-index: 1; }
