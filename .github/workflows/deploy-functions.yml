@@ -1,0 +1,58 @@
+# Deploy Supabase edge functions from GitHub (no laptop CLI needed).
+# Run it by hand: Actions -> "Deploy edge functions" -> Run workflow.
+# Needs the repo secret SUPABASE_ACCESS_TOKEN (Supabase -> Account -> Access tokens).
+# The JWT flag per function follows RELEASE-PLAN.md: 16 check the caller in code (--no-verify-jwt),
+# 8 keep Supabase's login check. Deploying never switches a dormant function on.
+name: Deploy edge functions
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which project"
+        type: choice
+        options: [production, staging]
+        default: staging
+      functions:
+        description: "Function names, space-separated, or 'all'"
+        required: true
+        default: "client-mailer comms-dispatch pkg-client-notify send-otp"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-functions-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ inputs.target == 'production' && 'nqltzgiwznphugcfhmbm' || 'xizehqgeyjcfpzrdymly' }}
+      FUNCS: ${{ inputs.functions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then echo "::error::Add the SUPABASE_ACCESS_TOKEN repo secret first"; exit 1; fi
+          NOJWT="billing-reminder booklet-snapshot captcha-verify client-mailer comms-dispatch csp-report email-unsubscribe invite-mailer invite-signup pkg-client-notify razorpay-subscription-webhook razorpay-webhook security-alert-mailer verify-upload wa-webhook welcome-mailer"
+          JWT="create-payment-link create-subscription-checkout integrations-test render-photo send-otp send-phone-code send-whatsapp wa-proposal"
+          if [ "$FUNCS" = "all" ]; then FUNCS="$NOJWT $JWT"; fi
+          fail=0
+          for f in $FUNCS; do
+            if ! [[ "$f" =~ ^[a-z0-9-]+$ ]] || [ ! -d "supabase/functions/$f" ]; then echo "::error::unknown function: $f"; fail=1; continue; fi
+            if [[ " $NOJWT " == *" $f "* ]]; then flag="--no-verify-jwt"
+            elif [[ " $JWT " == *" $f "* ]]; then flag=""
+            else echo "::error::$f is not in the JWT lists - add it to this workflow first"; fail=1; continue; fi
+            echo "== deploy $f $flag -> $PROJECT_REF"
+            supabase functions deploy "$f" $flag --project-ref "$PROJECT_REF" || { echo "::error::FAILED: $f"; fail=1; }
+          done
+          exit $fail
