@@ -5422,6 +5422,7 @@ window.HelmUrl = HelmUrl;
     // opts.fresh: read the saved row from the server (an edit form must never start from the tab cache)
     async current(opts) { if (!supa) return null;
       const oid = await this.id();
+      if (!oid) return null;   // r84: no studio yet - never query organizations?id=eq.null
       const read = async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
         if (error) throw error; try { if (data && data.timezone && BPStore.rememberStudioTimezone) BPStore.rememberStudioTimezone(data.timezone); } catch (e) {}
         studioEmit(data); return data; };

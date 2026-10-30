@@ -58,6 +58,8 @@ run "direct-studio-0159" "DIRECT-STUDIO-0159: ALL PASS \(30/30\)" psql -q -f tes
 run "r22-create-studio-0255" "R22-CREATE-STUDIO-0255: ALL PASS \(46/46\)" psql -q -f tests/db/r22-create-studio-0255.sql
 # early: later suites re-apply 0032 / 0156 / 0200 over the 0262 verify_and_consent / comms_outbox_claim wrappers
 run "r23-quote-validity-0262" "R23-QUOTE-VALIDITY-0262: ALL PASS \(69/69\)" psql -q -f tests/db/r23-quote-validity-0262.sql
+# r84 (0307): one approval per quote - an older unused approval code cannot approve a second time; other open codes expire on a successful verify; re-approval still works; re-applies itself twice, rolled back (runs right after 0262: later suites re-apply OLDER verify_and_consent layers)
+run "r84-otp-single-use-0307" "R84-OTP-SINGLE-USE-0307: ALL PASS \(9/9\)" psql -q -f tests/db/r84-otp-single-use-0307.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
