@@ -329,6 +329,8 @@
     try { if (!(await B.auth.canView("staff"))) { card.hidden = true; return; } } catch (e) { card.hidden = true; return; }
     var canEdit = false; try { canEdit = await B.auth.canEditArea("staff"); } catch (e) {}
     var month = today().slice(0, 7);
+    // r80: the Staff page fires this after a deactivate / reactivate / save, so the grid drops or adds the row now
+    doc.addEventListener("helm:staff-changed", function () { draw().catch(function () {}); });
     await draw();
     async function draw() {
       var from = month + "-01", last = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate(), to = month + "-" + pad(last);
