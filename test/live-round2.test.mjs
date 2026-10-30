@@ -144,7 +144,7 @@ t('C4 fill-only migration note documented', () => {
   assert.match(d, /disable trigger quotes_set_updated/); assert.match(d, /enable trigger quotes_set_updated/); assert.match(d, /0091/);
 });
 t('versions bumped', () => {
-  assert.match(read('public/flow.html'), /store-api\.js\?v=309/);
+  assert.match(read('public/flow.html'), /store-api\.js\?v=310/);
   assert.match(read('public/inventory.html'), /smart-import-core\.js\?v=6/);
   assert.match(read('public/builder.html'), /layout-wizard\.js\?v=18/); assert.match(read('public/builder.html'), /builder\.js\?v=81/);
 });

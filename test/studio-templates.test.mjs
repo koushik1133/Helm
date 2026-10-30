@@ -66,9 +66,9 @@ t('wizard: Start from my template', () => {
 t('pages: scripts + versions', () => {
   const bh = read('public/builder.html'), ch = read('public/control.html');
   assert.match(bh, /builder\.js\?v=81/); assert.match(bh, /layout-wizard\.js\?v=18/);
-  for (const h of [bh, ch]) { assert.match(h, /studio-templates-core\.js\?v=5"><\/script>\s*<script src="studio-templates\.js\?v=14"/); assert.match(h, /studio-templates\.css\?v=4/); }
+  for (const h of [bh, ch]) { assert.match(h, /studio-templates-core\.js\?v=6"><\/script>\s*<script src="studio-templates\.js\?v=15"/); assert.match(h, /studio-templates\.css\?v=5/); }
   assert.match(ch, /id="tab-ltemplates"[^>]*hidden/); assert.match(ch, /id="pane-ltemplates" hidden/);
-  assert.match(read('public/capture.html'), /studio-templates\.js\?v=14/);
+  assert.match(read('public/capture.html'), /studio-templates\.js\?v=15/);
 });
 t('store-api: layoutTemplates via RLS read + RPC writes', () => {
   const s = read('public/store-api.js');

@@ -14,6 +14,18 @@
   var EVENT_TYPES = [["wedding", "Wedding"], ["reception", "Reception"], ["engagement", "Engagement"], ["birthday", "Birthday"],
     ["corporate", "Corporate"], ["product_launch", "Product launch"], ["conference", "Conference"], ["political", "Political / rally"],
     ["concert", "Concert"], ["festival", "Festival"], ["other", "Other"]];
+  // R89: Helm's built-in starter layouts (builder.js TEMPLATES, the #preset dropdown in builder.html) - [key, name, event type].
+  // Code, never stored: "Customise" saves a studio COPY, the originals can't be changed. Not offered in a free trial.
+  var BUILTINS = [["political_theatre", "Theatre seating rally", "political"], ["political_townhall", "Town hall (round tables)", "political"],
+    ["political_arena", "Arena rally (3-sided)", "political"], ["conference_expo", "Expo hall (booths)", "conference"],
+    ["conference_keynote", "Keynote theatre", "conference"], ["conference_classroom", "Classroom / breakout", "conference"],
+    ["wedding_ceremony", "Ceremony (canopy + aisle)", "wedding"], ["wedding_banquet", "Banquet + dance floor", "wedding"],
+    ["wedding_reception", "Cocktail reception", "reception"], ["festival_mainstage", "Main stage + food lane", "festival"],
+    ["festival_multistage", "Two-stage festival", "festival"], ["festival_market", "Open-air market / fair", "festival"],
+    ["concert_mainstage", "Arena concert (main stage)", "concert"], ["concert_club", "Club / DJ night", "concert"],
+    ["gala_awards", "Gala / awards banquet", "corporate"], ["birthday_party", "Birthday / private party", "birthday"],
+    ["product_launch", "Product launch", "product_launch"], ["sports_stadium", "Sports / stadium", "other"]];
+  function builtin(key) { for (var i = 0; i < BUILTINS.length; i++) if (BUILTINS[i][0] === key) return { key: BUILTINS[i][0], name: BUILTINS[i][1], event_type: BUILTINS[i][2] }; return null; }
   var LIMITS = { name: 120, description: 1000, items: 5000, dataBytes: 600 * 1024, thumbChars: 400 * 1024 };
 
   function label(key) { for (var i = 0; i < EVENT_TYPES.length; i++) if (EVENT_TYPES[i][0] === key) return EVENT_TYPES[i][1]; return key || "Any event"; }
@@ -127,7 +139,7 @@
   }
 
   var API = { EVENT_TYPES: EVENT_TYPES, LIMITS: LIMITS, label: label, validate: validate, thumbOk: thumbOk, payload: payload, fitToHall: fitToHall, order: order, typeKey: typeKey,
-    roomOf: roomOf, previewShapes: previewShapes };
+    roomOf: roomOf, previewShapes: previewShapes, BUILTINS: BUILTINS, builtin: builtin };
   G.HelmStudioTemplatesCore = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -9591,6 +9591,18 @@ window.HelmUrl = HelmUrl;
     async setArchived(id, on) { return rpc("studio_template_set_archived", { p_id: id, p_archived: !!on }); },
     async setDefault(id, on) { return rpc("studio_template_set_default", { p_id: id, p_on: !!on }); },
     async duplicate(id) { return rpc("studio_template_duplicate", { p_id: id }); },
+    // 0310: read-only history of a template's layout (newest first); [] when 0310 is not installed yet
+    async versions(id) {
+      if (mode !== "supabase" || !supa) return [];
+      const { data, error } = await supa.from("studio_layout_template_versions").select("id,version_no,name,created_at,created_by").eq("template_id", id).order("version_no", { ascending: false }).limit(50);
+      if (error) { if (/studio_layout_template_versions/.test(String(error.message || "")) && /does not exist|schema cache/i.test(String(error.message || ""))) return []; throw error; }
+      return data || [];
+    },
+    async getVersion(versionId) {
+      if (mode !== "supabase" || !supa) return null;
+      const { data, error } = await supa.from("studio_layout_template_versions").select("*").eq("id", versionId).maybeSingle();
+      if (error) throw error; return data || null;
+    },
   };
   // 0108 dashboard_money: exact booked / collected (payment ledger) / outstanding / overdue / pipeline
   // for the dashboard. null when not on Supabase or 0108 isn't installed (the dashboard falls back

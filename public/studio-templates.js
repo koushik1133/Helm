@@ -88,7 +88,10 @@
       lfUseSize: typeof lfUseSize !== "undefined" ? lfUseSize : null, lfNote: typeof lfNote !== "undefined" ? lfNote : null, fitView: typeof fitView !== "undefined" ? fitView : null,
       updateEmptyState: typeof updateEmptyState !== "undefined" ? updateEmptyState : null, resetHistory: typeof resetHistory !== "undefined" ? resetHistory : null,
       setSavedBaseline: typeof setSavedBaseline !== "undefined" ? setSavedBaseline : null,
-      seatsFittedNotice: typeof seatsFittedNotice !== "undefined" ? seatsFittedNotice : null }[n] || null; } catch (_) { return null; } },
+      seatsFittedNotice: typeof seatsFittedNotice !== "undefined" ? seatsFittedNotice : null,
+      loadTemplate: typeof loadTemplate !== "undefined" ? loadTemplate : null }[n] || null; } catch (_) { return null; } },
+    // R89: a fresh copy of a built-in starter layout's items (builder.js TEMPLATES); null when unknown
+    builtinItems: function (key) { try { return C.builtin(key) && typeof TEMPLATES !== "undefined" && typeof TEMPLATES[key] === "function" ? TEMPLATES[key]() : null; } catch (_) { return null; } },
   };
   /* eslint-enable no-undef */
   var isBuilder = !!$("preset");
@@ -263,7 +266,7 @@
   }
   function renderManager(root, opts) {
     opts = opts || {};
-    var state = { showArchived: false, renaming: null, draft: null, err: "", msg: "" };
+    var state = { showArchived: false, renaming: null, draft: null, err: "", msg: "", ver: null };
     async function refresh() { try { await reload(true); state.err = ""; } catch (e) { state.err = friendly(e, "load templates"); } paint(); if (isBuilder) fillPreset(); }
     async function act(p, msg) { try { await p; state.msg = msg; state.err = ""; } catch (e) { state.err = friendly(e); state.msg = ""; } await refresh(); }
     // the manager's own permission + trial answer arrives before the first paint
@@ -296,19 +299,75 @@
         renameErr(inp, friendly(e)); try { inp.focus(); } catch (_) {}
       }
     }
+    // R89 (0310): a studio template's saved versions; "Put back" re-saves that layout through studio_template_save,
+    // so it becomes the newest version (nothing is overwritten or removed)
+    async function openVersions(r) {
+      if (state.ver && state.ver.id === r.id) { state.ver = null; paint(); return; }
+      state.ver = { id: r.id, rows: null, err: "" }; paint();
+      var v = state.ver;
+      try { v.rows = (S().layoutTemplates.versions ? await S().layoutTemplates.versions(r.id) : []) || []; }
+      catch (e) { v.err = friendly(e, "load the versions"); v.rows = []; }
+      if (state.ver === v) paint();
+    }
+    async function restoreVersion(r, vr, btn) {
+      if (btn.disabled) return;
+      if (G.BPUI && G.BPUI.confirm && !(await G.BPUI.confirm("Put back version " + vr.version_no + " of this template? It is saved as a new version - the current layout stays in the history.", { title: "Put back this version?", okLabel: "Put back" }))) return;
+      btn.disabled = true;
+      try {
+        var full = await S().layoutTemplates.getVersion(vr.id);
+        if (!full || !full.data) throw new Error("That version could not be found.");
+        await S().layoutTemplates.save(r.id, { name: r.name, event_type: r.event_type || "", description: r.description || "", data: full.data, thumbnail: null });
+        state.ver = null; state.msg = "Version " + vr.version_no + " put back (saved as the newest version)."; state.err = "";
+      } catch (e) { state.err = friendly(e); state.msg = ""; }
+      await refresh();
+    }
+    function versionsBox(r) {
+      var v = state.ver, M = perm.manage;
+      var kids = [h("b", { cls: "st-ver-h", text: "Versions" })];
+      if (!v.rows) kids.push(h("p", { cls: "mnote", text: "Loading versions\u2026" }));
+      else if (v.err) kids.push(h("p", { cls: "st-err", role: "alert", text: v.err }));
+      else if (!v.rows.length) kids.push(h("p", { cls: "mnote", text: "No saved versions yet - the next save in the builder becomes version 1." }));
+      else kids.push(h("ol", { cls: "st-ver-list" }, v.rows.map(function (vr, i) {
+        var when = ""; try { when = S().fmtDateTime ? S().fmtDateTime(vr.created_at) : new Date(vr.created_at).toLocaleString(); } catch (_) { when = String(vr.created_at || ""); }
+        var pb = M && i > 0 ? h("button", { type: "button", cls: "btn sm", text: "Put back" }) : null;
+        if (pb) pb.addEventListener("click", function () { restoreVersion(r, vr, pb); });
+        return h("li", { cls: "st-ver-row" }, [h("span", { cls: "st-ver-no", text: "v" + vr.version_no + (i === 0 ? " (current)" : "") }),
+          h("span", { cls: "st-ver-when", text: when }), pb]);
+      })));
+      return h("div", { cls: "st-ver", role: "region", "aria-label": "Versions of " + r.name }, kids);
+    }
+    // R89: Helm's built-in starter layouts (read-only; "Customise" makes a studio copy). Never in a free trial.
+    function builtinSection() {
+      var M = perm.manage;
+      var grid = h("div", { cls: "st-grid" });
+      C.BUILTINS.forEach(function (b) {
+        grid.appendChild(h("div", { cls: "st-card st-builtin" }, [
+          h("div", { cls: "st-thumb st-nothumb st-bi-thumb", "aria-hidden": "true", text: "\ud83d\udcd0" }),
+          h("b", { cls: "st-name", text: b[1], title: b[1] }),
+          h("div", { cls: "st-badges" }, [h("span", { cls: "st-badge", text: C.label(b[2]) }), h("span", { cls: "st-badge st-bi", text: "Built-in" })]),
+          h("div", { cls: "st-acts" }, [
+            h("a", { cls: "btn sm primary", href: "builder.html?new=1&useBuiltin=" + encodeURIComponent(b[0]), text: "Use", title: "Start a new design from this built-in layout" }),
+            M ? h("a", { cls: "btn sm", href: "builder.html?new=1&tplEdit=new&fromBuiltin=" + encodeURIComponent(b[0]), text: "Customise", title: "Save your own studio copy of this layout - the built-in original never changes" }) : null])]));
+      });
+      return h("section", { cls: "st-sec", id: "st_builtins", "aria-labelledby": "st_builtins_h" }, [
+        h("h4", { cls: "st-sec-h", id: "st_builtins_h", text: "Built-in starter layouts" }),
+        h("p", { cls: "mnote", text: "Ready-made by Helm. Use one as it is, or Customise it to save your own copy (with versions) under Your studio templates." }), grid]);
+    }
     function paint() {
       root.textContent = "";
       var M = perm.manage, trial = perm.trial;
       var tools = h("div", { cls: "st-tools" }, [
         M && opts.newHref ? h("a", { cls: "btn primary sm", href: opts.newHref, text: "+ New template" }) : null,
         trial ? null : h("label", { cls: "st-chk" }, [h("input", { type: "checkbox", checked: state.showArchived, onchange: function (e) { state.showArchived = e.target.checked; paint(); } }), " Show archived"])]);
+      if (opts.builtins && !trial) root.appendChild(h("h4", { cls: "st-sec-h", text: "Your studio templates" }));
       if (tools.childNodes.length) root.appendChild(tools);
       if (trial) root.appendChild(h("p", { cls: "st-trial", role: "note", text: "Free trial: these sample layouts are ready to use - open one in the builder to start a design. Making, renaming, duplicating or archiving templates opens when you upgrade." }));
       if (state.msg) root.appendChild(h("p", { cls: "st-ok", role: "status", text: state.msg }));
       if (state.err) root.appendChild(h("p", { cls: "st-err", role: "alert", text: state.err }));
       // archived templates are never listed in a free trial (0175 archives the retired sample layout)
       var list = rows.filter(function (r) { return !r.archived || (state.showArchived && !trial); });
-      if (!list.length) { root.appendChild(h("p", { cls: "mnote", text: rows.length && !trial ? "No live templates - tick Show archived to see archived ones." : (trial ? "No sample layouts in this trial studio." : "No studio templates yet. Arrange a floor in the builder, then use Save as template.") })); return; }
+      var tail = opts.builtins && !trial ? builtinSection() : null;
+      if (!list.length) { root.appendChild(h("p", { cls: "mnote", text: rows.length && !trial ? "No live templates - tick Show archived to see archived ones." : (trial ? "No sample layouts in this trial studio." : "No studio templates yet. Customise a built-in layout below, or arrange a floor in the builder and use Save as template.") })); if (tail) root.appendChild(tail); return; }
       var grid = h("div", { cls: "st-grid" });
       list.forEach(function (r) {
         var nameNode;
@@ -337,11 +396,14 @@
           M ? h("button", { type: "button", cls: "btn sm", text: "Duplicate", onclick: function () { act(S().layoutTemplates.duplicate(r.id), "Template duplicated."); } }) : null,
           M && !r.archived ? h("button", { type: "button", cls: "btn sm", text: r.is_default ? "Unset default" : "Set default",
             title: "Default template for " + C.label(r.event_type), onclick: function () { act(S().layoutTemplates.setDefault(r.id, !r.is_default), r.is_default ? "Default removed." : "Default set for " + C.label(r.event_type) + "."); } }) : null,
-          M ? h("button", { type: "button", cls: "btn sm", text: r.archived ? "Restore" : "Archive", onclick: function () { act(S().layoutTemplates.setArchived(r.id, !r.archived), r.archived ? "Template restored." : "Template archived (it can be restored)."); } }) : null]);
+          M ? h("button", { type: "button", cls: "btn sm", text: r.archived ? "Restore" : "Archive", onclick: function () { act(S().layoutTemplates.setArchived(r.id, !r.archived), r.archived ? "Template restored." : "Template archived (it can be restored)."); } }) : null,
+          opts.builtins && !trial ? h("button", { type: "button", cls: "btn sm", text: "Versions", "aria-expanded": state.ver && state.ver.id === r.id ? "true" : "false", onclick: function () { openVersions(r); } }) : null]);
         grid.appendChild(h("div", { cls: "st-card" + (r.archived ? " st-archived" : "") }, [thumbEl(r, trial ? trialName(r.name) : r.name), nameNode, badges,
-          r.description ? h("p", { cls: "st-desc", text: r.description, title: r.description }) : null, acts]));
+          r.description ? h("p", { cls: "st-desc", text: r.description, title: r.description }) : null, acts,
+          state.ver && state.ver.id === r.id ? versionsBox(r) : null]));
       });
       root.appendChild(grid);
+      if (tail) root.appendChild(tail);
     }
     ready.then(refresh, refresh);
     return { refresh: refresh };
@@ -449,14 +511,17 @@
       try { editing = await readTemplate(param); } catch (e) { loadErr = e; }
       if (!editing && !loadErr) { toast("That template could not be found - starting a new one.", true); param = "new"; }
     }
+    // R89: ?tplEdit=new&fromBuiltin=<key> - a NEW studio template that starts as a copy of a built-in layout
+    var fromB = null;
+    if (!editing && !loadErr) { try { fromB = C.builtin(new URLSearchParams(G.location.search).get("fromBuiltin")); } catch (_) { fromB = null; } }
     var old = $("st_editbar"); if (old) old.remove();
-    var f = metaForm(editing || {}, true);
+    var f = metaForm(editing || (fromB ? { name: fromB.name + " (my copy)", event_type: fromB.event_type } : {}), true);
     var err = h("p", { cls: "st-err", role: "alert", hidden: true });
     var btn = h("button", { type: "button", cls: "tbtn primary", id: "st_edit_save", text: "Save template" });
     var done = h("a", { cls: "tbtn", id: "st_edit_done", href: "control.html#layout-templates", text: "Done", title: "Back to Settings - Layout templates" });
     var title = h("b", { text: loadErr ? "Could not open this template" : (editing ? "Editing studio template" : "New studio template") });
     var bar = h("div", { cls: "st-editbar", id: "st_editbar", role: "region", "aria-label": "Template editing" }, [
-      h("div", { cls: "st-eb-head" }, [title, h("p", { cls: "mnote", text: loadErr ? "Nothing was changed." : "Arrange the floor, name it, then Save template." })]),
+      h("div", { cls: "st-eb-head" }, [title, h("p", { cls: "mnote", text: loadErr ? "Nothing was changed." : fromB ? "A copy of the built-in \u201c" + fromB.name + "\u201d - change it, then Save template. The built-in original never changes." : "Arrange the floor, name it, then Save template." })]),
       f.box, h("div", { cls: "st-eb-acts" }, [btn, done]), err]);
     doc.body.insertBefore(bar, doc.body.firstChild);
     if (loadErr) {   // never fall back to a blank "new" template on a read error - a Save would make a copy
@@ -480,6 +545,8 @@
         var u = B.fn("updateDimsLabel"), sc = B.fn("sizeCanvas"); if (u) u(); if (sc) sc();
         tplState("edit");
         li(C.fitToHall(editing.data, W, cap).items, editing.name);
+      } else if (fromB && B.builtinItems(fromB.key)) {
+        tplState("edit"); li(B.builtinItems(fromB.key), fromB.name + " (my copy)");
       } else { tplState("new"); li([], "New template"); }
       // the opened template is the clean starting point: Undo does not go back to an empty floor, no "Unsaved changes"
       var rh = B.fn("resetHistory"), sb = B.fn("setSavedBaseline");
@@ -503,7 +570,7 @@
     var bMgr = h("button", { type: "button", cls: "tbtn", id: "st_mgrBtn", role: "menuitem", hidden: true, title: "Your studio's own layout templates", text: "📐 My templates" });
     bSave.addEventListener("click", openSaveModal); bMgr.addEventListener("click", openManager);
     field.parentNode.insertBefore(bMgr, field.nextSibling); field.parentNode.insertBefore(bSave, field.nextSibling);
-    var tp0 = null; try { tp0 = new URLSearchParams(G.location.search).get("tplEdit"); } catch (_) {}
+    var tp0 = null, ub0 = null; try { tp0 = new URLSearchParams(G.location.search).get("tplEdit"); ub0 = new URLSearchParams(G.location.search).get("useBuiltin"); } catch (_) {}
     if (tp0 && tp0 !== "new") tplState("loading");   // no blank-floor flash while sign-in / permissions / the template load
     var tries = 0;
     (async function wait() {
@@ -511,6 +578,8 @@
       if (!st || !st.auth || !st.auth.user || !st.auth.user() || !st.layoutTemplates) { if (tries++ < 80) setTimeout(wait, 250); else if (tp0) tplState(null); return; }
       await loadPerm();
       var trial = perm.trial;
+      // R89 Settings "Use" on a built-in starter layout (?useBuiltin=<key>); the trial never gets the built-ins
+      if (ub0 && !tp0) { if (trial) toast(TRIAL_MSG, true); else useBuiltinOnArrival(ub0); }
       if (!perm.view) { if (tp0) tplState(null); if (trial) fillPreset(); return; }   // 0181: the trial filter runs even without template access
       // free trial: the manager is use-only (sample layouts), never "Save as template"
       bMgr.hidden = false; bSave.hidden = !perm.manage || B.ro();
@@ -539,6 +608,16 @@
     })();
   }
 
+  function useBuiltinOnArrival(key) {
+    if (!C.builtin(key)) return;
+    var tries = 0;
+    (function go() {
+      var lt = B.fn("loadTemplate");
+      if (!lt || !B.fn("loadItems") || !B.world() || !B.store()) { if (tries++ < 40) setTimeout(go, 250); return; }
+      Promise.resolve(lt(key)).then(function () { try { var u = new URL(G.location.href); u.searchParams.delete("useBuiltin"); G.history.replaceState(null, "", u.pathname + u.search + u.hash); } catch (_) {} });
+    })();
+  }
+
   function mountControl() {
     var tab = $("tab-ltemplates"), pane = $("pane-ltemplates"), root = $("st_root");
     if (!tab || !pane || !root) return;
@@ -546,7 +625,7 @@
     doc.querySelectorAll(".tab").forEach(function (t) {
       t.addEventListener("click", function () {
         var on = t.dataset.pane === "ltemplates"; pane.hidden = !on;
-        if (on && !mgr) mgr = renderManager(root, { newHref: "builder.html?new=1&tplEdit=new", editHref: function (r) { return "builder.html?new=1&tplEdit=" + encodeURIComponent(r.id); },
+        if (on && !mgr) mgr = renderManager(root, { builtins: true, newHref: "builder.html?new=1&tplEdit=new", editHref: function (r) { return "builder.html?new=1&tplEdit=" + encodeURIComponent(r.id); },
           useHref: function (r) { return "builder.html?new=1&useTpl=" + encodeURIComponent(r.id); } });
       });
     });
