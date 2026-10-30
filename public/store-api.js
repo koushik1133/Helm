@@ -4391,6 +4391,25 @@ window.HelmUrl = HelmUrl;
     //   o.latest → only rows that are their lead's NEWEST snapshot (one light lookup per
     //   page), so "latest per lead" filters exactly like before. A page may then hold
     //   fewer rows than the limit; hasMore / offset still describe the raw archive.
+    async _fillArchiveBudgets(rows) {
+      const blank = (v) => v == null || v === "" || !(Number(v) > 0);
+      const need = (rows || []).filter((x) => blank(x.budget));
+      if (!need.length || mode !== "supabase") return;
+      const lids = [...new Set(need.map((x) => x.lead_id).filter(Boolean))];
+      if (lids.length) {
+        const { data, error } = await supa.from("leads").select("id,budget").in("id", lids);
+        if (!error && data) { const m = {}; data.forEach((l) => { if (!blank(l.budget)) m[l.id] = l.budget; }); need.forEach((x) => { if (blank(x.budget) && m[x.lead_id] != null) x.budget = m[x.lead_id]; }); }
+      }
+      const qids = [...new Set(need.filter((x) => blank(x.budget) && x.quote_id).map((x) => x.quote_id))];
+      if (!qids.length) return;
+      const qb = {};
+      try { const { data, error } = await supa.from("quotes").select("id,client").in("id", qids);
+        if (!error && data) data.forEach((q) => { const b = q && q.client && q.client.budget; if (!blank(b)) qb[q.id] = Number(b); }); } catch (e) {}
+      const left = qids.filter((id) => qb[id] == null);
+      if (left.length) { try { const { data, error } = await supa.from("event_discovery").select("quote_id,budget_max").in("quote_id", left);
+        if (!error && data) data.forEach((d) => { if (!blank(d.budget_max)) qb[d.quote_id] = Number(d.budget_max); }); } catch (e) {} }
+      need.forEach((x) => { if (blank(x.budget) && qb[x.quote_id] != null) x.budget = qb[x.quote_id]; });
+    },
     async archivePage(o) {
       o = o || {};
       const COLS0 = "id,lead_id,action,name,phone,email,source,event_type,event_date,budget,guest_count,status,quote_id,archived_at";
@@ -4430,6 +4449,10 @@ window.HelmUrl = HelmUrl;
           }
         }
         r.rows.forEach((x) => { if (x.lead_id && live[x.lead_id] != null) x.live_status = live[x.lead_id]; });
+        // r93: a blank Budget column for a lead whose budget lives on the quote (budget-single-source 0199: the
+        // quote's step-1 / Discovery budget IS the event budget). Best-effort and read-only, RLS decides what is
+        // visible: snapshot budget, else the live lead's, else the quote's client budget, else Discovery's budget_max.
+        try { await leads._fillArchiveBudgets(r.rows); } catch (e) {}
         // LA-34: flag rows of SAMPLE leads (leads.is_demo, 0097) so the CRM never labels seeded rows "RESTORED".
         // Read-only and best-effort: a failure just leaves the flag off.
         try {

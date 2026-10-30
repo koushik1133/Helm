@@ -57,7 +57,7 @@ t('#10 one "next event" for the hero countdown and the Upcoming tile', () => {
 
 t('#30 countdown reads "45 days · starts 19:00" with its own classes (not the calendar .hd-cd)', () => {
   const cd = DASH.slice(DASH.indexOf('function countdown('), DASH.indexOf('/* ---------- Customize mode'));
-  assert.match(cd, /"· starts " \+ pad\(\+tm\[1\]\) \+ ":" \+ tm\[2\]/);
+  assert.match(cd, /"· starts " \+ hm\(\)/);   // r93: tm is {h, m} (tm[1]/tm[2] printed NaN:undefined)
   assert.match(cd, /cd === 1 \? "day" : "days"/);
   assert.doesNotMatch(cd, /"hd-cd"/, 'countdown no longer uses the calendar day class');
   assert.match(DCSS, /\.hd-count\.hd-cn \{ display: flex; flex-wrap: wrap; align-items: baseline;/);

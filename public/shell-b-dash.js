@@ -462,7 +462,7 @@
   /* ---------- countdown to the next event (interval paused while the tab is hidden) ---------- */
   function countdown(panel, ev, label) {
     var timer = null, last = {};
-    var tm = ev.time && parseHM(ev.time);                  // R36: "6:30 PM" counts down to 18:30, not 06:30
+    var tm = ev.time && parseHM(ev.time); if (tm && !(isFinite(tm.h) && isFinite(tm.m))) tm = null;                 // R36: "6:30 PM" counts down to 18:30, not 06:30
     var target = dOf(ev.date); if (!target) return;
     if (tm) target.setHours(tm.h, tm.m, 0, 0);
     clear(panel);
@@ -479,14 +479,16 @@
       last[key] = v; return u;
     }
     function pad(n) { return (n < 10 ? "0" : "") + n; }
-    function starts() { return tm ? el("span", "hd-cn-t", "· starts " + pad(+tm[1]) + ":" + tm[2]) : null; }
+    // r93: parseHM returns {h, m} (not a regex match) - reading tm[1]/tm[2] showed "starts NaN:undefined"
+    function hm() { return pad(tm.h) + ":" + pad(tm.m); }
+    function starts() { return tm ? el("span", "hd-cn-t", "· starts " + hm()) : null; }
     function paint() {
       var real = new Date(), now = wallNow(), isToday = todayOf(real) === ev.date, st;
       clear(clock); clock.classList.toggle("hd-count-today", isToday);
       if (isToday) {
         clock.appendChild(el("b", "hd-cn-n", "Today"));
         if ((st = starts())) clock.appendChild(st);
-        panel.setAttribute("aria-label", label + ": " + ev.name + ", today" + (tm ? ", starts " + pad(+tm[1]) + ":" + tm[2] : ""));
+        panel.setAttribute("aria-label", label + ": " + ev.name + ", today" + (tm ? ", starts " + hm() : ""));
         return;
       }
       // Days = calendar-day difference (same rule as the "In N days" list via dayDiff), so a
@@ -495,7 +497,7 @@
       if (cd != null && cd > 0) {
         clock.appendChild(unit(String(cd), cd === 1 ? "day" : "days", "d"));
         if ((st = starts())) clock.appendChild(st);
-        panel.setAttribute("aria-label", label + ": " + ev.name + ", in " + cd + (cd === 1 ? " day" : " days") + (tm ? ", starts " + pad(+tm[1]) + ":" + tm[2] : ""));
+        panel.setAttribute("aria-label", label + ": " + ev.name + ", in " + cd + (cd === 1 ? " day" : " days") + (tm ? ", starts " + hm() : ""));
         return;
       }
       var ms = Math.max(0, target - now), mins = Math.floor(ms / 6e4), h = Math.floor((mins % 1440) / 60), m = mins % 60;

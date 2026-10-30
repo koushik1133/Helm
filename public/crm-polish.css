@@ -57,3 +57,13 @@ html[data-shell] .btn:focus-visible,html[data-shell] .search:focus-visible{outli
 
 /* r22 ui audit: phone cards - the desktop column cap (max-width 220px) made the Event value sit mid-card; full width like the other rows */
 @media (max-width:639.98px){ #rows td.wrapc{max-width:none;min-width:0} }
+
+/* r93: "Hide amounts" (eye icon) in the CRM table - a quiet lock + "Hidden" instead of a grey dotted pill.
+   Visual only: shell-b-privacy.js still decides what is masked (the real value never reaches the text). */
+html.hb-priv-on #rows td.hbp-m:not(svg *) { background: none !important; border-radius: 0; text-align: right; }
+html.hb-priv-on #rows td.hbp-m:not(svg *)::after { content: none; }
+html.hb-priv-on #rows td.hbp-m > .hbp-mask {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 0; letter-spacing: 0; cursor: help;
+  color: var(--ink-3, #6b6577) !important; -webkit-text-fill-color: var(--ink-3, #6b6577) !important; }
+html.hb-priv-on #rows td.hbp-m > .hbp-mask::before { content: "\1F512\FE0E"; font-size: 12px; opacity: .75; }
+html.hb-priv-on #rows td.hbp-m > .hbp-mask::after { content: "Hidden"; font-size: 12px; font-weight: 500; }

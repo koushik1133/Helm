@@ -102,7 +102,7 @@
   }
   function makeMask(e) {
     if (e.namespaceURI === SVG_NS) { var tn = document.createTextNode(MASK); maskTxt.set(tn, e); return tn; }
-    var sp = document.createElement("span"); sp.className = "hbp-mask"; sp.setAttribute("role", "img"); sp.setAttribute("aria-label", "Amount hidden");
+    var sp = document.createElement("span"); sp.className = "hbp-mask"; sp.setAttribute("role", "img"); sp.setAttribute("aria-label", "Amount hidden"); sp.title = "Amount hidden. Tap the eye icon to show";
     var tx = document.createTextNode(MASK); sp.appendChild(tx); maskTxt.set(tx, e); spanOwner.set(sp, e); return sp;
   }
   /* move e's children into memory and leave only the mask; again after the page re-renders e while hidden */

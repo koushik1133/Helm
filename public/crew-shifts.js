@@ -382,6 +382,8 @@
   // =====================================================================================================
   // Settings: crew settings
   // =====================================================================================================
+  // r93: the radius box was empty when the saved settings carried no radius - show the DB default (300 m, migration 0265/0274)
+  function radiusOrDefault(v) { var n = Number(v); return (v !== null && v !== undefined && v !== "" && isFinite(n) && n >= 50 && n <= 5000) ? Math.round(n) : 300; }
   async function mountSettings(card) {
     var B = S(); if (!B || !B.ops || !B.ops.shifts) return;
     var cfg = null; try { cfg = await B.ops.shifts.settings(); } catch (e) { cfg = null; }
@@ -400,7 +402,7 @@
     mode.value = cfg.claimMode === "approval" ? "approval" : "first_come";
     var ci = chk("cc_ci", "Self check-in / check-out on the crew link on the event day", cfg.selfCheckin);
     var gf = chk("cc_gf", "Location check: crew must be near the venue to check in (only the distance is saved; set the venue point on the event-day page)", cfg.geofence);
-    var rad = num("cc_rad", cfg.geofenceRadiusM, 50, 5000, 10), grace = num("cc_grace", cfg.lateGraceMin, 0, 240), ns = num("cc_ns", cfg.noShowAfterMin, 15, 720);
+    var rad = num("cc_rad", radiusOrDefault(cfg.geofenceRadiusM), 50, 5000, 10), grace = num("cc_grace", cfg.lateGraceMin, 0, 240), ns = num("cc_ns", cfg.noShowAfterMin, 15, 720);
     var pay = h("select", { id: "cc_pay" }, [h("option", { value: "day", text: "Per day (day rate x days checked in)" }), h("option", { value: "hours", text: "Per hour (hours checked in x day rate / day hours)" })]);
     pay.value = cfg.payBasis === "hours" ? "hours" : "day";
     var dh = num("cc_dh", cfg.dayHours, 1, 24, 0.5);
@@ -421,11 +423,13 @@
       var patch = { availability: av.input.checked, openShifts: os.input.checked, claimMode: mode.value,
         selfCheckin: ci.input.checked, geofence: gf.input.checked, payBasis: pay.value };
       var r = n(rad, 50, 5000), g = n(grace, 0, 240), s = n(ns, 15, 720), d = n(dh, 1, 24);
-      if (r === null) { msg.textContent = "Check-in radius must be 50 to 5000 metres."; rad.focus(); return; }
+      // r93: the radius only matters when Location check is on; when it is off an empty / odd value is skipped (the saved one is kept)
+      if (r === null && gf.input.checked) { msg.textContent = "Please enter a check-in radius between 50 and 5000 metres (300 is a good start)."; rad.setAttribute("aria-invalid", "true"); rad.focus(); return; }
+      rad.removeAttribute("aria-invalid");
       if (g === null) { msg.textContent = "Late after must be 0 to 240 minutes."; grace.focus(); return; }
       if (s === null) { msg.textContent = "No-show after must be 15 to 720 minutes."; ns.focus(); return; }
       if (d === null) { msg.textContent = "A working day must be 1 to 24 hours."; dh.focus(); return; }
-      patch.geofenceRadiusM = r; patch.lateGraceMin = g; patch.noShowAfterMin = s; patch.dayHours = d;
+      if (r !== null) patch.geofenceRadiusM = r; patch.lateGraceMin = g; patch.noShowAfterMin = s; patch.dayHours = d;
       global.BPUI.guard(save, async function () {
         try { await B.ops.shifts.saveSettings(patch); msg.textContent = "Saved."; toast("Crew settings saved."); }
         catch (e) { msg.textContent = errText(e, "save the crew settings"); }
@@ -442,5 +446,5 @@
     if (cc) B.init().then(function () { return mountSettings(cc); }).catch(function () { cc.hidden = true; });
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", start); else start();
-  global.HelmCrewShifts = { parseLatLng: parseLatLng, toInstant: toInstant };
+  global.HelmCrewShifts = { parseLatLng: parseLatLng, toInstant: toInstant, radiusOrDefault: radiusOrDefault };
 })(window);
