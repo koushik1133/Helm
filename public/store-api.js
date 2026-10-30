@@ -520,7 +520,7 @@ window.HelmUrl = HelmUrl;
     repeat: "Avoid repeated characters like aaa or 111",
     keyboard: "Avoid keyboard patterns like qwerty",
     common: "This is a very common password",
-    wordnum: "Avoid a single word followed by numbers, like Name@2024",
+    wordnum: "Avoid letters followed by numbers (like Name@2024 or CarModel123!) - add an unrelated word or mix the numbers in",
   };
   // longest run of 3+ characters that follow each other in ONE direction in one of `sets` ("abcd", "4321", "qwer").
   // R29b: one direction only - a back-and-forth like "wews" is not a pattern (it used to flag random browser-made passwords)
