@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=52"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=53"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -5422,6 +5422,7 @@ window.HelmUrl = HelmUrl;
     // opts.fresh: read the saved row from the server (an edit form must never start from the tab cache)
     async current(opts) { if (!supa) return null;
       const oid = await this.id();
+      if (!oid) return null;   // r84: no studio yet - never query organizations?id=eq.null
       const read = async () => { const { data, error } = await supa.from("organizations").select("*").eq("id", oid).maybeSingle();
         if (error) throw error; try { if (data && data.timezone && BPStore.rememberStudioTimezone) BPStore.rememberStudioTimezone(data.timezone); } catch (e) {}
         studioEmit(data); return data; };
