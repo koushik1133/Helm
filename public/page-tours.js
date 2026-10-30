@@ -211,8 +211,9 @@
         access: [
           { sel: "#roleTabs", title: "Pick a role", desc: "Choose the role you want to set up: manager, planner, sales and so on." },
           { sel: '#roleTabs .rtab[data-role="admin"]', title: "Admin always has full access", desc: "The admin role can always see and change everything. Nothing to switch here." },
-          { sel: "#matrix .chip:not(.perm) .cview", title: "View: tap to switch on", desc: "Tap an area to let this role see it. A green tick means the role can open that page." },
-          { sel: "#matrix .chip:not(.perm) .pen", title: "✎ Edit", desc: "Tap the pencil to also let the role change things there. Edit only works when view is on too." },
+          { sel: "#matrix .chip:not(.perm) .cview", title: "Can see", desc: "Switch on Can see to let this role see it. Green means the role can open that page." },
+          { sel: "#matrix .chip:not(.perm) .pen", title: "Can change", desc: "Switch on Can change to also let the role change things there. It switches Can see on too." },
+          { sel: "#mgrClose", title: "Managers can close events", desc: "On by default. Switch it off if only the admin should close events and settle accounts." },
           { sel: '#matrix .chip[data-area="discount_approve"]', title: "Finance: approve discounts", desc: "One switch. Lets this role approve a change that lowers the price. Nobody can approve their own discount." },
           { sel: '#matrix .chip[data-area="close_owed"]', title: "Finance: close with money owed", desc: "One switch. Lets this role close an event that still has a balance due. They must write a reason, and it is logged." },
           { sel: "#matrix", title: "Saved straight away", desc: "Each tap saves at once. People see the change the next time they open a page." },
