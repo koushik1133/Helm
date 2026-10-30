@@ -258,7 +258,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=312"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=313"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -730,6 +730,6 @@
   setInterval(()=>{ if(document.hidden || $("#app").hidden) return; if(!$("#reassignModal").hidden || !$("#schedModal").hidden || !$("#evModal").hidden) return; if(document.querySelector("#dashboard [data-busy]")) return; refreshDashboard(); }, 7000);
   BPUI.boot(load);
 </script>
-<script src="crew-shifts.js?v=5"></script>
+<script src="crew-shifts.js?v=6"></script>
 </body>
 </html>

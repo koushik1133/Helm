@@ -392,7 +392,7 @@
     const bal = (rc || ms.length) && p.outstanding != null && num(p.outstanding) != null ? Number(p.outstanding) : (total != null ? total - (Number(p.paid) || 0) : p.outstanding);
     const credit = bal != null && num(bal) != null && Number(bal) < 0;
     [["Total", total], ["Paid", p.paid], [credit ? "Credit" : "Balance", credit ? -Number(bal) : bal]].forEach((x) => {
-      const b = el("div"); b.appendChild(el("div", "k", x[0])); b.appendChild(el("div", "v", money(x[1]))); sum.appendChild(b);
+      const b = el("div", "ps-card ps-" + (x[0] === "Total" ? "total" : x[0] === "Paid" ? "paid" : "bal") + (x[0] === "Balance" && num(x[1]) != null && Number(x[1]) <= 0.5 ? " ps-clear" : "")); b.appendChild(el("div", "k", x[0])); b.appendChild(el("div", "v", money(x[1]))); sum.appendChild(b);
     });
     renderReceipts(rc || []);
     // E6: say what is due from the studio's payment terms + the event date (same rule as the portal)

@@ -24,3 +24,34 @@
   .paysum .v{white-space:nowrap;font-size:17px}
   .title{font-size:clamp(30px,8.5vw,38px);line-height:1.06}
 }
+
+/* r93: Payments - soft tinted cards, larger amounts, the balance emphasised (booklet tokens; the brand accent
+   is swapped in at runtime, so tints come from color-mix on the live tokens). */
+.paysum{gap:12px;margin-bottom:18px}
+.paysum > .ps-card{border:1px solid transparent;border-radius:16px;padding:16px 18px;gap:6px;
+  background:color-mix(in srgb,var(--ink) 4%,var(--paper))}
+.paysum > .ps-card .k{font-size:12px;letter-spacing:.08em;color:var(--ink-2)}
+.paysum > .ps-card .v{font-family:var(--sans);font-size:26px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+.paysum > .ps-paid{background:color-mix(in srgb,var(--ok) 10%,var(--paper))}
+.paysum > .ps-paid .v{color:var(--ok)}
+.paysum > .ps-bal{background:color-mix(in srgb,var(--due) 11%,var(--paper));border-color:color-mix(in srgb,var(--due) 30%,transparent)}
+.paysum > .ps-bal .k,.paysum > .ps-bal .v{color:var(--due)}
+.paysum > .ps-bal .v{font-size:30px}
+.paysum > .ps-bal.ps-clear{background:color-mix(in srgb,var(--ok) 10%,var(--paper));border-color:color-mix(in srgb,var(--ok) 28%,transparent)}
+.paysum > .ps-bal.ps-clear .k,.paysum > .ps-bal.ps-clear .v{color:var(--ok)}
+.payterm{padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--due) 8%,var(--paper));color:var(--ink);font-weight:500}
+#payTable{border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--paper)}
+#payTable thead th{background:color-mix(in srgb,var(--ink) 4%,var(--paper));padding:12px 14px;color:var(--ink-2)}
+#payTable td{padding:13px 14px;font-size:15px;color:var(--ink)}
+#payTable tbody tr:last-child td{border-bottom:0}
+#payTable td.amt{font-weight:600}
+#payTable .st{padding:3px 10px;border:0}
+#payTable .st.paid{background:color-mix(in srgb,var(--ok) 13%,transparent)}
+#payTable .st.due,#payTable .st.overdue,#payTable .st.part_paid,#payTable .st.invoiced{background:color-mix(in srgb,var(--due) 13%,transparent)}
+@media (max-width:700px){
+  .paysum > .ps-card{padding:11px 12px;border-radius:14px}
+  .paysum > .ps-card .v{font-size:18px}
+  .paysum > .ps-bal .v{font-size:20px}
+}
+@media (max-width:420px){ .paysum > .ps-card .v{font-size:18px} .paysum > .ps-bal .v{font-size:21px} }
+@media print{ .paysum > .ps-card,#payTable thead th{background:none} }

@@ -101,7 +101,7 @@ await t('B17: the CRM latest row shows the lead\'s live stage; Full history keep
   assert.match(crm, /\$\{esc\(stgLbl\(s\)\)\}<\/option>/, 'Stage filter options are title-cased');
   assert.match(crm, /<td class="wrapc">\$\{esc\(r\.name\|\|"—"\)\}<\/td>/);
   assert.match(r('public/crm-polish.css'), /#rows td\.wrapc\{white-space:normal;/);
-  assert.match(crm, /crm-polish\.css\?v=5/);
+  assert.match(crm, /crm-polish\.css\?v=6/);
 });
 
 /* ------------------------------------------------------------------ B18 studio timezone */
