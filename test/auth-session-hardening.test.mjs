@@ -140,7 +140,7 @@ t('password rule = Supabase policy: >=12 + lowercase + uppercase + digit + symbo
   assert.match(p('ABCDEFGHIJ1!'), /lowercase/);
   assert.match(p('Abcdefghijk!'), /a number/);
   assert.match(p('Abcdefghij12'), /symbol/);
-  assert.match(p('Abc1!'), /12 characters/);
+  assert.match(p('Abc1!'), /12 or more characters/);
   for (const c of "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~") assert.equal(p('Abcdefghij1' + c), null, 'symbol ' + c);
   assert.ok(p('Abcdefghij1 '), 'space is not a Supabase symbol');
   assert.ok(p('Abcdefghij1é'), 'non-ASCII is not a Supabase symbol');
@@ -152,12 +152,12 @@ t('password rule = Supabase policy: >=12 + lowercase + uppercase + digit + symbo
 t('every "set a password" screen shows the new rule text + a live checklist', () => {
   const L = read('public/login.html'), RP = read('public/reset-password.html'), RJ = read('public/reset-password.js'), AU = read('public/auth-ui.js');
   for (const [n, s] of [['login', L], ['reset-password', RP], ['auth-ui', AU]]) {
-    assert.match(s, /lowercase letter, an uppercase letter, a number and a symbol/, n + ' helper text');
+    assert.match(s, /12 or more characters with a mix of uppercase and lowercase letters, numbers (&amp;|&) symbols/, n + ' helper text');
     assert.ok(!/with a letter and a number/.test(s), n + ' still shows the old rule');
   }
-  assert.match(L, /attachChecklist\(document\.getElementById\("pw"\), document\.getElementById\("pwRules"\)(, \{hints:pwHints\})?\)/, 'sign-up checklist');   // r29: + name/e-mail hints
-  assert.match(L, /attachChecklist\(pw, ov\.querySelector\("#fpc_rules"\)\)/, 'temp-password checklist');
-  assert.match(RJ, /attachChecklist\(\$\("#new_pw"\), \$\("#newRules"\)\)/, 'reset / change checklist');
+  assert.match(L, /attachChecklist\(document\.getElementById\("pw"\), document\.getElementById\("pwRules"\)(, \{hints:pwHints(, confirm:document\.getElementById\("pw2"\))?\})?\)/, 'sign-up checklist');   // r29: + name/e-mail hints
+  assert.match(L, /attachChecklist\(pw, ov\.querySelector\("#fpc_rules"\)(, \{confirm:pw2\})?\)/, 'temp-password checklist');
+  assert.match(RJ, /attachChecklist\(\$\("#new_pw"\), \$\("#newRules"\)(, \{ confirm: \$\("#new_pw2"\) \})?\)/, 'reset / change checklist');
 });
 t('0030 migration: _password_ok = Supabase rule, in MANIFEST after 0028, temp passwords carry a symbol', () => {
   const m = read('supabase/migrations/0030_password_rule_symbols.sql');
@@ -408,7 +408,7 @@ t('temp password: a failed flag clear is an error, not ignored; retry does not r
   e.win.SUPABASE_CONFIG.__x = 1;
   await e.S.auth.completePasswordChange('Brand-new-pass12');
   assert.equal(e.calls.filter((x) => x[0] === 'updateUser').length, 1, 'password not re-sent on retry');
-  await assert.rejects(e.S.auth.completePasswordChange('short'), /12 characters/);
+  await assert.rejects(e.S.auth.completePasswordChange('short'), /12 or more characters/);
 });
 
 /* ---------------------------------------------- 6. session limits */

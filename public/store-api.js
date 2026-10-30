@@ -428,17 +428,17 @@ window.HelmUrl = HelmUrl;
   // password" always produces one we accept. Symbols: a subset of PW_SYMBOLS (no space - Supabase doesn't count it).
   // Every new-password <input> carries exactly this value (test/r29-signup-errors.test.mjs keeps them in step).
   const PW_RULES_ATTR = "minlength: " + PW_MIN + "; required: lower; required: upper; required: digit; required: [-!#$%&*+=?@^_~.,:;/]; max-consecutive: 2;";
-  const PW_HINT = "At least " + PW_MIN + " characters, with a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).";
+  const PW_HINT = "Use " + PW_MIN + " or more characters with a mix of uppercase and lowercase letters, numbers & symbols.";
   function passwordChecks(pw) {
     pw = String(pw || "");
     let sym = false;
     for (const ch of pw) if (PW_SYMBOLS.indexOf(ch) !== -1) { sym = true; break; }
     return [
-      { id: "len",   label: "At least " + PW_MIN + " characters", ok: pw.length >= PW_MIN },
-      { id: "lower", label: "A lowercase letter (a–z)",            ok: /[a-z]/.test(pw) },
-      { id: "upper", label: "An uppercase letter (A–Z)",           ok: /[A-Z]/.test(pw) },
-      { id: "digit", label: "A number (0–9)",                      ok: /[0-9]/.test(pw) },
-      { id: "symbol", label: "A symbol, e.g. ! @ # $ % & * ? -",   ok: sym },
+      { id: "len",   label: PW_MIN + " or more characters", ok: pw.length >= PW_MIN },
+      { id: "lower", label: "A lowercase letter",                  ok: /[a-z]/.test(pw) },
+      { id: "upper", label: "An uppercase letter",                 ok: /[A-Z]/.test(pw) },
+      { id: "digit", label: "A number",                            ok: /[0-9]/.test(pw) },
+      { id: "symbol", label: "A symbol",                            ok: sym },
     ];
   }
   // r21 (0248): addresses on Helm's own domains (helm.events, helm.com + sub-domains) are for the Helm team.
@@ -487,12 +487,12 @@ window.HelmUrl = HelmUrl;
   function isReservedRefusal(err) { return /reserved for the helm team/i.test(String((err && (err.message || err.msg || err.error_description)) || "")); }
   function passwordProblem(pw) {
     pw = String(pw || "");
-    if (pw.length < PW_MIN) return "Use at least " + PW_MIN + " characters.";
+    if (pw.length < PW_MIN) return "Too short. Use " + PW_MIN + " or more characters.";
     const miss = passwordChecks(pw).filter((c) => !c.ok && c.id !== "len");
     if (miss.length) {
-      const names = { lower: "a lowercase letter", upper: "an uppercase letter", digit: "a number", symbol: "a symbol (like ! @ # $ %)" };
+      const names = { lower: "a lowercase letter", upper: "an uppercase letter", digit: "a number", symbol: "a symbol" };
       const parts = miss.map((c) => names[c.id]);
-      return "Include at least " + (parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0]) + ".";
+      return "Add " + (parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0]) + ".";
     }
     return null;
   }
@@ -515,12 +515,12 @@ window.HelmUrl = HelmUrl;
   const PW_LEET = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "9": "g", "@": "a", "$": "s", "!": "i" };
   const PW_KEYS = ["abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl", "zxcvbnm", "qazwsxedc"];
   const PW_GUESS = {
-    sequence: "Avoid number sequences like 123456",
-    name: "Avoid using your name or e-mail in the password",
-    repeat: "Avoid repeated characters like aaa or 111",
-    keyboard: "Avoid keyboard patterns like qwerty",
-    common: "This is a very common password",
-    wordnum: "Avoid letters followed by numbers (like Name@2024 or CarModel123!) - add an unrelated word or mix the numbers in",
+    sequence: "Avoid sequences of numbers or letters.",
+    name: "Avoid using your name or email in your password.",
+    repeat: "Avoid repeating the same character.",
+    keyboard: "Avoid keyboard patterns.",
+    common: "This password is too common. Try a different one.",
+    wordnum: "This password is easy to guess. Try adding more words or characters.",
   };
   // longest run of 3+ characters that follow each other in ONE direction in one of `sets` ("abcd", "4321", "qwer").
   // R29b: one direction only - a back-and-forth like "wews" is not a pattern (it used to flag random browser-made passwords)
@@ -566,7 +566,8 @@ window.HelmUrl = HelmUrl;
   // "Already registered" is NOT here: it stays the generic "we've sent a link" answer (no account enumeration), and so
   // do sign-in credential errors (genericSignInError). Pure: (error, ctx) -> { code, message, field, ref } | null.
   //   ctx: "signup" | "signin" | "password" (reset / change / set-password / invite) | "email" (reset / resend link)
-  const PW_PWNED_MSG = "This password is too common and easy to guess. Please choose a different password.";
+  const PW_MISMATCH = "Passwords don't match. Try again.";
+  const PW_PWNED_MSG = "This password is too common. Try a different one.";
   function authErrorCode(error) {
     const c = String((error && (error.code || error.error_code)) || "").toLowerCase();
     if (/^[a-z][a-z0-9_]{1,48}$/.test(c)) return c;
@@ -591,9 +592,9 @@ window.HelmUrl = HelmUrl;
         const rs = [].concat((error.reasons) || (error.weak_password && error.weak_password.reasons) || []).map(String);
         field = "pw";
         if (rs.indexOf("pwned") !== -1 || (!rs.length && /known to be weak|easy to guess|pwned|leaked/i.test(String(error.message || "")))) msg = PW_PWNED_MSG;
-        else if (rs.indexOf("length") !== -1) msg = "This password is too short — use at least " + PW_MIN + " characters.";
-        else if (rs.indexOf("characters") !== -1) msg = "This password needs a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).";
-        else msg = "This password isn't strong enough — choose a longer one that's harder to guess.";
+        else if (rs.indexOf("length") !== -1) msg = "Too short. Use " + PW_MIN + " or more characters.";
+        else if (rs.indexOf("characters") !== -1) msg = "Use a mix of uppercase and lowercase letters, numbers & symbols.";
+        else msg = "This password is easy to guess. Try adding more words or characters.";
         break; }
       case "same_password": msg = "Choose a password that's different from your current one."; field = "pw"; break;
       case "email_address_invalid": msg = "This e-mail address can't be used — check it or use another."; field = "email"; break;
@@ -684,7 +685,24 @@ window.HelmUrl = HelmUrl;
     }
     input.addEventListener("input", render);
     render();
-    return { render: render, el: box };
+    // R101: opts.confirm = the "Confirm password" input -> a live "Passwords don't match" line under it
+    const cf = opts && opts.confirm;
+    let mm = null;
+    if (cf && cf.insertAdjacentElement) {
+      mm = document.createElement("p"); mm.className = "pw-mismatch"; mm.id = (cf.id || "pw2") + "_match";
+      mm.setAttribute("aria-live", "polite"); mm.style.cssText = "margin:4px 0 8px;font-size:12.5px;color:#b91c1c;font-weight:600"; mm.hidden = true;
+      cf.insertAdjacentElement("afterend", mm);
+      const cprev = cf.getAttribute("aria-describedby");
+      if (!cprev || cprev.split(" ").indexOf(mm.id) === -1) cf.setAttribute("aria-describedby", ((cprev ? cprev + " " : "") + mm.id).trim());
+      const check = () => {
+        const a = String(input.value).normalize("NFC"), b = String(cf.value).normalize("NFC");
+        const bad = !!b && (b.length >= a.length || !a.startsWith(b)) && a !== b;
+        mm.textContent = bad ? PW_MISMATCH : ""; mm.hidden = !bad;
+        if (bad) cf.setAttribute("aria-invalid", "true"); else cf.removeAttribute("aria-invalid");
+      };
+      cf.addEventListener("input", check); input.addEventListener("input", check);
+    }
+    return { render: render, el: box, mismatch: mm };
   }
   const SESSION_START_KEY = "bp_session_start";  // localStorage {uid, ts}: absolute session age (shared by tabs)
   const ACTIVITY_KEY = "bp_last_activity";       // localStorage ms timestamp: last activity in ANY tab
@@ -1473,7 +1491,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "57";
+  const AUTH_UI_VERSION = "58";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2382,7 +2400,7 @@ window.HelmUrl = HelmUrl;
     },
     // ---- self-service password reset / change -----------------------------------
     genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT, resend: GENERIC_RESEND },
-    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist, guessable: passwordGuessable, guessReasons: passwordGuessReasons, pwnedMessage: PW_PWNED_MSG, rulesAttr: PW_RULES_ATTR },
+    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist, guessable: passwordGuessable, guessReasons: passwordGuessReasons, pwnedMessage: PW_PWNED_MSG, mismatchMessage: PW_MISMATCH, strengthLabels: ["", "Weak", "Weak", "Fair", "Strong"], rulesAttr: PW_RULES_ATTR },
     // r29: Supabase Auth error -> { code, message, field, ref } (pure; exported for tests and other pages)
     authErrorInfo: authErrorInfo,
     // Resolves the same way whether or not the email has an account (the caller

@@ -297,7 +297,7 @@
       </div>
       <p class="ferr" id="pw_err" hidden></p>
       <div class="meter" id="pwMeter" data-level="0" hidden><span></span><span></span><span></span><span></span><b id="pwMeterTxt" aria-live="polite"></b></div>
-      <p class="hint" id="pwHint" hidden>At least 12 characters, with a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).</p>
+      <p class="hint" id="pwHint" hidden>Use 12 or more characters with a mix of uppercase and lowercase letters, numbers &amp; symbols.</p>
       <ul id="pwRules" hidden></ul>
       <div id="pw2Row" hidden>
         <label for="pw2">Confirm password</label>
@@ -491,7 +491,7 @@
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
 <script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=319" defer></script>
-<script src="auth-ui.js?v=57" defer></script>
+<script src="auth-ui.js?v=58" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
 <script src="/trial-signup.js?v=14" defer></script>
@@ -509,11 +509,11 @@ document.addEventListener("DOMContentLoaded", function(){
   // an uppercase letter, a number and a symbol — docs/AUTH-DASHBOARD-SETTINGS.md).
   // One rule, from store-api.js.
   const PW_MIN=12;
-  const pwProblem=(p)=>(BPStore.auth.passwordRule? BPStore.auth.passwordRule.problem(p) : ((p||"").length<PW_MIN?"Use at least "+PW_MIN+" characters.":null));
+  const pwProblem=(p)=>(BPStore.auth.passwordRule? BPStore.auth.passwordRule.problem(p) : ((p||"").length<PW_MIN?"Too short. Use "+PW_MIN+" or more characters.":null));
   // r29: what the person typed (name, e-mail) feeds the local "easy to guess" warning
   const pwHints=()=>[(document.getElementById("fullname")||{}).value||"", (document.getElementById("email")||{}).value||""];
   const pwGuess=(p)=>(BPStore.auth.passwordRule && BPStore.auth.passwordRule.guessable)? BPStore.auth.passwordRule.guessable(p, pwHints()) : null;
-  if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"), {hints:pwHints});
+  if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"), {hints:pwHints, confirm:document.getElementById("pw2")});
   const QS=new URLSearchParams(location.search);
   // Cloudflare Turnstile — only when config.captcha.siteKey is set (else null = off, sign-in unchanged)
   let cap=null, fgCap=null;
@@ -623,7 +623,7 @@ document.addEventListener("DOMContentLoaded", function(){
         '<input id="fpc_user" type="email" autocomplete="username" hidden readonly>'+
         '<input id="fpc_cur" type="password" autocomplete="current-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
         '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password</label>'+
-        '<p style="margin:0 0 6px;color:#555;font-size:.8rem">At least '+PW_MIN+' characters with a lowercase letter, an uppercase letter, a number and a symbol.</p>'+
+        '<p style="margin:0 0 6px;color:#555;font-size:.8rem">Use '+PW_MIN+' or more characters with a mix of uppercase and lowercase letters, numbers &amp; symbols.</p>'+
         '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" passwordrules="minlength: 12; required: lower; required: upper; required: digit; required: [-!#$%&amp;*+=?@^_~.,:;/]; max-consecutive: 2;" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:4px">'+
         '<ul id="fpc_rules"></ul>'+
         '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Confirm password</label>'+
@@ -634,7 +634,7 @@ document.addEventListener("DOMContentLoaded", function(){
       document.body.appendChild(ov);
       const form=ov.querySelector("#fpc_form"), cur=ov.querySelector("#fpc_cur"), pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
       ov.querySelector("#fpc_user").value=((BPStore.auth.user&&BPStore.auth.user())||{}).email||"";   // R29b: saved against this account
-      if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(pw, ov.querySelector("#fpc_rules"));
+      if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(pw, ov.querySelector("#fpc_rules"), {confirm:pw2});
       const curLbl=ov.querySelector('label[for="fpc_cur"]');
       const showCur=(on)=>{ cur.hidden=!on; curLbl.hidden=!on; cur.required=on; };
       showCur(!known);
@@ -645,7 +645,7 @@ document.addEventListener("DOMContentLoaded", function(){
           er.textContent="";
           const bad=pwProblem(pw.value); if(bad){ er.textContent=bad; return; }
           if(!known && !cur.value){ er.textContent="Enter the temporary password you signed in with."; cur.focus(); return; }
-          if(pw.value!==pw2.value){ er.textContent="Passwords don't match."; return; }
+          if(pw.value!==pw2.value){ er.textContent="Passwords don't match. Try again."; return; }
           go.textContent="Saving…";
           const opts={ currentPassword: known || cur.value };
           try{ await BPStore.auth.completePasswordChange(pw.value, opts); cur.value=""; known=null; ov.remove(); resolve(true); }
@@ -754,12 +754,12 @@ document.addEventListener("DOMContentLoaded", function(){
   // strength meter (same rule as the server: min 12 + lower/upper/digit/symbol)
   function pwLevel(p){ if(!p) return 0; let n=0; if(/[a-z]/.test(p)) n++; if(/[A-Z]/.test(p)) n++; if(/[0-9]/.test(p)) n++; if(/[^A-Za-z0-9]/.test(p)) n++;
     if(p.length<PW_MIN) return Math.min(n,2)||1; if(pwProblem(p)) return Math.min(n,3); return 4; }
-  const PW_WORDS=["","Too weak","Weak","Almost there","Strong"];
+  const PW_WORDS=["","Weak","Weak","Fair","Strong"];   // R101: Google-style Weak / Fair / Strong
   // r29: never "Strong" for an easy-to-guess shape (Name@123456 ...) - Supabase's too-common check would refuse it
   $("#pw").addEventListener("input", ()=>{ const v=$("#pw").value, g=v && !pwProblem(v) && pwGuess(v); const l=g?2:pwLevel(v);
     // r29: the server's "weak" verdict holds until the password changes (this event = it changed)
     if($("#pwMeter").hasAttribute("data-server")){ $("#pwMeter").removeAttribute("data-server"); if($("#err").dataset.pwSrv==="1"){ $("#err").hidden=true; delete $("#err").dataset.pwSrv; } }
-    $("#pwMeter").setAttribute("data-level",String(l)); $("#pwMeterTxt").textContent=g?"Easy to guess":PW_WORDS[l]; });
+    $("#pwMeter").setAttribute("data-level",String(l)); $("#pwMeterTxt").textContent=g?"Weak":PW_WORDS[l]; });
   // r29: Supabase refused the password (weak_password): 1 red bar + the reason, until the password is changed
   function pwServerWeak(msg){
     const pwned=!!(BPStore.auth.passwordRule && BPStore.auth.passwordRule.pwnedMessage && String(msg).indexOf(BPStore.auth.passwordRule.pwnedMessage)===0);
@@ -1105,7 +1105,7 @@ document.addEventListener("DOMContentLoaded", function(){
       $("#ipSub").textContent=(by||"Your studio admin")+" invited you"+(rl?" as "+rl:"")+". Choose your password to finish joining — you'll use it to sign in next time.";
       $("#ipEmail").textContent=u.email||""; $("#ip_user").value=u.email||"";   // R29b: password managers save the new password against this account
       if(!$("#ip_name").value && meta.full_name) $("#ip_name").value=String(meta.full_name).slice(0,80);
-      if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist && !$("#ipRules").dataset.on){ $("#ipRules").dataset.on="1"; BPStore.auth.passwordRule.attachChecklist($("#ip_pw"), $("#ipRules"), {hints:()=>[$("#ip_name").value, (BPStore.auth.user()||{}).email||""]}); }
+      if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist && !$("#ipRules").dataset.on){ $("#ipRules").dataset.on="1"; BPStore.auth.passwordRule.attachChecklist($("#ip_pw"), $("#ipRules"), {confirm:document.getElementById("ip_pw2"), hints:()=>[$("#ip_name").value, (BPStore.auth.user()||{}).email||""]}); }
       setTimeout(()=>$($("#ip_name").value?"#ip_pw":"#ip_name").focus(),60);
       const form=$("#invitePwForm");
       const onSubmit=(e)=>{
@@ -1115,7 +1115,7 @@ document.addEventListener("DOMContentLoaded", function(){
           const name=$("#ip_name").value.trim(), pw=$("#ip_pw").value;
           if(!name){ showErr(er,"Enter your full name."); $("#ip_name").focus(); return; }
           const bad=pwProblem(pw); if(bad){ showErr(er,bad); $("#ip_pw").focus(); return; }
-          if(String(pw).normalize("NFC")!==String($("#ip_pw2").value).normalize("NFC")){ showErr(er,"Passwords don't match."); $("#ip_pw2").focus(); return; }
+          if(String(pw).normalize("NFC")!==String($("#ip_pw2").value).normalize("NFC")){ showErr(er,"Passwords don't match. Try again."); $("#ip_pw2").focus(); return; }
           try{ await BPStore.auth.setInvitePassword(pw, name); $("#ip_pw").value=""; $("#ip_pw2").value=""; form.removeEventListener("submit",onSubmit); resolve(true); }
           catch(x){ showErr(er,(x&&/^(name_required|weak_password|reauth_required)$/.test(x.code||""))?x.message:BPUI.friendlyError(x,{action:"set your password"}));
             if(x&&x.field==="pw"){ $("#ip_pw").focus(); $("#ip_pw").select(); } }   // r29: e.g. a too-common password - fields stay filled
@@ -1449,11 +1449,11 @@ document.addEventListener("DOMContentLoaded", function(){
       try{
         if(mode==="signup"){
           const bad=pwProblem(pw); if(bad){ showErr($("#err"),"Choose a stronger password: "+bad); $("#pw").focus(); return; }
-          if(String($("#pw2").value).normalize("NFC")!==String(pw).normalize("NFC")){ showErr($("#err"),"The two passwords don't match — type the same password in both boxes."); $("#pw2").focus(); return; }
+          if(String($("#pw2").value).normalize("NFC")!==String(pw).normalize("NFC")){ showErr($("#err"),"Passwords don't match. Try again."); $("#pw2").focus(); return; }
           // r29: warn ONCE about an easy-to-guess password before sending it (Supabase's too-common check decides);
           // submitting the same password again goes ahead
           const guess=pwGuess(pw);
-          if(guess && pwWarned!==pw){ pwWarned=pw; setFieldErr($("#pw"), "This password is easy to guess — see the tips below. Press the button again to use it anyway."); $("#pw").focus(); return; }
+          if(guess && pwWarned!==pw){ pwWarned=pw; setFieldErr($("#pw"), "This password is easy to guess. Try adding more words or characters, or press the button again to use it anyway."); $("#pw").focus(); return; }
           if(!BPStore.auth.user() && capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
           if(joining){
             // invitee creating an account, then accepting the invite (no studio to create)

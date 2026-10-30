@@ -12,7 +12,7 @@ const r = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const SA = r("public/store-api.js"), LOGIN = r("public/login.html"), RESET = r("public/reset-password.js"), IS = r("supabase/functions/invite-signup/index.ts");
 const tests = []; const t = (n, f) => tests.push([n, f]);
 const PWNED_BODY = { code: "weak_password", message: "Password is known to be weak and easy to guess, please choose a different one.", weak_password: { reasons: ["pwned"] } };
-const PWNED_MSG = "This password is too common and easy to guess. Please choose a different password.";
+const PWNED_MSG = "This password is too common. Try a different one.";
 
 async function env(o) {
   o = o || {};
@@ -65,9 +65,9 @@ t("1 the user's exact case: signUp -> 422 weak_password ['pwned'] -> the 'too co
 });
 
 const CASES = [
-  [{ code: "weak_password", status: 422, reasons: ["length"] }, /too short — use at least 12/, "pw"],
-  [{ code: "weak_password", status: 422, reasons: ["characters"] }, /lowercase letter, an uppercase letter, a number and a symbol/, "pw"],
-  [{ code: "weak_password", status: 422 }, /isn't strong enough/, "pw"],
+  [{ code: "weak_password", status: 422, reasons: ["length"] }, /Too short\. Use 12 or more/, "pw"],
+  [{ code: "weak_password", status: 422, reasons: ["characters"] }, /mix of uppercase and lowercase letters, numbers & symbols/, "pw"],
+  [{ code: "weak_password", status: 422 }, /easy to guess\. Try adding more words/, "pw"],
   [{ code: "email_address_invalid", status: 400 }, /^This e-mail address can't be used — check it or use another\./, "email"],
   [{ code: "email_address_not_authorized", status: 400 }, /couldn't send the confirmation e-mail right now — try again in a few minutes or contact support/, null],
   [{ code: "unexpected_failure", status: 500, message: "Error sending confirmation email" }, /sign-up service had a problem/, null],
@@ -155,8 +155,8 @@ t("7 the pure mapper: password ctx says 'password', unknown code still has a Ref
 t("8 local 'easy to guess' check names the specific reason(s) in plain words; real passphrases pass", async () => {
   const { S } = await env({});
   const g = S.auth.passwordRule.guessReasons;
-  const SEQ = "Avoid number sequences like 123456", NAME = "Avoid using your name or e-mail in the password", REP = "Avoid repeated characters like aaa or 111",
-    KEY = "Avoid keyboard patterns like qwerty", COMMON = "This is a very common password", WORD = "Avoid letters followed by numbers (like Name@2024 or CarModel123!) - add an unrelated word or mix the numbers in";
+  const SEQ = "Avoid sequences of numbers or letters.", NAME = "Avoid using your name or email in your password.", REP = "Avoid repeating the same character.",
+    KEY = "Avoid keyboard patterns.", COMMON = "This password is too common. Try a different one.", WORD = "This password is easy to guess. Try adding more words or characters.";
   const has = (p, why, hints) => assert.ok(g(p, hints).includes(why), p + " -> " + why + " (got " + JSON.stringify(g(p, hints)) + ")");
   has("Tharun@123456", SEQ); has("Tharun@123456", WORD); has("Tharun@123456", NAME, ["Tharun studios", "t@gmail.com"]);
   has("P@ssw0rd12345", COMMON); has("Welcome@2024!", COMMON); has("Aaaaaaaa1!aa", REP); has("Zz!111Qq#xyW", REP);
@@ -167,9 +167,9 @@ t("8 local 'easy to guess' check names the specific reason(s) in plain words; re
   assert.equal(S.auth.passwordRule.guessable("Mango+Kite7+Orbit3"), null);
 });
 t("9 login.html: meter never 'Strong' for a guessable password; warn once before submit; checklist gets the hints", () => {
-  assert.ok(LOGIN.includes('g?"Easy to guess":PW_WORDS[l]') && LOGIN.includes("const l=g?2:pwLevel(v);"));
-  assert.ok(/if\(guess && pwWarned!==pw\)\{ pwWarned=pw; setFieldErr\(\$\("#pw"\), "This password is easy to guess — see the tips below\./.test(LOGIN));
-  assert.ok(LOGIN.includes('attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"), {hints:pwHints})'));
+  assert.ok(LOGIN.includes('g?"Weak":PW_WORDS[l]') && LOGIN.includes("const l=g?2:pwLevel(v);"));
+  assert.ok(/if\(guess && pwWarned!==pw\)\{ pwWarned=pw; setFieldErr\(\$\("#pw"\), "This password is easy to guess\. Try adding more words/.test(LOGIN));
+  assert.ok(LOGIN.includes('attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"), {hints:pwHints, confirm:document.getElementById("pw2")})'));
   assert.ok(SA.includes('li.setAttribute("data-guessable", "1")'), "checklist warning line (every set-password form)");
 });
 t("10 login.html: a mapped password / e-mail error -> top + inline, aria-invalid, focus + scroll, form kept, meter = server verdict", () => {
@@ -191,8 +191,8 @@ t("12 no 'breach' wording anywhere a person sees it (sign-up / sign-in / reset /
 });
 t("13 R29b: the too-common message suggests no example password; no 'breach'/'leak' wording on screen", async () => {
   const { S } = await env({});
-  assert.equal(S.auth.passwordRule.pwnedMessage, "This password is too common and easy to guess. Please choose a different password.");
-  assert.ok(IS.includes('"This password is too common and easy to guess. Please choose a different password. (Ref: AUTH-weak_password)"'));
+  assert.equal(S.auth.passwordRule.pwnedMessage, "This password is too common. Try a different one.");
+  assert.ok(IS.includes('"This password is too common. Try a different one. (Ref: AUTH-weak_password)"'));
   for (const [n, src] of [["store-api", SA], ["login", LOGIN], ["reset-password", RESET], ["invite-signup", IS]]) {
     assert.ok(!/Blue-Garden|for example a short phrase|longer phrase/i.test(src), n + ": no example password");
   }
@@ -275,3 +275,18 @@ let fails = 0;
 for (const [n, f] of tests) { try { await f(); console.log("  ✓", n); } catch (e) { fails++; console.error("  ✗", n, "\n   ", e.message); } }
 console.log(`\nr29-signup-errors: ${tests.length - fails}/${tests.length} passed.`);
 if (fails) process.exit(1);
+
+t("R101 Google-style wording: no example passwords in any hint / reason; live confirm mismatch everywhere", async () => {
+  const { S } = await env({});
+  const R = S.auth.passwordRule;
+  const all = [R.hint, R.pwnedMessage, R.mismatchMessage, ...R.checks("").map((c) => c.label), ...R.guessReasons("Tharun@123456", ["Tharun x"]), R.problem("a"), R.problem("abcdefghijklm")];
+  for (const m of all) assert.ok(!/like |e\.g\.|Name@|CarModel|qwerty|123456|aaa/i.test(m), "no examples: " + m);
+  assert.equal(R.hint, "Use 12 or more characters with a mix of uppercase and lowercase letters, numbers & symbols.");
+  assert.equal(R.problem("short"), "Too short. Use 12 or more characters.");
+  assert.equal(R.problem("abcdefghijklm"), "Add an uppercase letter, a number and a symbol.");
+  assert.deepEqual(R.strengthLabels.slice(1), ["Weak", "Weak", "Fair", "Strong"]);
+  assert.ok(LOGIN.includes('const PW_WORDS=["","Weak","Weak","Fair","Strong"]'));
+  assert.ok(!/Name@2024|CarModel|like ! @/.test(LOGIN + SA), "no example passwords left");
+  assert.ok(LOGIN.includes('{confirm:pw2}') && LOGIN.includes('{confirm:document.getElementById("ip_pw2"), hints:'));
+  assert.ok(SA.includes('cf.addEventListener("input", check)'));
+});
