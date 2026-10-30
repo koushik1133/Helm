@@ -104,7 +104,7 @@ t('C1 public page: noindex, no-referrer, text only (no innerHTML), only config +
   const H = read('public/vendor-request.html'), J = read('public/vendor-request.js');
   assert.match(H, /<meta name="robots" content="noindex,nofollow,noarchive">/);
   assert.match(H, /<meta name="referrer" content="no-referrer">/);
-  assert.deepEqual([...H.matchAll(/<script src="([^"?]+)/g)].map((m) => m[1]), ['/trusted-types.js', '/config.js', '/vendor-request.js']);
+  assert.deepEqual([...H.matchAll(/<script src="([^"?]+)/g)].map((m) => m[1]), ['/trusted-types.js', '/console-warning.js', '/config.js', '/vendor-request.js']);
   assert.ok(!/<script\s*>/i.test(H) && !/style="/.test(H), 'no inline script / style');
   assert.ok(!/\.innerHTML|insertAdjacentHTML\(|document\.write/.test(J));
   assert.match(J, /credentials: "omit"/);
