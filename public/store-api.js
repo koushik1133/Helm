@@ -1059,6 +1059,10 @@ window.HelmUrl = HelmUrl;
     })();
   }
   try { if (PAGE_GATED && typeof window !== "undefined" && window.addEventListener) window.addEventListener("pageshow", onPageShow); } catch (e) {}
+  /* r91: stop the bell poller + chat realtime the moment this tab loses its user (sign-out, expiry, idle limit) */
+  function stopSignedInPollers() {
+    try { if (typeof window !== "undefined" && typeof window.__bpBellTeardown === "function") { const t = window.__bpBellTeardown; window.__bpBellTeardown = null; t(); } } catch (e) {}
+  }
   function looksLikeAuthError(e) {
     if (global.BPUI && global.BPUI.isAuthError) return global.BPUI.isAuthError(e);
     const c = (e && e.code) || ""; const m = String((e && e.message) || "");
@@ -1077,6 +1081,7 @@ window.HelmUrl = HelmUrl;
   function expireSession(revoked) {
     if (sessionExpired || !shouldRedirectOnExpiry()) return false;
     sessionExpired = true;
+    stopSignedInPollers();
     const byLogout = signedOutElsewhere(lsGet(SIGNOUT_KEY), currentUser && currentUser.id, Date.now());
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = true;
     let page = "dashboard.html";
@@ -1206,7 +1211,23 @@ window.HelmUrl = HelmUrl;
     if (readCache.size > 200) { for (const [k, v] of readCache) if (now - v.t >= READ_TTL_MS) readCache.delete(k); }
     return p.then((r) => r.clone());
   }
+  /* r91: signed-in-only reads (the READ_RPCS list + private tables) sent with the bare anon key - a page booting
+     while signed out, or polling right after sign-out / expiry - are always refused by the database (42501) and
+     filled the Postgres error log. Answer them here with the same 401 / 42501 the server would give, without a
+     network call. Public pages (approval, invitation, site) use other RPCs and are untouched. */
+  const SIGNED_IN_ONLY = /\/rest\/v1\/(leads|quotes|chat_[a-z_]+)(\?|$)/;
+  function anonDenied(input, init) {
+    try {
+      const u = typeof input === "string" ? input : (input && input.url) || "";
+      if (!CFG.anonKey || !(READ_RPCS.test(u) || SIGNED_IN_ONLY.test(u))) return false;
+      return hdrOf(init, input, "Authorization") === "Bearer " + CFG.anonKey;
+    } catch (e) { return false; }
+  }
   function authAwareFetch(input, init) {
+    if (anonDenied(input, init)) {
+      return Promise.resolve(new Response(JSON.stringify({ code: "42501", details: null, hint: null, message: "not signed in" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }));
+    }
     return coalescedFetch(input, init).then((res) => {
       try {
         const u = typeof input === "string" ? input : (input && input.url) || "";
@@ -1382,6 +1403,7 @@ window.HelmUrl = HelmUrl;
     if (supa) {
       try { await supa.auth.signOut({ scope: "local" }); } catch (e) {}
     }
+    stopSignedInPollers();
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null;
     sessClear(); userLocalClear(); lsDel(SESSION_START_KEY); authRequired = true;
     let page = "dashboard.html";
@@ -2269,7 +2291,7 @@ window.HelmUrl = HelmUrl;
     // token on the server; it no longer ends the account's sessions on other browsers / devices (supabase-js v2's
     // bare signOut() defaults to "global", which logged the owner's Safari out when another browser signed out).
     // "Sign out other devices" (signOutOthers, scope "others") is the explicit way to end the rest.
-    async signOut() { explicitSignOut = true; reauthClear(); if (currentUser && currentUser.id) lsSet(SIGNOUT_KEY, JSON.stringify({ uid: currentUser.id, ts: Date.now() })); if (supa) { try { await supa.auth.signOut({ scope: "local" }); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
+    async signOut() { explicitSignOut = true; reauthClear(); stopSignedInPollers(); if (currentUser && currentUser.id) lsSet(SIGNOUT_KEY, JSON.stringify({ uid: currentUser.id, ts: Date.now() })); if (supa) { try { await supa.auth.signOut({ scope: "local" }); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
       lsDel(SESSION_START_KEY); lsDel(RECOVERY_KEY);
       if (mode === "supabase") authRequired = true; },
     // End every OTHER session of this account (other browsers / devices); this one stays.
@@ -9341,6 +9363,9 @@ window.HelmUrl = HelmUrl;
       // may carry the server's older answer: it is not drawn (the refresh queued after the change draws the new one), so a
       // cleared badge never flickers back to the old number.
       let mutGen = 0;
+      // r91: the 30 s poll, the visibility catch-up and realtime kept firing after sign-out / session expiry (mount
+      // only checked the user once), sending bell_feed / chat / prefs reads with the bare anon key -> 42501 in the
+      // Postgres log. No signed-in user any more: stop everything instead of reading.
       const refreshNow = async () => { lastRf = Date.now(); const g = mutGen; let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat();
         if (g !== mutGen) return f;
         setDot(serverUnread(f));
@@ -9350,7 +9375,7 @@ window.HelmUrl = HelmUrl;
       // (__bpBellRefresh) used to run alongside a realtime / poll refresh that had read the chat BEFORE the mark;
       // when that older one finished last it put the stale count back ("4 unread" until a reload / the 90 s poll).
       let rfChain = Promise.resolve();
-      const refresh = () => { const p = rfChain.then(refreshNow, refreshNow); rfChain = p.then(() => {}, () => {}); return p; };
+      const refresh = () => { if (!(auth.enabled() && auth.user())) { bellStop(); return Promise.resolve(null); } const p = rfChain.then(refreshNow, refreshNow); rfChain = p.then(() => {}, () => {}); return p; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
       const position = () => {
         if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }
@@ -9517,7 +9542,7 @@ window.HelmUrl = HelmUrl;
       const liveRefresh = () => { if (rfBusy) { rfAgain = true; return rfBusy; }
         rfBusy = Promise.resolve(refresh()).catch(() => {}).then(() => { rfBusy = null; if (rfAgain) { rfAgain = false; return liveRefresh(); } });
         return rfBusy; };
-      const kick = () => { if (kicked) return; kicked = true; liveRefresh();
+      const kick = () => { if (kicked) return; if (!auth.user()) return; kicked = true; liveRefresh();
         try { if (chat && chat.subscribe) { csub = chat.subscribe(function () { liveRefresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
       };
       // la-fetch (audit 25): one poll is ~7 reads (feed + chat bootstrap). On the Chat page realtime already
@@ -9535,6 +9560,7 @@ window.HelmUrl = HelmUrl;
       }
       // Let the chat page nudge the bell after it marks a conversation read.
       try { window.__bpBellRefresh = refresh; } catch (e) {}
+      function bellStop() { try { if (typeof window.__bpBellTeardown === "function") window.__bpBellTeardown(); } catch (e) {} }
       try { window.__bpBellTeardown = () => { kicked = true; clearInterval(timer); window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", onVis); if (isOpen) close(false);
         try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} try { root.remove(); } catch (e) {} }; } catch (e) {}
     },

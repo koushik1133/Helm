@@ -152,7 +152,7 @@ t('19/20 chat ticks labelled; bell recount after the read mark, refreshes serial
   assert.match(CHAT, /aria-label="Read" title="Read">✓✓<\/span>/);
   assert.match(CHAT, /aria-label="Delivered" title="Delivered">✓✓<\/span>/);
   assert.match(CHAT, /Promise\.resolve\(\)\.then\(\(\)=>BPStore\.chat\.markRead\(id\)\)\.catch\(\(\)=>\{\}\)\.then\(bumpBell\);/);
-  assert.match(API, /const refresh = \(\) => \{ const p = rfChain\.then\(refreshNow, refreshNow\); rfChain = p\.then\(\(\) => \{\}, \(\) => \{\}\); return p; \};/);
+  assert.match(API, /const refresh = \(\) => \{ if \(!\(auth\.enabled\(\) && auth\.user\(\)\)\) \{ bellStop\(\); return Promise\.resolve\(null\); \} const p = rfChain\.then\(refreshNow, refreshNow\); rfChain = p\.then\(\(\) => \{\}, \(\) => \{\}\); return p; \};/);
   assert.match(API, /try \{ window\.__bpBellRefresh = refresh; \} catch \(e\) \{\}/);
 });
 

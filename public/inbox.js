@@ -400,8 +400,10 @@
       else if (a === "open" && id) openRow(id);
     });
     // light refresh: every minute while visible (first page only, nothing selected, no menu open)
-    setInterval(function () { if (!doc.hidden && !menu && !selIds().length && !S.cursor && Date.now() - S.lastLoad > 55000 && !doc.querySelector("dialog[open]")) load(false); }, 15000);
-    doc.addEventListener("visibilitychange", function () { if (!doc.hidden && Date.now() - S.lastLoad > 30000 && !selIds().length) load(false); });
+    // r91: never poll once the tab has no signed-in user (sign-out / expiry) - those reads are refused (42501)
+    function signedIn() { try { return !!(window.BPStore && BPStore.auth && BPStore.auth.user()); } catch (e) { return true; } }
+    setInterval(function () { if (signedIn() && !doc.hidden && !menu && !selIds().length && !S.cursor && Date.now() - S.lastLoad > 55000 && !doc.querySelector("dialog[open]")) load(false); }, 15000);
+    doc.addEventListener("visibilitychange", function () { if (signedIn() && !doc.hidden && Date.now() - S.lastLoad > 30000 && !selIds().length) load(false); });
   }
 
   async function renderAccount() {
