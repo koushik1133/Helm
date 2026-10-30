@@ -620,3 +620,29 @@ html[data-theme="dark"] .fv-msg{color:#fca5a5}
 .addrow:not(#_) .btn,.reserve-row:not(#_) .btn{white-space:nowrap}
 @media (max-width:480px){.addrow:not(#_)>:has(>.btn),.reserve-row:not(#_)>:has(>.btn),.addrow:not(#_)>.btn,.reserve-row:not(#_)>.btn{flex:1 1 100%;margin-left:0}
   .addrow:not(#_)>:has(>.btn) .btn,.reserve-row:not(#_)>:has(>.btn) .btn{width:100%}}
+
+/* ============================================================================
+   R95 Apple-style form controls (app pages only - theme.css is not on the booklet,
+   invitation sites, marketing pages or the builder/try/capture canvases).
+   Low specificity (html body + element) so a page's own class rules still win;
+   tables keep their compact controls.
+   ============================================================================ */
+html body :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="submit"], [type="button"], [type="reset"], [type="image"], [type="hidden"]), select, textarea):not(:where(td *, th *, .hp *, .hp-pop *, .uip-pop *, [data-native-picker])) {
+  border-radius: 10px;
+}
+html body :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="submit"], [type="button"], [type="reset"], [type="image"], [type="hidden"]), select):not(:where(td *, th *, .hp *, .hp-pop *, .uip-pop *, [data-native-picker], .cs-search *)) {
+  min-height: 44px; box-sizing: border-box;
+}
+html body :where(input, select, textarea):not(:where([type="checkbox"], [type="radio"], [type="range"])):focus-visible {
+  outline: none; border-color: var(--accent, #047857); box-shadow: var(--focus-halo, 0 0 0 3px rgba(4, 120, 87, .22));
+}
+html body :where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--accent, #047857); }
+html body :where(input[type="checkbox"]) { border-radius: 5px; }
+html body :where(.btn, button.btn, a.btn) { border-radius: 10px; }
+/* labels: sentence case, no ALL-CAPS tracking (labels are already written in sentence case) */
+html body .fld label, html body label.fld-l, html body .field > label { text-transform: none; letter-spacing: normal; }
+/* a checkbox label inside a field row: normal text, aligned with its box */
+html body .fld label.chk, html body .fld label:has(> input[type="checkbox"]), html body .fld label:has(> input[type="radio"]) {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--ink, #1b1930); cursor: pointer;
+}
+html body .fld label.chk > input, html body .fld label:has(> input[type="checkbox"]) > input { margin: 0; flex: none; width: 18px; height: 18px; min-height: 0; }
