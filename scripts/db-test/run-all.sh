@@ -66,6 +66,8 @@ run "r86-profile-trial-gate-0308" "R86-PROFILE-TRIAL-0308: ALL PASS \(10/10\)" p
 run "r92-task-lifecycle-0311" "R92-TASK-LIFECYCLE-0311: ALL PASS \(28/28\)" psql -q -f tests/db/r92-task-lifecycle-0311.sql
 # r96 (0312): the office cancels a crew task with a reason (Staff edit, assigned / accepted / in_progress only), open-shift place freed, cancel columns guarded; re-applies itself twice, rolled back
 run "r96-cancel-task-0312" "R96-CANCEL-TASK-0312: ALL PASS \(27/27\)" psql -q -f tests/db/r96-cancel-task-0312.sql
+# r97 (0313): layout_rules limits checked by the database (only changed keys; inserts re-check only the R97 keys), custom event types under RLS; rolled back
+run "r97-layout-rules-0313" "R97-LAYOUT-RULES-0313: ALL PASS \(24/24\)" psql -q -f tests/db/r97-layout-rules-0313.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql

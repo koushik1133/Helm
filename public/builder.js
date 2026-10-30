@@ -4939,6 +4939,13 @@ async function init(){
         if(rule.buffetPer!=null && guests) setChk('c_buffet', guests>=(+rule.buffetPer));
         if(rule.stage!=null) setChk('c_stage', rule.stage);
         if(rule.dancefloor!=null) setChk('c_dance', rule.dancefloor);
+        // R97: optional keys (stored only when a studio changed them from the built-in value; absent = unchanged)
+        if(rule.seatsPerTable!=null) setV('c_spt', rule.seatsPerTable);
+        if(rule.aisleFt!=null) setV('c_aisle', rule.aisleFt);
+        if(rule.exits!=null) setV('c_exits', rule.exits);
+        if(rule.headTable!=null) setChk('c_head', rule.headTable);
+        if(rule.canopy!=null) setChk('c_canopy', rule.canopy);
+        if(rule.lounge!=null) setChk('c_lounge', rule.lounge);
         if(!_autoDefaultLoaded) toast('Applied "'+(rawType||ct)+'" default rules');
       }
     }catch(e){}
