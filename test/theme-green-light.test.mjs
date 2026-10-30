@@ -44,8 +44,8 @@ t('old cobalt default migrates to emerald once; a later cobalt choice sticks', (
   assert.equal(s.attrs['data-hb-theme'], 'emerald'); assert.equal(s.store['helm.shellb.theme'], 'emerald');
   const s2 = runPublic({ 'helm.shellb.theme': 'cobalt', 'helm.theme.v': '2' });
   assert.equal(s2.attrs['data-hb-theme'], 'cobalt');
-  const s3 = runPublic({ 'helm.shellb.theme': 'midnight' });
-  assert.equal(s3.attrs['data-hb-theme'], 'midnight', 'a deliberate non-default choice is never overwritten');
+  const s3 = runPublic({ 'helm.shellb.theme': 'studio' });
+  assert.equal(s3.attrs['data-hb-theme'], 'studio', 'a deliberate non-default choice is never overwritten');
 });
 t('flag on brings dark back (saved preference, then OS)', () => {
   assert.equal(runPublic({ 'bps.theme': 'dark' }, { HELM_DARK_MODE: true }).attrs['data-theme'], 'dark');

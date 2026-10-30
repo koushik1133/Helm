@@ -205,7 +205,7 @@
     { id: "profile",  text: "Your profile (name, mobile, photo)", kw: "profile name phone mobile avatar photo my details", open: { section: "profile" } },
     { id: "devices",  text: "Sign out other devices", kw: "devices sessions security signout logout", open: { section: "settings", focus: "devices" } },
     // QA1026 #4: the rail's colour theme picker (shell-b.js), per device - not a Settings field
-    { id: "theme",    text: "Colour theme",           kw: "theme colour color accent appearance look emerald cobalt midnight graphite studio", open: { theme: true } }
+    { id: "theme",    text: "Colour theme",           kw: "theme colour color accent appearance look emerald cobalt graphite studio", open: { theme: true } }
   ];
 
   /* run an ACCOUNT item: the theme picker opens the rail swatch; everything else is HelmAuthUI.openAccount */

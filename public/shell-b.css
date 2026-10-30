@@ -3,6 +3,7 @@ html[data-shell="b"] { --hb-w: 68px; --hb-wx: 240px; --hb-top: 60px; --hb-ease: 
 /* ---- THEME TOKENS: base = cobalt + midnight | emerald | graphite. Light rules first, dark after. ---- */
 html[data-shell="b"] { --hb-bg: #ffffff; --hb-bg2: #f5f7fc; --hb-line: #e3e8f2; --hb-ink: #0b1b3f; --hb-ink2: #34405c; --hb-ink3: #5f6b88; --hb-acc: #2450f0; --hb-acc2: #4a72ff; --hb-acc-ink: #ffffff; --hb-acc-soft: #eaeffe; --hb-acc-text: #1d44d8; }
 html[data-shell="b"][data-hb-theme="emerald"] { --hb-bg: #ffffff; --hb-bg2: #f4f8f6; --hb-line: #e0eae5; --hb-ink: #0b2a22; --hb-ink2: #2f4a42; --hb-ink3: #5a7068; --hb-acc: #047857; --hb-acc2: #10a37a; --hb-acc-ink: #ffffff; --hb-acc-soft: #e3f4ed; --hb-acc-text: #036b4d; }
+/* MIDNIGHT: parked R98, owner may restore. These rules are kept but unused - no allow-list (shell-proto.js, public-theme.js, the picker) can set midnight any more. */
 html[data-shell="b"][data-hb-theme="midnight"] { --hb-bg: #ffffff; --hb-bg2: #f5f5fb; --hb-line: #e4e4f0; --hb-ink: #12133a; --hb-ink2: #3a3c5e; --hb-ink3: #62658a; --hb-acc: #4338ca; --hb-acc2: #6157e8; --hb-acc-ink: #ffffff; --hb-acc-soft: #eeedfc; --hb-acc-text: #3f34c2; }
 /* graphite = pure black & white (Oct 2026): black accent/buttons, white surfaces, neutral greys only (no blue or warm tint) */
 html[data-shell="b"][data-hb-theme="graphite"] { --hb-bg: #ffffff; --hb-bg2: #f5f5f5; --hb-line: #e5e5e5; --hb-ink: #000000; --hb-ink2: #333333; --hb-ink3: #666666; --hb-acc: #000000; --hb-acc2: #333333; --hb-acc-ink: #ffffff; --hb-acc-soft: #f0f0f0; --hb-acc-text: #000000;
@@ -20,7 +21,7 @@ html[data-shell="b"][data-theme="dark"][data-hb-theme="graphite"] { --hb-bg: #16
 /* derived: everything that used the old inverted-ink pair now follows the accent */
 html[data-shell="b"] { --hb-on: var(--hb-acc); --hb-on-ink: var(--hb-acc-ink);
   --hb-glow: color-mix(in srgb, var(--hb-acc) 32%, transparent);
-  --hb-grad: linear-gradient(180deg, color-mix(in srgb, var(--hb-acc) 86%, #fff) 0%, var(--hb-acc) 100%);
+  --hb-grad: linear-gradient(180deg, color-mix(in srgb, var(--hb-acc) 92%, #fff) 0%, var(--hb-acc) 100%);   /* R98: was 86% - white text on the light top of the emerald gradient fell to 4.19:1; 92% keeps >=4.7:1 */
   --hb-tile: linear-gradient(135deg, var(--hb-acc2) 0%, var(--hb-acc) 100%);
   --hb-lift: 0 1px 2px color-mix(in srgb, var(--hb-ink) 6%, transparent), 0 10px 28px -12px color-mix(in srgb, var(--hb-acc) 30%, transparent);
   --hb-pop: 0 18px 40px -12px color-mix(in srgb, var(--hb-ink) 28%, transparent), 0 2px 6px color-mix(in srgb, var(--hb-ink) 8%, transparent); }
@@ -532,3 +533,16 @@ html[data-shell="b"] header.hb-header .hb-mstudio { display: none; }
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   html[data-shell="b"] header.hb-header .hb-has-studio h1 { font-size: 15.5px; line-height: 20px; }
 }
+
+/* R98: the top-bar split "New quote" button is ONE pill split by a thin translucent divider, in every theme.
+   Root cause of the old look: each half painted its own gradient (--hb-grad), its own glow shadow and its own hover lift,
+   and the Studio theme's ".hb-new { border-radius:10px }" (higher specificity) rounded the chevron's INNER corners too.
+   Now: one solid accent for both halves, the shadow on the wrapper, square inner seam, and per-half hover/focus that never moves. */
+html[data-shell="b"][data-hb-theme] .hb-split { border-radius: 10px; box-shadow: 0 6px 16px -8px var(--hb-glow); }
+html[data-shell="b"][data-hb-theme] .hb-split > .hb-new { background: var(--hb-acc); color: var(--hb-acc-ink); border: 0; box-shadow: none; transform: none; opacity: 1; border-radius: 10px; }
+html[data-shell="b"][data-hb-theme] .hb-split > .hb-new:not(.hb-chev):not(:last-of-type) { border-radius: 10px 0 0 10px; }
+html[data-shell="b"][data-hb-theme] .hb-split > .hb-chev:not(.hb-solo) { border-radius: 0 10px 10px 0; border-left: 1px solid color-mix(in srgb, var(--hb-acc-ink) 32%, transparent) !important; }
+html[data-shell="b"][data-hb-theme] .hb-split > .hb-chev.hb-solo { border-left: 0 !important; }
+html[data-shell="b"][data-hb-theme] .hb-split > .hb-new:hover, html[data-shell="b"][data-hb-theme] .hb-split > .hb-chev[aria-expanded="true"] { background: color-mix(in srgb, var(--hb-acc) 84%, var(--hb-ink2)); transform: none; box-shadow: none; }
+html[data-shell="b"][data-hb-theme] .hb-split > .hb-new:active { background: color-mix(in srgb, var(--hb-acc) 74%, var(--hb-ink2)); transform: none; }
+html[data-shell="b"][data-hb-theme] .hb-split > .hb-new:focus-visible { outline: 2px solid var(--hb-acc-ink); outline-offset: -4px; position: relative; z-index: 1; }

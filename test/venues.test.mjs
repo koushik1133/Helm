@@ -71,7 +71,7 @@ t('pages wire the venue scripts (no inline), store-api v=157', () => {
     const h = read('public/' + p);
     assert.match(h, /<script src="venues-core\.js\?v=11"><\/script>\s*<script src="venue-picker\.js\?v=8"><\/script>/, p);
     assert.match(h, /venues\.css\?v=8/, p);
-    assert.match(h, /store-api\.js\?v=313/, p);
+    assert.match(h, /store-api\.js\?v=314/, p);
   }
   for (const f of ['venues-core.js', 'venue-picker.js', 'venues-admin.js']) {
     const js = read('public/' + f);

@@ -1,5 +1,5 @@
 /* booklet-v2.css - Shell-B look for the client booklet (look only); same tokens as public-pages-v2.css */
-@import url("/public-pages-v2.css?v=5");
+@import url("/public-pages-v2.css?v=6");
 
 /* r21: tidier client booklet - money tiles without a box inside a box, compact on phones, tables never push the page sideways */
 .paysum > div div{border:0;padding:0;border-radius:0;background:none}

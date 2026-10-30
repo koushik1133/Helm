@@ -56,7 +56,7 @@
   const doc = global.document;
   // search-catalog.js (pages, Settings sections + settings, account items) and the smart matcher
   // settings-search-core.js load next to this file on first open (loader constants: bumped with the files)
-  const CATALOG_V = "10", SSC_V = "2";
+  const CATALOG_V = "11", SSC_V = "2";
   const SELF = (() => { try { return doc && doc.currentScript && doc.currentScript.src || ""; } catch (e) { return ""; } })();
   const isMac = (() => { try { return /Mac|iPhone|iPad/.test(global.navigator.platform || global.navigator.userAgent || ""); } catch (e) { return false; } })();
 
