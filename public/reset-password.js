@@ -29,7 +29,7 @@
   function sub(t) { $("#sub").textContent = t; }
   function friendly(e, action) {
     if (e && (/^(mfa_invalid|bad_current_password|captcha_|rate_limited)/.test(e.code || "") ||
-        /^(Use at least|Include at least|Enter the 6-digit|Choose a password)/.test(e.message || ""))) return e.message;
+        /^(Too short|Add |Use at least|Include at least|Enter the 6-digit|Choose a password)/.test(e.message || ""))) return e.message;
     if (/captcha/i.test((e && e.message) || "")) return "The security check failed or expired — please try again.";
     return (window.BPUI && BPUI.friendlyError) ? BPUI.friendlyError(e, { action: action }) : ((e && e.message) || "Something went wrong.");
   }
@@ -126,7 +126,7 @@
     });
   });
 
-  if (BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist($("#new_pw"), $("#newRules"));
+  if (BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist($("#new_pw"), $("#newRules"), { confirm: $("#new_pw2") });
   $("#vSet").addEventListener("submit", function (e) {
     e.preventDefault();
     guard($("#set_go"), async function () {
@@ -134,7 +134,7 @@
       var a = $("#new_pw").value, b = $("#new_pw2").value;
       var bad = BPStore.auth.passwordRule.problem(a);
       if (bad) { err(bad); $("#new_pw").focus(); return; }
-      if (a !== b) { err("The two passwords don't match."); $("#new_pw2").focus(); return; }
+      if (a !== b) { err("Passwords don't match. Try again."); $("#new_pw2").focus(); return; }
       // ordinary change: Supabase requires the current password (sent once, field cleared);
       // a reset-link (recovery) session needs none
       var opts = recovering ? undefined : { currentPassword: $("#set_cur_pw").value };

@@ -40,7 +40,7 @@
   function errText(e, action) {
     var UI = global.BPUI;
     if (e && e.code && /^(mfa_invalid|mfa_locked|mfa_unavailable|mfa_aal2_required|bad_current_password|current_password_required|captcha_|rate_limited)/.test(e.code)) return e.message;
-    if (e && e.message && /^(Use at least|Include at least|Enter the 6-digit|Choose a password)/.test(e.message)) return e.message;
+    if (e && e.message && /^(Too short|Add |Use at least|Include at least|Enter the 6-digit|Choose a password)/.test(e.message)) return e.message;
     return UI && UI.friendlyError ? UI.friendlyError(e, { action: action }) : ((e && e.message) || "Something went wrong.");
   }
   // Only ever an image data: URI from Supabase — never a remote URL.
@@ -846,7 +846,7 @@
       pw.appendChild(el("p", { class: "hau-muted" }, "You sign in with Google, so there's no Helm password. Manage your password in your Google account."));
       card.appendChild(pw);
     } else {
-      pw.appendChild(el("p", { class: "hau-muted" }, "You'll confirm your current password, then choose a new one (at least 12 characters with a lowercase letter, an uppercase letter, a number and a symbol). Other devices are signed out."));
+      pw.appendChild(el("p", { class: "hau-muted" }, "You'll confirm your current password, then choose a new one (12 or more characters with a mix of uppercase and lowercase letters, numbers & symbols). Other devices are signed out."));
       var pwRow = el("div", { class: "hau-row" });
       var pwLink = el("a", { class: "hau-btn hau-btn-link", href: "/reset-password?mode=change" }, "Change password");
       pwRow.appendChild(pwLink); pw.appendChild(pwRow); card.appendChild(pw);

@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
     }
     if (!peek && !resend && !EMAIL.test(email)) return json({ error: "Enter a valid e-mail address.", code: "bad_email" }, 400);
     if (!peek && !resend && !passwordOk(password)) {
-      return json({ error: "Choose a stronger password: at least 12 characters with a lowercase letter, an uppercase letter, a number and a symbol.", code: "weak_password" }, 400);
+      return json({ error: "Use 12 or more characters with a mix of uppercase and lowercase letters, numbers & symbols.", code: "weak_password" }, 400);
     }
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -362,7 +362,7 @@ Deno.serve(async (req) => {
       }
       // r29: Supabase's leaked-password check (HaveIBeenPwned) -> the same plain words as the sign-up page
       if (/pwned|known to be weak|easy to guess|leaked/i.test(t) || ((cErr as { reasons?: string[] }).reasons || []).includes("pwned"))
-        return json({ error: "This password is too common and easy to guess. Please choose a different password. (Ref: AUTH-weak_password)", code: "weak_password" }, 400);
+        return json({ error: "This password is too common. Try a different one. (Ref: AUTH-weak_password)", code: "weak_password" }, 400);
       if (/password/i.test(t)) return json({ error: "Choose a stronger password.", code: "weak_password" }, 400);
       return serverError(cErr);
     }
