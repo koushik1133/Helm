@@ -11255,6 +11255,22 @@ window.HelmUrl = HelmUrl;
         return rpc("studio_slug_pick", { p_name: String(name || "").slice(0, 80), p_org: global.crypto.randomUUID() })
           .then((s) => (typeof s === "string" && /^[a-z0-9-]{3,60}$/.test(s) ? s : null), () => null);
       },
+      // r105 (0315): sign-up "Contact sales" - a sales request for the ACCOUNT, no studio is created
+      requestSales: (o) => {
+        const a = o || {};
+        return rpc("request_signup_sales", { p_plan: String(a.plan || ""), p_interval: a.interval === "yearly" ? "yearly" : "monthly",
+          p_studio: String(a.studio || "").trim(), p_phone: a.phone ? String(a.phone).trim() : null, p_message: a.message ? String(a.message) : null });
+      },
+      // r105 (0315): where the studio is (country / state / city from the sign-up) -> brand.billing + studio_account,
+      // only into EMPTY fields (never overwrites); a server without 0315 = skipped (Studio setup asks instead)
+      saveLocation: (d) => {
+        const a = d || {};
+        if (!supa) return Promise.resolve(null);
+        return rpc("my_studio_signup_location", { p_country: String(a.country || "IN"), p_state: String(a.state || "").trim() || null,
+          p_city: String(a.city || "").trim() || null }).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+      },
+      // r105: the caller's newest no-studio sales request (null = none, or a server without 0315)
+      salesRequest: () => (supa ? rpc("my_signup_sales_request").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       // the "create studio" step's city / team size / event types on the caller's own studio (best effort)
       saveDetails: (d) => {
         const a = d || {};

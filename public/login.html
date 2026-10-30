@@ -205,6 +205,10 @@
   .seg .save{font-size:11px;font-weight:700;color:#0f7a43;background:#e7f6ee;padding:2px 7px;border-radius:99px}
   .st-rules{margin:0 0 12px;font-size:13.5px} .st-rules summary{cursor:pointer;font-weight:600;color:var(--accent);min-height:44px;display:flex;align-items:center}
   .st-note{text-align:left}
+  #salesDoneCard .helper{position:static;margin:10px 0;text-align:center} #salesDoneCard .hint{position:static;margin:14px 0 0;text-align:center}
+  .ob-loc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px} .ob-loc>div{min-width:0} .ob-loc>div:last-child{grid-column:1/-1} .ob-loc select,.ob-loc input{width:100%;min-width:0}
+  @media (max-width:420px){.ob-loc{grid-template-columns:minmax(0,1fr)}}
+  .st-trial{display:flex;flex-direction:column;align-items:center;gap:6px;margin:6px 0 14px;text-align:center} .st-trial-btn{width:auto;min-width:260px} .st-trial-note{margin:0;text-align:center}
   .plan-acts .pc-btn{margin:0}
   #stTitle:focus,#obTitle:focus{outline:none}
   /* r23: step 1 tailored to ?plan=&mode= - the chosen plan as a chip (change -> /pricing) and the no-account sales route */
@@ -449,8 +453,18 @@
       <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" maxlength="80" required aria-describedby="ob_name_err ob_slug_l">
       <p class="ferr" id="ob_name_err" hidden></p>
       <p class="hint slugline" id="ob_slug_l">Your studio link: <b id="ob_slug">helm.events/studio</b><br><span id="ob_lock">This name and your link <span id="ob_slug2">helm.events/studio</span> can't be changed later &mdash; please use your business name.</span></p>
-      <label for="ob_city">City <span class="opt">(optional)</span></label>
-      <input id="ob_city" placeholder="e.g. Hyderabad" autocomplete="address-level2" maxlength="80">
+      <!-- r105 (owner): where the studio is - asked ONCE here and reused (trial welcome, Studio setup > Business details, GST) -->
+      <div class="ob-loc">
+        <div><label for="ob_country">Country <span class="req" aria-hidden="true">*</span></label>
+          <select id="ob_country" autocomplete="country" required></select></div>
+        <div><label for="ob_state" id="ob_state_l">State <span class="req" aria-hidden="true">*</span></label>
+          <select id="ob_state" autocomplete="address-level1"></select>
+          <input id="ob_state_t" autocomplete="address-level1" maxlength="60" hidden aria-labelledby="ob_state_l"></div>
+        <div><label for="ob_city">City <span class="req" aria-hidden="true">*</span></label>
+          <input id="ob_city" placeholder="e.g. Hyderabad" autocomplete="address-level2" maxlength="80" required></div>
+      </div>
+      <p class="ferr" id="ob_loc_err" hidden></p>
+      <p class="hint">Used for tax (GST needs your state). We fill it in for you later &mdash; you won't be asked again.</p>
       <label for="ob_team">Team size <span class="opt">(optional)</span></label>
       <select id="ob_team"></select>
       <fieldset class="types"><legend>Events you run <span class="opt">(optional)</span></legend><div class="chips" id="ob_types"></div></fieldset>
@@ -479,9 +493,28 @@
       <div class="err" id="stErr" role="alert" hidden></div>
       <div class="okmsg" id="stOk" role="status" hidden></div>
       <div id="stPlans" aria-live="polite"></div>
+      <!-- r105: ONE free trial for the account (not one per plan) -->
+      <div class="st-trial" id="stTrialBox">
+        <button type="button" class="btn st-trial-btn" id="stTrial">Start your free 8-day trial</button>
+        <p class="helper st-trial-note" id="stTrialNote">One free trial per account, not tied to a plan. No payment needed &mdash; choose a plan whenever you're ready.</p>
+      </div>
       <details class="st-rules" id="stTrialRules"><summary>What's in the free trial?</summary></details>
       <p class="helper st-note" id="stNote">Prices are before GST. Pay now shows the exact amount, tax included, before anything is charged. While online payment is being switched on you pay by UPI or bank transfer and your studio opens as soon as our team confirms the payment.</p>
       <div class="foot"><button type="button" class="linkbtn" id="stBack">&larr; Back</button> · Signed in as <b id="stEmail"></b></div>
+    </section>
+
+    <!-- r105: "Contact sales" on the sign-up saves a request for the account - NO studio is created until the plan is agreed -->
+    <section class="card" id="salesDoneCard" hidden aria-labelledby="sdTitle">
+      <div class="mmk"></div>
+      <p class="su-step">Request received</p>
+      <h1 id="sdTitle" tabindex="-1">Thanks &mdash; our team will contact you</h1>
+      <p class="sub" id="sdLead">We've got your request. Our sales team will contact you within one working day to set up your plan. Nothing is charged and no payment is needed now.</p>
+      <div class="err" id="sdErr" role="alert" hidden></div>
+      <p class="helper" id="sdWhile">Meanwhile, you can try Helm with sample data:</p>
+      <button type="button" class="btn" id="sdTrial">Start your free 8-day trial</button>
+      <p class="helper sd-note" id="sdTrialNote">One free trial per account, not tied to a plan.</p>
+      <p class="hint">Has our team already confirmed your plan? <button type="button" class="linkbtn" id="sdSetup">Set up your studio for activation</button></p>
+      <div class="foot">Signed in as <b id="sdEmail"></b> · <button type="button" class="linkbtn" id="sd_signout">Sign out</button></div>
     </section>
   </main>
 
@@ -491,13 +524,13 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=319" defer></script>
+<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=320" defer></script>
 <script src="auth-ui.js?v=58" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
 <script src="/trial-signup.js?v=14" defer></script>
 <script src="/plan-cards.js?v=3" defer></script>
-<script src="/signup-flow.js?v=6" defer></script>
+<script src="/signup-flow.js?v=7" defer></script>
 <script src="/referral-rules.js?v=2" defer></script>
 <script src="/referral-demo-gate.js?v=1" defer></script>
 <script src="/referral-signup.js?v=4" defer></script>
@@ -582,6 +615,7 @@ document.addEventListener("DOMContentLoaded", function(){
     if(oid || !known){ location.replace(nextUrl()); return; }   // unknown: the page gate re-checks
     if(!(await operatorTwoStep())) return;          // operators: two-step code (or set-up) first, no skip
     if(await BPStore.auth.operatorToHq()) return;   // Helm platform operator → HQ (replace)
+    if(window.BPSignupFlow && BPSignupFlow.resumeSales && await BPSignupFlow.resumeSales()) return;   // r105: asked sales on the sign-up - no studio yet
     showOnboarding();
   }
   async function firstRunPage(){
@@ -820,7 +854,7 @@ document.addEventListener("DOMContentLoaded", function(){
   $("#toSignin").addEventListener("click", ()=>{ setMode("signin");
     try{ history.replaceState(history.state,"",(location.pathname==="/signup"?"/login":location.pathname)+location.search); }catch(_){} setTimeout(()=>$("#email").focus(),60); });
   // ----- views: sign-in form / forgot password / two-step code -----
-  function showView(id){ hoEnd(); ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm","#startCard","#inboxCard","#invitedCard","#invitePwForm","#inviteLinkCard"].forEach(s=>{ $(s).hidden = s!==id; });
+  function showView(id){ hoEnd(); ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm","#startCard","#salesDoneCard","#inboxCard","#invitedCard","#invitePwForm","#inviteLinkCard"].forEach(s=>{ $(s).hidden = s!==id; });
     document.body.classList.toggle("su-wide", id==="#startCard"); }
   function openForgot(){
     showView("#forgotForm"); $("#fgErr").hidden=true; $("#fgOk").hidden=true;
@@ -1279,6 +1313,7 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   });
   const doSignOut=async ()=>{ clearInvite(); try{ await BPStore.auth.signOut(); }catch(e){} location.reload(); };
+  $("#sd_signout").addEventListener("click", ()=>doSignOut());
   $("#ob_signout").addEventListener("click", doSignOut);
   const ob2=$("#ob_signout2"); if(ob2) ob2.addEventListener("click", doSignOut);
 

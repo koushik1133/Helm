@@ -98,7 +98,7 @@
       // r22: the same action row as every plan card (plan-cards.js): Pay now (primary) / Try free (waiting studio,
       // payment off) / Contact sales. A button inside the card never toggles the radio by itself.
       if (window.HelmPlanCards && !off) lab.appendChild(window.HelmPlanCards.actions(p, { interval: st.interval,
-        trial: st.pending && !st.live && !st.upgrade, trialDays: trialDays(), onPay: cardPay, onTrial: cardTrial, onSales: cardSales }));
+        trial: false, trialDays: trialDays(), onPay: cardPay, onTrial: cardTrial, onSales: cardSales }));   // r105: ONE trial button (pending note), not one per plan
       var feats = Array.isArray(p.features) ? p.features : [];
       if (feats.length) {
         lab.appendChild(el("h3", null, "What's included"));
@@ -617,7 +617,15 @@
       $("#ivMonthlyL").classList.remove("on"); $("#ivYearlyL").classList.add("on");
     }
     $("#coPendingNote").hidden = !st.pending;
-    if (st.pending && !payOn()) $("#coPendingNote").textContent = "Your studio is ready. Choose Contact sales on a plan and our team sets it up with you, or start your free trial.";
+    if (st.pending && !payOn()) $("#coPendingNote").textContent = "Your studio is waiting for its plan. Choose Contact sales on a plan and our team sets it up with you - nothing is charged here. Or try Helm first:";
+    // r105: a studio waiting for its first payment gets ONE free-trial button (one trial per account, not per plan)
+    if (st.pending && !st.live && !st.upgrade) {
+      var tb = el("button", "btn ghost co-one-trial", "Start your free " + trialDays() + "-day trial"); tb.type = "button"; tb.id = "coOneTrial";
+      tb.addEventListener("click", function () { cardTrial(planBy(st.plan)); });
+      var tw = el("div", "co-one-trial-row"); tw.appendChild(tb);
+      tw.appendChild(el("small", null, " One free trial per account, not tied to a plan. No payment needed."));
+      $("#coPendingNote").appendChild(tw);
+    }
     // r22: Terms already agreed on the sign-up (recorded for this studio, current version): shown ticked, not asked twice
     if (st.opts.terms_accepted === true) { $("#coTerms").checked = true; st.termsSaved = true; }
     if (st.catalog && !st.upgrade) $("#coTest").hidden = true;

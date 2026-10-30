@@ -3,9 +3,11 @@
      step 1  Your account   - name, e-mail + password (or Google), "I agree to the Terms + Privacy Policy" (required)
      step 2  Verify e-mail  - the "Check your inbox" card (email sign-ups; Google is already verified)
      step 3  Your studio    - studio name (+ the link it gets), city, team size, event types
-     step 4  How to start   - plan cards (plan-cards.js): "Pay now" (primary) / "Try free for 8 days" / "Contact sales"
-     then    Pay now / Contact sales -> /checkout (online payment, or UPI / bank details + payment pending until HQ
-             activates) -> studio setup wizard; Try free -> the dashboard's 2-step trial welcome.
+     step 4  How to start   - plan cards (plan-cards.js): "Pay now" (when switched on) / "Contact sales"; below the cards
+             ONE "Start your free 8-day trial" (r105: one trial per account, not tied to a plan)
+     then    Pay now -> /checkout -> studio setup wizard; free trial -> the dashboard's 2-step trial welcome;
+             r105: Contact sales -> a sales request for the ACCOUNT (0315), NO studio, and the "our team will contact
+             you" page (trial meanwhile, or "set up your studio" once sales agreed the plan -> /checkout pending).
    Pricing / landing links deep-link here: /signup?plan=studio&mode=paid (mode trial | paid | sales; /signup redirects to
    /login?signup=1 with the query kept), or login?plan=studio&mode=paid#signup; the old
    ?trial=1 / ?direct=1 links still work. The Terms are recorded on the server (accept_account_terms, 0255) at the
@@ -55,7 +57,9 @@
     if (!s) return "studio";
     return s.length < 3 ? s + "-studio" : s;
   }
-  function detailsCheck(d) {
+  // r105: d.country (IN / AE / US, default IN), d.state (required for India: GST), d.city (required: the trial welcome
+  //   and Studio setup reuse it); inStates = the India state list (HelmCountry) when known - the server checks it too
+  function detailsCheck(d, inStates) {
     d = d && typeof d === "object" ? d : {};
     var name = String(d.name == null ? "" : d.name).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
     var city = String(d.city == null ? "" : d.city).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
@@ -65,8 +69,14 @@
     var errors = {};
     if (name.length < 2) errors.name = "Please enter your studio or business name (at least 2 characters).";
     else if (name.length > 80) errors.name = "Please keep the studio name to 80 characters or fewer.";
-    if (city.length > 80) errors.city = "Please keep the city to 80 characters or fewer.";
-    return { ok: !Object.keys(errors).length, errors: errors, clean: { name: name, city: city, teamSize: team, eventTypes: types } };
+    var country = String(d.country == null || d.country === "" ? "IN" : d.country).trim().toUpperCase();
+    if (!/^(IN|AE|US)$/.test(country)) { errors.country = "Please choose your country."; country = "IN"; }
+    var state = String(d.state == null ? "" : d.state).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+    if (country === "IN" && !state) errors.state = "Please choose your state (needed for GST).";
+    else if (country === "IN" && Array.isArray(inStates) && inStates.length && inStates.indexOf(state) < 0) errors.state = "Please choose a state from the list.";
+    if (city.length < 2) errors.city = "Please enter your city.";
+    else if (city.length > 80) errors.city = "Please keep the city to 80 characters or fewer.";
+    return { ok: !Object.keys(errors).length, errors: errors, clean: { name: name, city: city, state: state, country: country, teamSize: team, eventTypes: types } };
   }
   // ticked "I agree" in THIS browser (stash) or on the account (sign-up note), within 2 days
   function agreedEarlier(stash, meta, now) {
@@ -178,6 +188,28 @@
       });
     }
     var nm = $("#ob_name"); if (nm) nm.addEventListener("input", slugSoon);
+    var cs = $("#ob_country"), H = global.HelmCountry;
+    if (cs && !cs.options.length) {
+      (H && H.list ? H.list() : [{ code: "IN", name: "India" }]).forEach(function (c) { var o = el("option", null, c.name); o.value = c.code; cs.appendChild(o); });
+      cs.value = "IN";
+      cs.addEventListener("change", function () { locForm(cs.value); });
+    }
+    locForm(cs ? cs.value : "IN");
+  }
+  function inStates() { var H = global.HelmCountry; try { return H ? H.get("IN").regions.map(function (r) { return r.name; }) : []; } catch (e) { return []; } }
+  // r105: India -> a State dropdown (GST); elsewhere a free-text region (Emirate / State)
+  function locForm(cc) {
+    var H = global.HelmCountry, sel = $("#ob_state"), txt = $("#ob_state_t"), lab = $("#ob_state_l"); if (!sel || !txt) return;
+    var p = null; try { p = H ? H.get(cc) : null; } catch (e) { p = null; }
+    if (lab && lab.firstChild) lab.firstChild.nodeValue = ((p && p.regionLabel) || "State") + " ";
+    var india = cc === "IN";
+    var rq = lab ? lab.querySelector(".req") : null; if (rq) rq.hidden = !india;   // the region is required only in India (GST)
+    sel.hidden = !india; txt.hidden = india; sel.required = india; txt.required = false;
+    if (india && !sel.options.length) {
+      var o0 = el("option", null, "Choose your state"); o0.value = ""; sel.appendChild(o0);
+      inStates().forEach(function (n) { var o = el("option", null, n); o.value = n; sel.appendChild(o); });
+    }
+    if (!india) { txt.placeholder = p && p.regions && p.regions[0] ? "e.g. " + p.regions[0].name : ""; }
   }
   var slugT = null, slugSeq = 0;
   function slugSoon() {
@@ -207,12 +239,17 @@
   }
   function readDetails() {
     var types = []; Array.prototype.forEach.call(doc.querySelectorAll('#ob_types input[type="checkbox"]'), function (c) { if (c.checked) types.push(c.value); });
-    return detailsCheck({ name: ($("#ob_name") || {}).value, city: ($("#ob_city") || {}).value, teamSize: ($("#ob_team") || {}).value, eventTypes: types });
+    var cc = ($("#ob_country") || {}).value || "IN";
+    var stv = cc === "IN" ? ($("#ob_state") || {}).value : ($("#ob_state_t") || {}).value;
+    return detailsCheck({ name: ($("#ob_name") || {}).value, city: ($("#ob_city") || {}).value, country: cc, state: stv,
+      teamSize: ($("#ob_team") || {}).value, eventTypes: types }, inStates());
   }
   function restoreDetails() {
     var s = null; try { s = JSON.parse(ssGet(DETAILS_KEY) || "null"); } catch (e) { s = null; }
     if (!s) return;
     if (s.city && $("#ob_city") && !$("#ob_city").value) $("#ob_city").value = s.city;
+    if (s.country && $("#ob_country")) { $("#ob_country").value = s.country; locForm(s.country); }
+    if (s.state) { if (s.country === "IN" || !s.country) { if ($("#ob_state")) $("#ob_state").value = s.state; } else if ($("#ob_state_t")) $("#ob_state_t").value = s.state; }
     if (s.teamSize && $("#ob_team")) $("#ob_team").value = s.teamSize;
     (s.eventTypes || []).forEach(function (v) { var c = doc.querySelector('#ob_types input[value="' + String(v).replace(/[^a-z_]/g, "") + '"]'); if (c) c.checked = true; });
   }
@@ -225,7 +262,12 @@
     var B = S(), err = $("#obErr"); err.hidden = true;
     var v = readDetails();
     var ferr = $("#ob_name_err"); if (ferr) { ferr.textContent = v.errors.name || ""; ferr.hidden = !v.errors.name; }
-    if (!v.ok) { $("#ob_name").focus(); return; }
+    var lerr = $("#ob_loc_err"), lmsg = v.errors.country || v.errors.state || v.errors.city || "";
+    if (lerr) { lerr.textContent = lmsg; lerr.hidden = !lmsg; }
+    if (!v.ok) {
+      var f = v.errors.name ? $("#ob_name") : v.errors.country ? $("#ob_country") : v.errors.state ? ($("#ob_country").value === "IN" ? $("#ob_state") : $("#ob_state_t")) : $("#ob_city");
+      if (f) f.focus(); return;
+    }
     if (!st.termsOk) {
       var cb = $("#ob_terms");
       if (!cb || !cb.checked) { ctx.showErr(err, "Please agree to the Terms of Service and Privacy Policy to continue."); if (cb) cb.focus(); return; }
@@ -261,11 +303,12 @@
     st.trialDays = days;
     var pay = payOn();
     $("#stLead").textContent = pay ? "Pay now to open your studio straight away, or try Helm free for " + days + " days - no payment needed."
-      : "Contact sales and our team sets up your plan with you, or try Helm free for " + days + " days - no payment needed.";
+      : "Contact sales and our team sets up your plan with you - no studio is opened and nothing is charged until you agree a plan. Or start your one free " + days + "-day trial below.";
+    trialWords(days);
     var note = $("#stNote");
     if (note) note.textContent = currencyNote(st.currency, pay);
     var m = wantMode();
-    if (m === "trial") { $("#stOk").textContent = "Your free trial is one tap away - choose “Try free for " + days + " days” on any plan."; $("#stOk").hidden = false; }
+    if (m === "trial") { $("#stOk").textContent = "Your free trial is one tap away - choose “Start your free " + days + "-day trial” below the plans."; $("#stOk").hidden = false; }
     renderCards();
     var rules = $("#stTrialRules");
     if (rules && !rules.getAttribute("data-on") && global.BPTrialSignup && global.BPTrialSignup.termsPanel) {
@@ -287,19 +330,61 @@
   }
   function renderCards() {
     var P = global.HelmPlanCards;
-    P.render($("#stPlans"), { plans: st.plans, currency: st.currency, interval: st.interval, selected: st.plan, trial: true, trialDays: st.trialDays,
+    // r105: no trial button on the cards - the trial is ONE per account and not tied to a plan (#stTrial below the cards)
+    P.render($("#stPlans"), { plans: st.plans, currency: st.currency, interval: st.interval, selected: st.plan, trial: false, trialDays: st.trialDays,
       onSelect: function (code) { if (st.busy) return; st.plan = code; renderCards(); },
       onPay: function (p, b) { go("pay", p, b); }, onTrial: function (p, b) { go("trial", p, b); }, onSales: function (p, b) { go("sales", p, b); } });
   }
   function busy(b, label) {
     st.busy = true;
-    Array.prototype.forEach.call(doc.querySelectorAll("#stPlans button"), function (x) { x.disabled = true; });
+    Array.prototype.forEach.call(doc.querySelectorAll(BUSY_SEL), function (x) { x.disabled = true; });
     if (b) { b.setAttribute("aria-busy", "true"); while (b.firstChild) b.removeChild(b.firstChild); b.appendChild(el("span", "spin")); b.appendChild(el("span", null, label)); }
   }
-  function unbusy() { st.busy = false; renderCards(); }
+  var BUSY_SEL = "#stPlans button, #stTrial, #sdTrial, #sdSetup";
+  function unbusy() {
+    st.busy = false;
+    Array.prototype.forEach.call(doc.querySelectorAll("#stTrial, #sdTrial, #sdSetup"), function (x) {
+      x.disabled = false; x.removeAttribute("aria-busy"); if (x.getAttribute("data-label")) x.textContent = x.getAttribute("data-label"); });
+    if (st.plans) renderCards();
+  }
+  // r105: the ONE trial button (step 4 + the "request received" page) - the trial is not tied to a plan
+  function trialWords(days) {
+    ["#stTrial", "#sdTrial"].forEach(function (id) { var b = $(id); if (b) { b.textContent = "Start your free " + days + "-day trial"; b.setAttribute("data-label", b.textContent); } });
+  }
+  function currentPlan() {
+    var code = st.plan || wantPlan();
+    var list = st.plans || (global.HelmPlanCards ? global.HelmPlanCards.plansOr([]) : []);
+    return list.filter(function (p) { return p.code === code; })[0] || { code: CODE_RE.test(String(code || "")) ? String(code) : "studio", name: "" };
+  }
+  function onDone() { var c = $("#salesDoneCard"); return !!(c && !c.hidden); }
+  // r105: "Contact sales" on the sign-up -> a sales request for the account; NO studio until the plan is agreed
+  function showSalesDone(r) {
+    var B = S(); ctx.showView("#salesDoneCard"); doc.body.classList.remove("su-wide");
+    var u = (B.auth.user && B.auth.user()) || {}; $("#sdEmail").textContent = u.email || "";
+    $("#sdErr").hidden = true;
+    var plan = r && (r.plan_name || r.plan_code) ? String(r.plan_name || r.plan_code) : "";
+    $("#sdLead").textContent = "We've got your request" + (plan ? " for the " + plan + " plan" : "") + (r && r.studio_name ? " for " + r.studio_name : "") +
+      ". Our sales team will contact you within one working day to set up your plan. Nothing is charged and no payment is needed now.";
+    var days = st.trialDays || (global.HelmTrialFacts && global.HelmTrialFacts.DAYS) || 8; trialWords(days);
+    setTimeout(function () { try { $("#sdTitle").focus(); } catch (e) {} }, 60);
+  }
+  // called by login.html routeSignedIn() for a signed-in account with no studio: a saved sign-up sales request -> that page
+  async function resumeSales() {
+    var B = S(); if (!B || !B.signup || !B.signup.salesRequest || !ctx) return false;
+    var r = null; try { r = await B.signup.salesRequest(); } catch (e) { r = null; }
+    if (!r || !r.id) return false;
+    var saved = null; try { saved = JSON.parse(ssGet(DETAILS_KEY) || "null"); } catch (e) { saved = null; }
+    st.details = Object.assign({ city: "", teamSize: "", eventTypes: [] }, saved || {}, { name: String(r.studio_name || (saved && saved.name) || "") });
+    if (CODE_RE.test(String(r.plan_code || ""))) st.plan = String(r.plan_code);
+    if (r.billing_interval === "yearly") st.interval = "yearly";
+    st.salesReq = r;
+    try { st.tz = global.HelmPlanCards && global.HelmPlanCards.browserZone ? global.HelmPlanCards.browserZone() : ""; } catch (e) { st.tz = ""; }
+    showSalesDone(r);
+    return true;
+  }
   async function go(kind, p, b) {
     if (st.busy || !st.details) return;
-    var B = S(), err = $("#stErr"); err.hidden = true; $("#stOk").hidden = true;
+    var B = S(), err = onDone() ? $("#sdErr") : $("#stErr"); err.hidden = true; $("#stOk").hidden = true;
     st.plan = p.code;
     var d = st.details;
     try {
@@ -308,6 +393,7 @@
         busy(b, "Setting up your free trial…");
         await global.BPTrialSignup.start(d.name);
         try { await B.signup.saveDetails(d); } catch (e) {}
+        try { if (B.signup.saveLocation) await B.signup.saveLocation(d); } catch (e) {}   // r105: country / state / city, asked once
         try { if (B.signup.initCurrency) await B.signup.initCurrency(st.tz); } catch (e) {}   // r25: billing currency, set once
         try { if (B.referral && B.referral.attachPending) await B.referral.attachPending(); } catch (e) {}   // r29: the referral / partner code, once
         lsDel(KEY);
@@ -315,20 +401,40 @@
         return;
       }
       if (kind === "pay" && !payOn()) kind = "sales";   // r24: Pay now switched off - never the payment path
-      busy(b, kind === "pay" ? "Creating your studio…" : "Opening contact sales…");
+      if (kind === "sales" && B.signup.requestSales) {
+        // r105: no studio on "Contact sales" - only a sales request for this account (HQ Requests + e-mail to sales)
+        busy(b, "Sending your request…");
+        var sr = null;
+        try { sr = await B.signup.requestSales({ plan: p.code, interval: st.interval, studio: d.name,
+          message: [d.city, d.state, d.country].filter(Boolean).length ? "Location: " + [d.city, d.state, d.country].filter(Boolean).join(", ") : null }); }
+        catch (e1) {
+          if (!(e1 && (e1.code === "PGRST202" || /request_signup_sales/.test(String(e1.message || ""))))) throw e1;
+          sr = false;   // a server without 0315: the older path below (studio waiting for payment + the checkout form)
+        }
+        if (sr !== false) {
+          lsDel(KEY); unbusy();   // the referral code is attached later, when the studio exists (trial or set-up)
+          showSalesDone({ plan_code: p.code, plan_name: p.name, studio_name: d.name });
+          return;
+        }
+      }
+      if (kind === "setup" && !st.termsVersion) {
+        try { var oo = await B.signup.planOptions(st.tz || ""); if (oo && oo.terms_version) st.termsVersion = String(oo.terms_version); } catch (e) {}
+      }
+      busy(b, kind === "pay" ? "Creating your studio…" : kind === "setup" ? "Setting up your studio…" : "Opening contact sales…");
       var r = await B.signup.createDirect({ name: d.name, plan: p.code, interval: st.interval, termsVersion: st.termsVersion });
       try { await B.signup.saveDetails(d); } catch (e) {}
+        try { if (B.signup.saveLocation) await B.signup.saveLocation(d); } catch (e) {}   // r105: country / state / city, asked once
       try { if (B.signup.initCurrency) await B.signup.initCurrency(st.tz); } catch (e) {}   // r25: billing currency, set once (never changes a set one)
       try { if (B.referral && B.referral.attachPending) await B.referral.attachPending(); } catch (e) {}   // r29: the referral / partner code, once
       lsDel(KEY);
       try { global.localStorage.setItem("bp_force_tour", "1"); } catch (e) {}
       if (r && r.result === "exists") { await ctx.routeSignedIn(); return; }
-      global.location.replace(checkoutHref(p.code, st.interval, kind === "sales"));
+      global.location.replace(checkoutHref(p.code, st.interval, kind !== "pay"));
     } catch (e) {
       unbusy();
       var x = startError(e);
       ctx.showErr(err, x.text || (global.BPUI ? global.BPUI.friendlyError(e, { action: "create your studio" }) : "Something went wrong. Please try again."));
-      if (x.kind === "trial_used") Array.prototype.forEach.call(doc.querySelectorAll("#stPlans .pc-trial"), function (t) { t.disabled = true; });
+      if (x.kind === "trial_used") Array.prototype.forEach.call(doc.querySelectorAll("#stTrial, #sdTrial"), function (t) { t.disabled = true; });
     }
   }
   function wire(hooks) {
@@ -337,6 +443,10 @@
       r.addEventListener("change", function () { if (!r.checked) return; st.interval = r.value === "yearly" ? "yearly" : "monthly";
         $("#stIvM").classList.toggle("on", st.interval === "monthly"); $("#stIvY").classList.toggle("on", st.interval === "yearly"); renderCards(); });
     });
+    var tb = $("#stTrial"); if (tb) tb.addEventListener("click", function () { go("trial", currentPlan(), tb); });
+    var sdt = $("#sdTrial"); if (sdt) sdt.addEventListener("click", function () { go("trial", currentPlan(), sdt); });
+    var sds = $("#sdSetup"); if (sds) sds.setAttribute("data-label", sds.textContent);
+    var sds = $("#sdSetup"); if (sds) sds.addEventListener("click", function () { go("setup", currentPlan(), sds); });
     var back = $("#stBack"); if (back) back.addEventListener("click", function () { doc.body.classList.remove("su-wide"); ctx.showView("#onboardForm"); });
   }
 
@@ -383,6 +493,6 @@
   }
 
   global.BPSignupFlow = Object.assign({}, api, { intent: function () { return intent; }, wantMode: wantMode, wantPlan: wantPlan, applyStep1: applyStep1,
-    stashTerms: stashTerms, wire: wire, showStudio: showStudio, submitStudio: submitStudio, showStart: showStart,
+    stashTerms: stashTerms, wire: wire, resumeSales: resumeSales, showStudio: showStudio, submitStudio: submitStudio, showStart: showStart,
     clearIntent: function () { lsDel(KEY); } });
 })(typeof window !== "undefined" ? window : globalThis);
