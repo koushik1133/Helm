@@ -96,7 +96,7 @@ do $$ declare e timestamptz; begin
   perform pg_temp.set_event(current_date - 30, null);
   select expires_at into e from public.work_tokens where token='a0000000-0000-4000-8000-0000000000dd';
   insert into _lw values('crew: past event -> still >= 2 days to open it',
-    case when e > now() + interval '47 hours' and e < now() + interval '49 hours' then 'PASS' else 'FAIL: '||e end);
+    case when e > now() + interval '46 hours' and e < now() + interval '50 hours' then 'PASS' /* r92: 2 local days span 47-49 h across a DST change */ else 'FAIL: '||e end);
   perform pg_temp.set_event(null, null);
   select expires_at into e from public.work_tokens where token='a0000000-0000-4000-8000-0000000000dd';
   insert into _lw values('crew: event with NO date keeps the 60-day rule (0023)',

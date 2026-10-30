@@ -160,7 +160,9 @@ begin
   s := pg_temp.qa(format('select public.worker_respond(%L, %L, %L)::text', tok1, t_new, 'reject'));
   perform pg_temp.res('25 D-03 crew link: rejecting an assigned task still works', s like '%"rejected"%', s);
   s := pg_temp.qa(format('select public.worker_respond(%L, %L, %L)::text', tok1, t_new, 'accept'));
-  perform pg_temp.res('26 D-03 crew link: accepting after a rejection still works', s like '%"accepted"%', s);
+  perform pg_temp.res('26 D-03 crew link: accepting after a rejection is refused (r92 / 0311: the answer is final)',
+    (s like '%"refused": true%' or s like '%22023%cannot move from rejected to accepted%')   -- 0311 wrapper, or its trigger under a re-applied 0299
+    and (select status from public.event_tasks where id = t_new) = 'rejected', s);
   s := pg_temp.qa(format('select public.worker_respond(%L, %L, %L)::text', tok1, t_prog, 'complete'));
   perform pg_temp.res('27 D-03 crew link: completing a started task still works', s like '%"completed"%', s);
   s := pg_temp.qa(format('select public.worker_respond(%L, %L, %L)::text', tok2, t_new, 'start'));

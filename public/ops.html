@@ -95,10 +95,32 @@
   .evgal{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:6px}
   .evgal a{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:1/1;background:var(--panel)}
   .evgal img{width:100%;height:100%;object-fit:cover;display:block}
+  /* r92: suggestion buttons (no inline style) */
+  .sugg-head{margin-bottom:6px} .sugg{margin:0 6px 6px 0} .sugg.busy{opacity:.6} .sugg-free{color:#0f7a43} .sugg-busy{color:#b42318}
+  /* r92: Live status filter bar */
+  .opsfilter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .opsfilter input[type=search]{flex:1 1 200px;min-width:0}
+  .opsfilter select{flex:0 1 170px;min-width:0}
+  .f-hide{display:none!important}
+  .btn.sm.reassign-locked{cursor:not-allowed}
+  /* r92: tablet (641-1024px) */
+  @media (min-width:641px) and (max-width:1024px){
+    .crewrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+    .tasklist{max-height:none}
+    .trow .cat{width:auto;flex:0 1 auto;min-width:0;overflow-wrap:anywhere;white-space:normal}
+  }
+  /* r92: touch screens - 44px targets, 16px form text (no iOS zoom) */
+  @media (pointer:coarse){
+    .btn,.btn.sm,.account button,.tabs button{min-height:44px;height:auto}
+    .btn.sm{min-width:44px}
+    .titem{min-height:44px}
+    input,select{min-height:44px;font-size:16px}
+    .titem input,input[type=checkbox]{min-height:0;width:22px;height:22px}
+  }
 </style>
 <link rel="stylesheet" href="theme.css?v=83">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<link rel="stylesheet" href="crew-shifts.css?v=3">
+<link rel="stylesheet" href="crew-shifts.css?v=4">
 <script src="/shell-proto.js?v=53" id="shellProto"></script>
 </head>
 <body>
@@ -171,6 +193,14 @@
         <button type="button" class="btn sm" id="remindDue" title="Send reminders for special tasks that aren't done yet">🔔 Remind due</button>
         <button type="button" class="btn sm" id="fireDue" title="Notify assignees of scheduled tasks whose time has come and whose prerequisite is done">▶ Fire due tasks</button>
       </div>
+      <div class="opsfilter" id="opsFilter" role="search" aria-label="Filter tasks">
+        <input type="search" id="of_q" maxlength="80" placeholder="Search tasks" aria-label="Search task titles">
+        <select id="of_person" aria-label="Filter by person"></select>
+        <select id="of_section" aria-label="Filter by section"></select>
+        <select id="of_status" aria-label="Filter by status"></select>
+        <button type="button" class="btn sm" id="of_clear">Clear</button>
+        <span class="muted" id="of_count" aria-live="polite"></span>
+      </div>
       <div id="dashboard"></div>
     </div>
   </div>
@@ -228,7 +258,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=311"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=312"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -299,9 +329,9 @@
     if($("#assignKind").value==="outsourced"){ host.innerHTML=""; return; }
     let sugg=[]; try{ sugg=await BPStore.staff.suggest({category:activeCat, date:quote&&quote.eventDate, excludeQuote:quoteId, limit:5}); }catch{ host.innerHTML=""; return; }
     if(!sugg.length){ host.innerHTML=""; return; }
-    host.innerHTML=`<div class="muted" style="margin-bottom:6px">💡 Suggested for ${esc(activeCat)}${quote&&quote.eventDate?" on "+esc(quote.eventDate):""} — click to pick:</div>`+
-      sugg.map(s=>`<button type="button" class="btn sm sugg" data-id="${esc(s.id)}" style="margin:0 6px 6px 0;${s.available?'':'opacity:.6'}" title="${s.match?'Skill/department match':'No skill match'}${s.available?'':' · already booked that day'}">
-        ${s.match?'⭐ ':''}${esc(s.name)}${s.department?` · ${esc(s.department)}`:''} ${s.available?'<span style="color:#0f7a43">● free</span>':'<span style="color:#b42318">● busy</span>'}</button>`).join("");
+    host.innerHTML=`<div class="muted sugg-head">💡 Suggested for ${esc(activeCat)}${quote&&quote.eventDate?" on "+esc(quote.eventDate):""} — click to pick:</div>`+
+      sugg.map(s=>`<button type="button" class="btn sm sugg${s.available?'':' busy'}" data-id="${esc(s.id)}" title="${s.match?'Skill/department match':'No skill match'}${s.available?'':' · already booked that day'}">
+        ${s.match?'⭐ ':''}${esc(s.name)}${s.department?` · ${esc(s.department)}`:''} ${s.available?'<span class="sugg-free">● free</span>':'<span class="sugg-busy">● busy</span>'}</button>`).join("");
     host.querySelectorAll(".sugg").forEach(b=>b.addEventListener("click",()=>{ $("#assignKind").value="in_house"; $("#assignCrew").hidden=false; $("#assignVendor").hidden=true; $("#assignCrew").value=b.dataset.id; crewWho($("#assignCrew"),$("#assignWho")); }));
   }
   async function refresh(pending){
@@ -413,7 +443,8 @@
       ${canEditOps?`<button type="button" class="btn sm sched" title="Set start time & prerequisite" aria-label="Schedule ${tn}">⏱</button>`:""}
       ${canEditOps?`<button type="button" class="btn sm spc" title="Toggle recurring reminder" aria-label="${t.is_special?"Turn off recurring reminder for":"Turn on recurring reminder for"} ${tn}">${t.is_special?'🔕':'🔔'}</button>`:""}
       ${canEditOps&&['rejected','assigned'].includes(t.status)?`<button type="button" class="btn sm reassign" aria-label="Reassign ${tn}">Reassign</button>`:""}
-      ${canVerify && (t.verify_status==='pending' || (t.status==='completed' && t.verify_status==='rejected')) ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
+      ${canEditOps&&['accepted','in_progress','completed'].includes(t.status)?`<button type="button" class="btn sm reassign-locked" disabled title="Locked: task accepted" aria-label="Reassign ${tn} - locked: task accepted">Reassign</button>`:""}
+      ${canVerify && t.status==='completed' && t.verify_status==='pending' ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
   }
   function workerLinkFor(phone){ const w=tokens.find(x=>x.phone===phone); return w? BPStore.links.url("work", w.token, location.origin+"/work.html?token="+w.token) : null; }
   function workerLinksBlock(){
@@ -427,7 +458,7 @@
   function renderDashboard(){
     if(!renderDashboard._s){ renderDashboard._s=1; BPStore.links.studio().then(s=>{ if(s) renderDashboard(); }).catch(()=>{}); }   // re-render once the branded studio link name is known
     const host=$("#dashboard");
-    if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a section above, select tasks, choose a staff member, and Assign.</div>'; return; }
+    if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a section above, select tasks, choose a staff member, and Assign.</div>'; applyOpsFilter(); return; }
     const byId=Object.fromEntries(tasks.map(t=>[t.id,t]));
     if(groupMode==="section"){
       // group by section (category), in template order; tasks already arrive category+seq sorted
@@ -486,7 +517,68 @@
         BPUI.toast((t&&t.is_special)?"Reminder turned off.":"Marked special — will remind every 5 min until done.",{type:"ok"}); await refreshDashboard(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the reminder"}),{type:"err"}); }
     })));
+    applyOpsFilter();
   }
+  /* r92: Live status filter - search titles + person / section / status; hides rows with a class, hides empty
+     groups, updates the group counts; remembered per event (localStorage, best effort); re-applied after every render */
+  const OF_KEY=()=>"helm.opsFilter."+(quoteId||"");
+  const OF_QC="qc_pending";
+  let opsF=null, opsFKey="";
+  function opsFilterState(){
+    if(opsF && opsFKey===OF_KEY()) return opsF;
+    opsFKey=OF_KEY(); opsF={q:"",person:"",section:"",status:""};
+    try{ const v=JSON.parse(localStorage.getItem(OF_KEY())||"null"); if(v&&typeof v==="object") ["q","person","section","status"].forEach(k=>{ if(typeof v[k]==="string") opsF[k]=v[k].slice(0,120); }); }catch{}
+    return opsF;
+  }
+  function saveOpsFilter(){ try{ localStorage.setItem(OF_KEY(), JSON.stringify(opsFilterState())); }catch{} }
+  const ofPerson=(t)=>String((t&&t.assignee_name)||"").trim()||"Unassigned";
+  function fillSelect(sel, first, items, cur){
+    if(!sel) return;
+    sel.textContent="";
+    const o0=document.createElement("option"); o0.value=""; o0.textContent=first; sel.appendChild(o0);
+    items.forEach(([v,l])=>{ const o=document.createElement("option"); o.value=v; o.textContent=l; sel.appendChild(o); });
+    sel.value=items.some(([v])=>v===cur)?cur:"";
+  }
+  function opsFilterMatch(t,f){
+    if(!t) return true;
+    if(f.q && !String(t.title||"").toLowerCase().includes(f.q.toLowerCase())) return false;
+    if(f.person && ofPerson(t)!==f.person) return false;
+    if(f.section && String(t.category||"")!==f.section) return false;
+    if(f.status===OF_QC) return t.verify_status==="pending";
+    if(f.status && shownStatus(t)!==f.status) return false;
+    return true;
+  }
+  function applyOpsFilter(){
+    const f=opsFilterState(), bar=$("#opsFilter"); if(!bar) return;
+    bar.hidden=!tasks.length;
+    const people=[...new Set(tasks.map(ofPerson))].sort((a,b)=>a.localeCompare(b)).map(p=>[p,p]);
+    const sects=[...CATS, ...tasks.map(t=>t.category)].filter((c,i,a)=>c && a.indexOf(c)===i && tasks.some(t=>t.category===c)).map(c=>[c,c]);
+    const sts=Object.keys(STATUS_LABEL).filter(k=>tasks.some(t=>shownStatus(t)===k)).map(k=>[k,STATUS_LABEL[k]]);
+    sts.push([OF_QC,"QC pending"]);
+    fillSelect($("#of_person"),"Everyone",people,f.person);
+    fillSelect($("#of_section"),"All sections",sects,f.section);
+    fillSelect($("#of_status"),"Any status",sts,f.status);
+    const qi=$("#of_q"); if(qi && qi.value!==f.q) qi.value=f.q;
+    const on=!!(f.q||f.person||f.section||f.status);
+    const byId=Object.fromEntries(tasks.map(t=>[String(t.id),t]));
+    let shown=0;
+    document.querySelectorAll("#dashboard .grp").forEach(g=>{
+      if(g.id==="workerLinks") return;
+      const rows=[...g.querySelectorAll(".trow[data-id]")]; if(!rows.length) return;
+      let vis=0, done=0;
+      rows.forEach(r=>{ const t=byId[r.dataset.id]; const ok=!on||opsFilterMatch(t,f); r.classList.toggle("f-hide",!ok); if(ok){ vis++; if(t&&t.status==="completed") done++; } });
+      shown+=vis;
+      g.classList.toggle("f-hide", vis===0);
+      const c=g.querySelector(".gh .muted"); if(c){ if(c.dataset.all==null) c.dataset.all=c.textContent;
+        c.textContent= on ? done+"/"+vis+" done (of "+rows.length+")" : c.dataset.all; }
+    });
+    const cnt=$("#of_count"); if(cnt) cnt.textContent = on ? (shown ? shown+" of "+tasks.length+" tasks" : "No tasks match the filter") : "";
+    const clr=$("#of_clear"); if(clr) clr.disabled=!on;
+  }
+  function setOpsFilter(k,v){ opsFilterState()[k]=v; saveOpsFilter(); applyOpsFilter(); }
+  $("#of_q") && $("#of_q").addEventListener("input",e=>setOpsFilter("q",String(e.target.value||"").slice(0,80)));
+  [["#of_person","person"],["#of_section","section"],["#of_status","status"]].forEach(([s,k])=>{ const el=$(s); el && el.addEventListener("change",e=>setOpsFilter(k,e.target.value)); });
+  $("#of_clear") && $("#of_clear").addEventListener("click",()=>{ opsF={q:"",person:"",section:"",status:""}; saveOpsFilter(); applyOpsFilter(); });
   function verifyChip(t){
     if(t.verify_status==='passed')   return '<span class="qc pass" title="Verified by quality">QC ✓</span>';
     if(t.verify_status==='rejected') return `<span class="qc rej" title="${esc(t.verify_note||'Rejected')}">QC ✗ rework</span>`;

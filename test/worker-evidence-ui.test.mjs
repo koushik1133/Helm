@@ -84,6 +84,7 @@ function harness(grant) {
   const calls = { rpc: [], upload: [], guard: [] };
   const ctx = {
     Error, Math, Uint8Array,
+    taskAnswer: (r) => r,   // r92 (0311): refusal mapping, covered by r92-ops-lifecycle.test.mjs
     // 0048 upload guard (covered by upload-guard.test.mjs): record the call, pass the bytes through
     ugPrepareImage: async (f, o) => { calls.guard.push(['image', o && o.maxBytes]); return { blob: f, mime: 'image/jpeg', ext: 'jpg' }; },
     ugCheckFile: async (f, allow) => { calls.guard.push(['file', allow.length]); return null; },

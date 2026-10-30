@@ -58,8 +58,10 @@ begin
     values (pg_temp.id('mark2'), 'simulated', 118000, 'created', true);
   -- tasks: three in studio A, one in studio B
   foreach k in array array['tA1','tA2','tA3'] loop
-    insert into public.event_tasks(quote_id, category, title, status, org_id)
-      values (pg_temp.id('mgr'), 'decor', 'r3-'||k, 'assigned', orgA) returning id into v;
+    -- r92 (0311): tA2 is a finished task waiting for QC (a verdict needs completed + pending); tA3 is started
+    insert into public.event_tasks(quote_id, category, title, status, verify_status, org_id)
+      values (pg_temp.id('mgr'), 'decor', 'r3-'||k, case k when 'tA2' then 'completed' when 'tA3' then 'in_progress' else 'assigned' end,
+              case k when 'tA2' then 'pending' else 'unverified' end, orgA) returning id into v;
     insert into _r3_ids values (k, v);
   end loop;
   insert into public.event_tasks(quote_id, category, title, status, org_id)

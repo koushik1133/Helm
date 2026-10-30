@@ -19,8 +19,8 @@ t('ops: add-to-template row exists, gated by edit right, duplicate message', () 
   assert.match(ops, /BPStore\.ops\.addTemplate\(cat,title\)/);
   assert.match(ops, /That task is already in this section\./);
 });
-t('ops: QC buttons also for completed+rejected (stuck rework rows)', () => {
-  assert.match(ops, /t\.verify_status==='pending' \|\| \(t\.status==='completed' && t\.verify_status==='rejected'\)/);
+t('ops: QC buttons only for a completed task waiting for QC (r92 / 0311: verify_task needs completed + pending)', () => {
+  assert.match(ops, /canVerify && t\.status==='completed' && t\.verify_status==='pending'/);
 });
 t('0115: re-queues rejected on re-completion; additive, no DDL drops', () => {
   for (const s of [mig, apply]) {

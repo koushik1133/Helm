@@ -3810,7 +3810,7 @@ window.HelmUrl = HelmUrl;
     // ---- crew (signed in): my own event header + act on my own tasks (0153) ----
     crew: {
       eventBrief: (quoteId) => rpc("crew_event_brief", { p_quote: quoteId }),
-      respond: (taskId, action) => rpc("crew_task_respond", { p_task: taskId, p_action: action }),
+      respond: (taskId, action) => rpc("crew_task_respond", { p_task: taskId, p_action: action }).then(taskAnswer),
       // crew schedule calendar (0161): schedule fields only; own rows for crew, any org crew for staff/calendar viewers
       schedule: (from, to, staffId) => (supa ? rpc("crew_schedule", { p_from: from, p_to: to, p_staff: staffId || null }).then((r) => r || []) : Promise.resolve([])),
     },
@@ -3847,7 +3847,7 @@ window.HelmUrl = HelmUrl;
       getTasks: (token) => wrpc("worker_get_tasks", { p_token: token }),
       // 0132 — what changed for me ("Updated" badges) + my run-sheet lines
       updates: (token) => wrpc("worker_assignment_updates", { p_token: token }),
-      respond: (token, taskId, action) => wrpc("worker_respond", { p_token: token, p_task_id: taskId, p_action: action }),
+      respond: (token, taskId, action) => wrpc("worker_respond", { p_token: token, p_task_id: taskId, p_action: action }).then(taskAnswer),
       // Phase 52 — crew equipment (kit out to them for this event) + check-in
       getEquipment: (token) => wrpc("worker_get_equipment", { p_token: token }),
       checkinEquipment: (token, id, qtyIn) => wrpc("worker_checkin_equipment", { p_token: token, p_id: id, p_qty_in: qtyIn }),
@@ -3880,11 +3880,17 @@ window.HelmUrl = HelmUrl;
       respondEvidence: (token, taskId, action, ev) => { ev = ev || {};
         return rpc("worker_respond_evidence", { p_token: token, p_task_id: taskId, p_action: action,
           p_reason: ev.reason || null, p_voice_path: ev.voicePath || null, p_voice_seconds: ev.voiceSeconds == null ? null : Math.round(ev.voiceSeconds),
-          p_photo_paths: (ev.photoPaths && ev.photoPaths.length) ? ev.photoPaths : null }); },
+          p_photo_paths: (ev.photoPaths && ev.photoPaths.length) ? ev.photoPaths : null }).then(taskAnswer); },
     },
   };
   const TASK_PROOF_MAX = 8 * 1024 * 1024;                   // matches the task-proof bucket cap (0038)
   const TASK_PROOF_KEY = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|webm|ogg|m4a)$/;
+  // r92 (0311): an answer the server refused (accept / reject is final) comes back as {ok:false, refused:true, message};
+  // turn it into an error the page shows as-is (e.refused) - never a silent "done"
+  function taskAnswer(r) {
+    if (r && r.ok === false && r.refused) { const e = new Error(String(r.message || "This task is not waiting for your answer.")); e.refused = true; e.status = r.status; throw e; }
+    return r;
+  }
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
   const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3,

@@ -428,7 +428,8 @@
       { sel: "#taskList", title: "Tasks", desc: "Tick tasks to select them. Each one shows who has it and when it is due." },
       { sel: "#assignBtn", title: "Assign", desc: "Give the selected tasks to a crew member or a vendor." },
       { sel: "#remindDue", title: "Reminders", desc: "Remind people of tasks due now." },
-      { sel: "#dashboard", title: "Progress", desc: "How far each person and category has got." },
+      { sel: "#opsFilter", title: "Find a task", desc: "Search task names, or show only one person, section or status (QC pending too). Your filter is remembered for this event." },
+      { sel: "#dashboard", title: "Progress", desc: "How far each person and category has got. Once someone accepts a task, Reassign is locked." },
     ],
     "teardown.html": [
       { sel: "#invRows", title: "Stock coming back", desc: "Every item that went out, and whether it is back." },
