@@ -308,7 +308,7 @@
       <!-- r29 referrals (phase 1, UI only): optional referral / partner code; checked by the server in phase 2 -->
       <div id="rfsRow" class="rfs-row" hidden>
         <label for="rfsCode">Referral or partner code <span class="opt">(optional)</span></label>
-        <div class="rfs-in"><input id="rfsCode" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24" placeholder="e.g. SHAADISQ-7K2Q" aria-describedby="rfsMsg"><button type="button" class="linkbtn" id="rfsClear" hidden>Remove</button></div>
+        <div class="rfs-in"><input id="rfsCode" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24" aria-describedby="rfsMsg"><button type="button" class="linkbtn" id="rfsClear" hidden>Remove</button></div>
         <p class="rfs-msg" id="rfsMsg" aria-live="polite"></p>
         <label class="rfs-consent" id="rfsConsentRow" for="rfsConsent" hidden><input type="checkbox" id="rfsConsent"><span>Let the studio that referred me see my studio's name (otherwise they only see my city). <a href="/referral-terms" target="_blank" rel="noopener">Referral terms</a></span></label>
       </div>
@@ -490,7 +490,7 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=317" defer></script>
+<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=318" defer></script>
 <script src="auth-ui.js?v=57" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>

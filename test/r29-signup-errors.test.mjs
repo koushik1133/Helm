@@ -156,7 +156,7 @@ t("8 local 'easy to guess' check names the specific reason(s) in plain words; re
   const { S } = await env({});
   const g = S.auth.passwordRule.guessReasons;
   const SEQ = "Avoid number sequences like 123456", NAME = "Avoid using your name or e-mail in the password", REP = "Avoid repeated characters like aaa or 111",
-    KEY = "Avoid keyboard patterns like qwerty", COMMON = "This is a very common password", WORD = "Avoid a single word followed by numbers, like Name@2024";
+    KEY = "Avoid keyboard patterns like qwerty", COMMON = "This is a very common password", WORD = "Avoid letters followed by numbers (like Name@2024 or CarModel123!) - add an unrelated word or mix the numbers in";
   const has = (p, why, hints) => assert.ok(g(p, hints).includes(why), p + " -> " + why + " (got " + JSON.stringify(g(p, hints)) + ")");
   has("Tharun@123456", SEQ); has("Tharun@123456", WORD); has("Tharun@123456", NAME, ["Tharun studios", "t@gmail.com"]);
   has("P@ssw0rd12345", COMMON); has("Welcome@2024!", COMMON); has("Aaaaaaaa1!aa", REP); has("Zz!111Qq#xyW", REP);
