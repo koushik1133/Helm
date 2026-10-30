@@ -170,7 +170,7 @@ t('chat_ensure_broadcast: only on the Chat page, once per tab session', () => {
 });
 t('bell poll: never while hidden, 90 s on Chat with realtime, catch-up on return, listener removed on teardown', () => {
   assert.match(SRC, /const pollMs = \(\) => \(pageKey\(\) === "chat" && csub \? 90000 : 30000\);/);
-  assert.match(SRC, /setInterval\(\(\) => \{ if \(kicked && !document\.hidden && !isOpen && Date\.now\(\) - lastRf >= pollMs\(\) - 1000\) refresh\(\); \}, 30000\)/);
+  assert.match(SRC, /setInterval\(\(\) => \{ if \(kicked && !document\.hidden && !isOpen && Date\.now\(\) >= feedBackoffUntil && Date\.now\(\) - lastRf >= pollMs\(\) - 1000\) refresh\(\); \}, 30000\)/);
   assert.match(SRC, /document\.addEventListener\("visibilitychange", onVis\);/);
   assert.match(SRC, /document\.removeEventListener\("visibilitychange", onVis\);/);
   assert.match(SRC, /const refreshNow = async \(\) => \{ lastRf = Date\.now\(\);/);

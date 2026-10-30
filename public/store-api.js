@@ -1241,7 +1241,28 @@ window.HelmUrl = HelmUrl;
       return hdrOf(init, input, "Authorization") === "Bearer " + CFG.anonKey;
     } catch (e) { return false; }
   }
+  /* R102 (x-browser run): Safari/WebKit fails every fetch still in flight when the page is left ("Fetch API cannot
+     load ... due to access control checks", a TypeError) and the callers' rejections surfaced as ~350 unhandled
+     promise rejections per run. Once the page is being hidden for navigation (pagehide / beforeunload), a fetch that
+     fails with a network TypeError is left pending instead - the page is going away and nobody should react to it.
+     While the page is active every error is passed on unchanged; a page restored from the back/forward cache
+     (pageshow) is active again. */
+  let pageLeaving = false;
+  try {
+    global.addEventListener("pagehide", () => { pageLeaving = true; });
+    global.addEventListener("beforeunload", () => { pageLeaving = true; setTimeout(() => { pageLeaving = false; }, 3000); });   // a cancelled "Leave site?" keeps the page
+    global.addEventListener("pageshow", () => { pageLeaving = false; });
+  } catch (e) {}
+  function isLeavingAbort(err) {
+    return pageLeaving && !!err && (err.name === "TypeError" || err.name === "AbortError");
+  }
   function authAwareFetch(input, init) {
+    return authAwareFetchInner(input, init).catch((err) => {
+      if (isLeavingAbort(err)) return new Promise(() => {});   // never settles: no rejection while the page unloads
+      throw err;
+    });
+  }
+  function authAwareFetchInner(input, init) {
     if (anonDenied(input, init)) {
       return Promise.resolve(new Response(JSON.stringify({ code: "42501", details: null, hint: null, message: "not signed in" }),
         { status: 401, headers: { "Content-Type": "application/json" } }));
@@ -9421,7 +9442,20 @@ window.HelmUrl = HelmUrl;
       // r91: the 30 s poll, the visibility catch-up and realtime kept firing after sign-out / session expiry (mount
       // only checked the user once), sending bell_feed / chat / prefs reads with the bare anon key -> 42501 in the
       // Postgres log. No signed-in user any more: stop everything instead of reading.
-      const refreshNow = async () => { lastRf = Date.now(); const g = mutGen; let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat();
+      /* R102: bell_feed now and then answers HTTP 500 / a statement timeout under load (2 in ~600 loads, x-browser run).
+         Keep the last good answer on screen (no empty list, no dot reset to 0), back off the safety poll (60 s, 2 m,
+         4 m … max 8 m) and retry quietly ONCE a few seconds later - no user-facing error, no hammering. */
+      let goodFeed = null, feedFails = 0, feedBackoffUntil = 0, feedRetryT = null;
+      const safeFeed = async () => {
+        try { const f = await this.feed(20); goodFeed = f; feedFails = 0; feedBackoffUntil = 0; return f; }
+        catch (x) {
+          feedFails++; feedBackoffUntil = Date.now() + Math.min(480000, 30000 * Math.pow(2, feedFails));
+          if (feedFails === 1 && !feedRetryT) feedRetryT = setTimeout(() => { feedRetryT = null; if (!document.hidden) liveRefresh(); }, 4000 + Math.floor(Math.random() * 3000));
+          return goodFeed;
+        }
+      };
+      try { window.__bpBellFeedState = () => ({ fails: feedFails, backoffUntil: feedBackoffUntil, hasGood: !!goodFeed }); } catch (e) {}
+      const refreshNow = async () => { lastRf = Date.now(); const g = mutGen; const f = await safeFeed(); noteInbox(f); await loadChat();
         if (g !== mutGen) return f;
         setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
@@ -9449,7 +9483,7 @@ window.HelmUrl = HelmUrl;
         void root.offsetWidth; root.classList.add("is-open"); document.documentElement.classList.add("bpb-is-open");     // next frame → CSS transition runs
         try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
         if (loaded) render();                                       // show the last list at once, then refresh
-        let f = null; try { f = await this.feed(20); } catch {} noteInbox(f); await loadChat();
+        const f = await safeFeed(); noteInbox(f); await loadChat();
         if (!isOpen) return;
         lastItems = mergedFeed(f && f.items); loaded = true; render(); if (f) popToasts(lastItems);   // panel open → just moves the baseline
         // r23 (0266): with the inbox, opening the bell no longer marks everything read (Settings switch "opening the bell marks read")
@@ -9604,8 +9638,8 @@ window.HelmUrl = HelmUrl;
       // refreshes on every message, so the safety poll there runs every 90 s, elsewhere every 30 s; never
       // while the tab is hidden, and a tab coming back after its interval catches up once.
       const pollMs = () => (pageKey() === "chat" && csub ? 90000 : 30000);
-      const timer = setInterval(() => { if (kicked && !document.hidden && !isOpen && Date.now() - lastRf >= pollMs() - 1000) refresh(); }, 30000);
-      const onVis = () => { if (kicked && !document.hidden && !isOpen && Date.now() - lastRf >= pollMs()) liveRefresh(); };
+      const timer = setInterval(() => { if (kicked && !document.hidden && !isOpen && Date.now() >= feedBackoffUntil && Date.now() - lastRf >= pollMs() - 1000) refresh(); }, 30000);
+      const onVis = () => { if (kicked && !document.hidden && !isOpen && Date.now() >= feedBackoffUntil && Date.now() - lastRf >= pollMs()) liveRefresh(); };
       document.addEventListener("visibilitychange", onVis);
       btn.addEventListener("click", kick);
       if (pageKey() === "chat") kick();
@@ -9616,7 +9650,7 @@ window.HelmUrl = HelmUrl;
       // Let the chat page nudge the bell after it marks a conversation read.
       try { window.__bpBellRefresh = refresh; } catch (e) {}
       function bellStop() { try { if (typeof window.__bpBellTeardown === "function") window.__bpBellTeardown(); } catch (e) {} }
-      try { window.__bpBellTeardown = () => { kicked = true; clearInterval(timer); window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", onVis); if (isOpen) close(false);
+      try { window.__bpBellTeardown = () => { kicked = true; clearInterval(timer); clearTimeout(feedRetryT); window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", onVis); if (isOpen) close(false);
         try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} try { root.remove(); } catch (e) {} }; } catch (e) {}
     },
   };
