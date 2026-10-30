@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { requireStagingEnv } from '../helpers/env.mjs';
 import { useStaging, assertStagingOnly } from '../helpers/staging.mjs';
-import { createApprovalFixture, reStoreOtp, svcGet } from '../helpers/fixtures.mjs';
+import { createApprovalFixture, reStoreOtp, svcGet, stubOtpDelivery } from '../helpers/fixtures.mjs';
 
 test.beforeAll(() => requireStagingEnv());
 
@@ -12,6 +12,7 @@ async function reachOtp(page, fx) {
   await assertStagingOnly(page);
   await page.locator('#c_name').fill('E2E Client');
   await page.locator('#c_phone').fill(fx.phone);
+  await stubOtpDelivery(page);
   await page.locator('#sendOtp').click();
   await expect(page.locator('#c_otp')).toBeVisible({ timeout: 10_000 });
   await reStoreOtp(fx.token, fx.phone, fx.code); // known code becomes newest

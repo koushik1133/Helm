@@ -23,15 +23,18 @@ const STAGING_REF = 'xizehqgeyjcfpzrdymly';
 test('@smoke @auth sign-in returns a session, never a 5xx (NULL-token-column guard)', async ({ page }) => {
   await useStaging(page);
   await page.goto('/login.html');
-  await page.locator('#email, input[type=email]').first().fill(emailFor('planner'));
-  await page.locator('#password, input[type=password]').first().fill(PASSWORD);
+  // wait until login.html's scripts have wired the submit handler; clicking earlier does a native
+  // form submit (page reload) that wipes the typed password and never calls /auth/v1/token.
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.locator('#loginForm #email').fill(emailFor('planner'));
+  await page.locator('#loginForm #pw').fill(PASSWORD);
 
   const [resp] = await Promise.all([
     page.waitForResponse(
       r => r.url().includes('/auth/v1/token') && r.request().method() === 'POST',
       { timeout: 30_000 },
     ),
-    page.locator('#submit').click(),
+    page.locator('#loginForm #submit').click(),
   ]);
 
   expect(resp.url(), 'sign-in must go to STAGING').toContain(STAGING_REF);
@@ -48,15 +51,18 @@ test('@smoke @auth sign-in returns a session, never a 5xx (NULL-token-column gua
 test('@auth wrong password → invalid credentials (400), classified as auth not network', async ({ page }) => {
   await useStaging(page);
   await page.goto('/login.html');
-  await page.locator('#email, input[type=email]').first().fill(emailFor('planner'));
-  await page.locator('#password, input[type=password]').first().fill('definitely-not-the-password-' + Date.now());
+  // wait until login.html's scripts have wired the submit handler; clicking earlier does a native
+  // form submit (page reload) that wipes the typed password and never calls /auth/v1/token.
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.locator('#loginForm #email').fill(emailFor('planner'));
+  await page.locator('#loginForm #pw').fill('definitely-not-the-password-' + Date.now());
 
   const [resp] = await Promise.all([
     page.waitForResponse(
       r => r.url().includes('/auth/v1/token') && r.request().method() === 'POST',
       { timeout: 30_000 },
     ),
-    page.locator('#submit').click(),
+    page.locator('#loginForm #submit').click(),
   ]);
 
   // Server side: a clean 400 invalid-credentials, never a 5xx DB/schema error.

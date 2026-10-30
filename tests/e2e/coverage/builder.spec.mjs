@@ -3,7 +3,8 @@
 // with required empty fields (Save writes a layout version using a defaulted name). Items 1–3 covered.
 import { test, expect } from '@playwright/test';
 import { requireStagingEnv } from '../helpers/env.mjs';
-import { openScreen, assertNotRedirectedToLogin, assertScreenRendered, assertNoConsoleErrors } from './_coverage-utils.mjs';
+import { assertStagingOnly } from '../helpers/staging.mjs';
+import { openScreen, assertNotRedirectedToLogin, assertNoConsoleErrors } from './_coverage-utils.mjs';
 
 test.beforeAll(() => requireStagingEnv());
 
@@ -11,7 +12,11 @@ test('@coverage builder loads authenticated, clean console, canvas + toolbar ren
   const { context, page, consoleErrors } = await openScreen(browser, 'admin', '/builder.html');
   try {
     assertNotRedirectedToLogin(page);
-    await assertScreenRendered(page);
+    // The builder's only h1 is the "Helm Events" brand, which builder.css deliberately hides
+    // (display:none) below 1500px to make room for the toolbar. So we assert it is in the DOM rather
+    // than visible. (A11y note in r81-REPORT.md: a visually-hidden page heading would be better.)
+    await assertStagingOnly(page);
+    await expect(page.locator('h1').first(), 'builder page heading exists').toBeAttached();
     assertNoConsoleErrors(consoleErrors);
 
     // Item 3 — the Save control and the event/quote name input in the toolbar render.
