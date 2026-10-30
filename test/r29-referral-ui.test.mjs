@@ -90,11 +90,11 @@ for (const f of ["refer.js", "hq-referrals.js", "referral-signup.js", "referral-
 const refer = read("public/refer.html");
 assert.match(refer, /<html[^>]*class="auth-pending"/, "studio page is behind the sign-in gate");
 assert.ok(refer.indexOf("refer-boot.js") < refer.indexOf("store-api.js"), "demo gate lift runs before store-api");
-assert.ok(refer.indexOf("referral-demo.js") < refer.indexOf("refer-boot.js"));
+assert.ok(refer.indexOf("referral-demo-gate.js") < refer.indexOf("refer-boot.js"));
 assert.doesNotMatch(refer, /<script>(?!<\/script>)|\son[a-z]+=/i);
 const hq = read("public/hq-referrals.html");
 assert.doesNotMatch(hq, /auth-pending/, "HQ page: its own HQ gate (like /hq), not the studio sign-in gate");
-assert.ok(hq.indexOf("referral-demo.js") < hq.indexOf("store-api.js") && hq.indexOf("hq-staff.js") < hq.indexOf("hq-referrals.js"));
+assert.ok(hq.indexOf("referral-demo-gate.js") < hq.indexOf("store-api.js") && hq.indexOf("hq-staff.js") < hq.indexOf("hq-referrals.js"));
 const hqjs = read("public/hq-referrals.js");
 assert.match(hqjs, /operatorStep\(\)/, "real data only after the HQ two-step check");
 assert.match(hqjs, /if \(step === "none"\) \{ notFound\(\); return; \}/, "not an operator -> page not found");
