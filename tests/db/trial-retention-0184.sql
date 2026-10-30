@@ -116,6 +116,8 @@ create or replace function pg_temp.nnot(p_org uuid, p_kind text) returns int lan
 \ir ../../supabase/migrations/0290_send_window.sql
 -- 0280 (r42 HQ v2) adds hq_studio_credits (HQ billing record) to the keep list
 \ir ../../supabase/migrations/0280_hq_v2_round2.sql
+-- 0310 (r89 template versions) adds studio_layout_template_versions to the purge list (purged with the templates)
+\ir ../../supabase/migrations/0310_r89_template_versions.sql
 
 -- ---- fixtures -----------------------------------------------------------------------------------------
 do $$ declare m uuid; begin
