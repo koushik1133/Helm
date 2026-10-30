@@ -278,7 +278,7 @@
 <link rel="stylesheet" href="event-reminders.css?v=2">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=16">
-<link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="link-views.css?v=2">
+<link rel="stylesheet" href="roles-matrix.css?v=1"><link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="link-views.css?v=2">
 <script src="/shell-proto.js?v=52" id="shellProto"></script>
 </head>
 <body>
@@ -674,9 +674,13 @@
 
       <div class="card">
         <h3>Access control — who can see &amp; do what</h3>
-        <p class="mnote">Pick a role, then tap an area to toggle <b>view</b> (green tick = accessible).
-          Tap the ✎ to also allow <b>editing</b>. Admin always has full access.</p>
-        <div class="roletabs" id="roleTabs"></div>
+        <p class="mnote">Pick a role. On each row, <b>Can see</b> lets that role open it and <b>Can change</b> also lets them edit it.
+          Every switch saves straight away. <b>Default</b> means it is how new studios start; <b>Changed</b> means your studio changed it. Admin always has full access.</p>
+        <div class="rm-sticky" id="rmSticky">
+          <div class="roletabs" id="roleTabs"></div>
+          <div class="rm-bar" id="rmBar"></div>
+        </div>
+        <div class="rm-callout" id="mgrClose" hidden></div>
         <div id="matrix"></div>
       </div>
 
@@ -928,8 +932,8 @@
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=6"></script>
 <script src="hq-invoice.js?v=2"></script>
-<script src="page-tours.js?v=7"></script>
-<script src="tour.js?v=30"></script>
+<script src="page-tours.js?v=8"></script>
+<script src="tour.js?v=31"></script>
 <script src="pkg-review.js?v=9"></script>
 <script src="onboarding-core.js?v=8"></script>
 <script src="studio-billing-form.js?v=3"></script>
@@ -955,6 +959,7 @@
 <script src="settings-search-core.js?v=2"></script>
 <script src="search-catalog.js?v=10"></script>
 <script src="control-split.js?v=24"></script>
+<script src="role-defaults.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2226,6 +2231,21 @@
     if(a&&a.defaultFrom){ const f=MTX[role]&&MTX[role][a.defaultFrom]; return {view:!!(f&&f.view), edit:!!(f&&f.edit)}; }
     const on=!!(a&&a.defaultOn&&a.defaultOn.includes(role)); return {view:on, edit:on}; }
 
+  // r85: plain-English sections, "Can see" / "Can change" switches, Default / Changed badges, Reset to defaults.
+  // Same stored values as before (role_access view / edit through admin_set_role_access) - only the layout changed.
+  const RD = window.HelmRoleDefaults || { SECTIONS: [], defaultFor: () => null };
+  function cellNow(role, key){ return (MTX[role]&&MTX[role][key])||cellDefault(role,key); }
+  // null = this area has no studio default we know of (no badge, Reset leaves it alone)
+  function cellChanged(role, a){ const d=RD.defaultFor(role, a.key); if(!d) return null; const c=cellNow(role,a.key);
+    return a.permission ? (!!(c.view&&c.edit)!==!!(d.view&&d.edit)) : (!!c.view!==!!d.view || !!c.edit!==!!d.edit); }
+  function sectionsFor(){
+    const seen={}, out=[];
+    RD.SECTIONS.forEach(s=>{ const rows=[]; s.rows.forEach(r=>{ const a=AREAS.find(x=>x.key===r.area); if(a){ seen[a.key]=1; rows.push({a, r}); } });
+      if(rows.length) out.push({title:s.title, blurb:s.blurb, rows}); });
+    const rest=AREAS.filter(a=>!seen[a.key]).map(a=>({a, r:{}}));
+    if(rest.length) out.push({title:"Other", blurb:"", rows:rest});
+    return out;
+  }
   async function initMatrix(){
     // role tabs (admin first, shown as locked-full)
     $("#roleTabs").innerHTML = ROLES.map(r=>`<button type="button" class="rtab${r===selRole?" active":""}" data-role="${esc(r)}" aria-pressed="${r===selRole}">${esc(BPStore.auth.admin.roleLabel(r))}</button>`).join("");
@@ -2249,38 +2269,59 @@
     }catch(e){ mtxErr=e; return false; }
   }
   async function reloadMatrix(){ await loadMatrix(); renderMatrix(); if(mtxErr) throw mtxErr; }
+  function renderMgrClose(){
+    const box=$("#mgrClose"); if(!box) return;
+    const a=AREAS.find(x=>x.key==="closure");
+    if(mtxErr || !a || ROLES.indexOf("manager")<0){ box.hidden=true; return; }
+    const c=cellNow("manager","closure"), on=!!(c.view&&c.edit);
+    box.hidden=false;
+    box.innerHTML=`<div class="rm-ctxt"><b>Managers can close events</b><span>${on?"On (the default): managers can close events and settle accounts. Switch off if only the admin should close events.":"Off: managers cannot close events. New studios start with this on; switch it on to let managers close events."}</span></div>
+      <button type="button" class="rm-switch" id="mgrCloseBtn" role="switch" aria-checked="${on}" aria-label="Managers can close events"><span class="rm-knob" aria-hidden="true"></span><span class="rm-swl">${on?"On":"Off"}</span></button>`;
+    $("#mgrCloseBtn").addEventListener("click", ()=>setCell("manager","closure", on ? {view:true, edit:false} : {view:true, edit:true}));
+  }
+  function renderBar(locked){
+    const bar=$("#rmBar"); if(!bar) return;
+    if(locked||mtxErr){ bar.innerHTML=`<span class="rm-bl">${esc(BPStore.auth.admin.roleLabel(selRole))}</span><span class="rm-bs">${locked?"Always full access":""}</span>`; return; }
+    const n=AREAS.filter(a=>cellChanged(selRole,a)===true).length;
+    bar.innerHTML=`<span class="rm-bl">${esc(BPStore.auth.admin.roleLabel(selRole))}</span>
+      <span class="rm-bs">${n?`${n} changed from default`:"Matches the default"}</span>
+      <button type="button" class="btn sm" id="rmReset"${n?"":" disabled"}>Reset to defaults</button>`;
+    const rb=$("#rmReset"); if(rb) rb.addEventListener("click", ()=>resetRole(selRole, rb));
+  }
   function renderMatrix(){
+    renderMgrClose();
+    const locked = selRole==="admin";
+    renderBar(locked);
     if(mtxErr){
       BPUI.loadError($("#matrix"), mtxErr, reloadMatrix, {what:"access control"});
       return;
     }
-    const locked = selRole==="admin";
-    const byGroup={};
-    AREAS.forEach(a=>{ (byGroup[a.group]=byGroup[a.group]||[]).push(a); });
     let html="";
-    Object.keys(byGroup).forEach(g=>{
-      html+=`<div class="mgroup">${esc(g)}</div><div class="chips">`;
-      byGroup[g].forEach(a=>{
-        const cell = locked ? {view:true,edit:true} : ((MTX[selRole]&&MTX[selRole][a.key])||cellDefault(selRole,a.key));
-        const lb=esc(a.label);
+    sectionsFor().forEach(s=>{
+      html+=`<section class="rm-sec"><div class="mgroup">${esc(s.title)}</div>${s.blurb?`<p class="rm-blurb">${esc(s.blurb)}</p>`:""}<div class="chips rm-rows">`;
+      s.rows.forEach(({a, r})=>{
+        const cell = locked ? {view:true,edit:true} : cellNow(selRole,a.key);
+        const lb=esc(r.label||a.label), help=r.help?`<span class="rm-help">${esc(r.help)}</span>`:"";
+        const ch = locked ? null : cellChanged(selRole,a);
+        const badge = ch===null ? "" : `<span class="rm-badge${ch?" chg":""}">${ch?"Changed":"Default"}</span>`;
+        const hl = r.highlight ? " hl" : "";
+        const txt=`<div class="rm-txt"><span class="rm-top"><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span>${badge}</span>${help}</div>`;
         // r32 (0282): a money permission is ONE switch (allowed / not allowed) - no separate view / edit
         if(a.permission){
           const on=locked||!!(cell.view&&cell.edit);
-          html+=`<div class="chip perm${on?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}" data-perm="1">
-          <button type="button" class="cview" aria-pressed="${on}" aria-label="${lb}: allowed"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
-          <span class="tick" aria-hidden="true">✓</span></div>`;
+          html+=`<div class="chip rm-row perm${on?" on":""}${locked?" locked":""}${hl}" data-area="${esc(a.key)}" data-perm="1">${txt}
+          <div class="rm-sw"><button type="button" class="cview sw" aria-pressed="${on}" aria-label="${lb}: allowed"${locked?" disabled":""}>Allowed</button></div></div>`;
           return;
         }
-        html+=`<div class="chip${cell.view?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}">
-          <button type="button" class="cview" aria-pressed="${!!cell.view}" aria-label="${lb}: can view"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
-          <button type="button" class="pen${cell.edit?" on":""}" data-pen="1" title="Allow editing" aria-pressed="${!!cell.edit}" aria-label="${lb}: can edit"${locked?" disabled":""}>✎</button>
-          <span class="tick" aria-hidden="true">✓</span></div>`;
+        html+=`<div class="chip rm-row${cell.view?" on":""}${locked?" locked":""}${hl}" data-area="${esc(a.key)}">${txt}
+          <div class="rm-sw"><button type="button" class="cview sw" aria-pressed="${!!cell.view}" aria-label="${lb}: can see"${locked?" disabled":""}>Can see</button>
+          <button type="button" class="pen sw${cell.edit?" on":""}" data-pen="1" title="Can change (also switches on Can see)" aria-pressed="${!!cell.edit}" aria-label="${lb}: can change"${locked?" disabled":""}>Can change</button></div></div>`;
       });
-      html+=`</div>`;
+      html+=`</div></section>`;
     });
     const hasAny = !locked && AREAS.some(a=>{ const c=MTX[selRole]&&MTX[selRole][a.key]; return c&&c.view; });
     const sugg = ROLE_SUGGEST[selRole];
-    $("#matrix").innerHTML = html + (locked?'<p class="mnote" style="margin-top:12px">Admin always has full access — nothing to change here.</p>':"");
+    $("#matrix").innerHTML = html + (locked?'<p class="mnote rm-locked">Admin always has full access — nothing to change here.</p>':"");
     if(!locked && !hasAny){
       const box=document.createElement("div"); box.className="mnote mtx-empty";
       const tx=document.createElement("span"); tx.textContent="This role has no areas switched on, so people with it only see their own portal."; box.appendChild(tx);
@@ -2291,9 +2332,38 @@
     { const sb=$("#mtxSuggest"); if(sb) sb.addEventListener("click", ()=>applySuggested(selRole, sb)); }
     $("#matrix").querySelectorAll(".chip").forEach(chip=>{
       const area=chip.dataset.area;
-      // ✎ toggles edit (auto-enables view); the rest of the chip toggles view (off view also clears edit)
-      chip.addEventListener("click", (e)=>{ saveCell(selRole, area, chip.dataset.perm ? "perm" : (e.target.closest("[data-pen]") ? "edit" : "view")); });
+      // r85: only the switches save (the text beside them never toggles anything by accident)
+      // "Can change" toggles edit (auto-enables view); "Can see" toggles view (off view also clears edit)
+      chip.addEventListener("click", (e)=>{ if(!e.target.closest("button")) return; saveCell(selRole, area, chip.dataset.perm ? "perm" : (e.target.closest("[data-pen]") ? "edit" : "view")); });
     });
+  }
+  // r85: put one role back to the studio defaults (only the areas that have a known default and differ).
+  async function resetRole(role, btn){
+    const list=AREAS.filter(a=>cellChanged(role,a)===true);
+    if(!list.length || btn.disabled) return;
+    btn.disabled=true;
+    const rl=BPStore.auth.admin.roleLabel(role);
+    if(!(await BPUI.confirm(`Put ${rl} back to the default access? This changes ${list.length} row${list.length===1?"":"s"}: ${list.map(a=>a.label).join(", ")}. Everything else stays as it is.`,{title:"Reset to defaults?",okLabel:"Reset"}))){ btn.disabled=false; return; }
+    cellPending++; $("#matrix").setAttribute("aria-busy","true");
+    cellQueue = cellQueue.then(async()=>{
+      try{ for(const a of list){ const d=RD.defaultFor(role,a.key); if(!d) continue; await BPStore.auth.admin.setAccess(role, a.key, !!d.view, !!(d.view&&d.edit)); }
+        BPUI.toast(rl+": back to defaults",{type:"ok"}); }
+      catch(err){ BPUI.toast(errMsg(err,"change access"),{type:"err"}); }
+      await loadMatrix();
+    }).catch(()=>{}).finally(()=>{ cellPending--; if(!cellPending) $("#matrix").removeAttribute("aria-busy"); renderMatrix(); });
+    return cellQueue;
+  }
+  // r85: set one cell to an exact value (the "Managers can close events" switch); same serialized queue
+  function setCell(role, area, want){
+    cellPending++; $("#matrix").setAttribute("aria-busy","true");
+    cellQueue = cellQueue.then(async()=>{
+      let saved=false;
+      try{ await BPStore.auth.admin.setAccess(role, area, !!want.view, !!(want.view&&want.edit)); saved=true; }
+      catch(e){ BPUI.toast(errMsg(e,"change access"),{type:"err"}); }
+      await loadMatrix();
+      if(saved) BPUI.toast(`Managers can close events: ${want.edit?"on":"off"}`,{type:"ok",timeout:2500});
+    }).catch(()=>{}).finally(()=>{ cellPending--; if(!cellPending) $("#matrix").removeAttribute("aria-busy"); renderMatrix(); });
+    return cellQueue;
   }
   // Suggested starting access for roles that ship with nothing on. Applied only when an admin
   // clicks the button (owner decision D2: no automatic grants); every chip stays editable.
