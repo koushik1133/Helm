@@ -160,7 +160,7 @@ t('booklet: render wiring, versions bumped, print hides toggle, CSP allows data:
   assert.match(read('public/booklet.css'), /\.snap-labels\{display:none\}/); assert.match(read('public/booklet.css'), /\.snap-zoom\[hidden\]\{display:none\}/);
   const v = JSON.parse(read('vercel.json'));
   const csp = v.headers.filter((h) => /booklet/.test(h.source)).flatMap((h) => h.headers.filter((x) => x.key === 'Content-Security-Policy').map((x) => x.value));
-  assert.ok(csp.length >= 3); csp.forEach((c) => assert.match(c, /img-src 'self' data:/));
+  assert.ok(csp.length >= 2); csp.forEach   /* r83: /booklet + /booklet.html share one rule */((c) => assert.match(c, /img-src 'self' data:/));
 });
 t('share checklist: style toggles, missing pictures block the share, styles saved on the link', () => {
   const s = read('public/share-checklist.js');
