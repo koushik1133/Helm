@@ -133,7 +133,7 @@ Deno.test("sendEmailSmtp: footer + List-Unsubscribe passed, brand mode, Helm's o
     await m.sendEmailSmtp("c@example.com", "Hi", "t", "Sparkle", { from_name: "Sparkle Weddings" }, extra, { env: env({ EMAIL_BRAND_MODE: "studio" }), smtp });
     assertEquals(got.mail.from, '"Sparkle Weddings" <owner@gmail.com>');               // studio's own sender name (0150)
     await m.sendEmailSmtp("c@example.com", "Hi", "t", "Sparkle", {}, extra, { env: env({ EMAIL_BRAND_MODE: "studio" }), smtp });
-    assertEquals(got.mail.from, '"Sparkle via Helm" <owner@gmail.com>');
+    assertEquals(got.mail.from, '"Sparkle via Helm Events" <owner@gmail.com>');
     await m.sendEmailSmtp("c@example.com", "Hi", "t", "Helm", {}, { footer: extra.footer }, { env: env({ EMAIL_BRAND_MODE: "studio" }), smtp });
     assertEquals(got.mail.from, '"Helm Events" <owner@gmail.com>');                    // Helm's own trial mail
     assertEquals(got.mail.headers, undefined);                                          // transactional: no unsubscribe headers
