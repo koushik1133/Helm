@@ -196,9 +196,16 @@ do $$ declare s text; n int; t record; begin
 end $$;
 select pg_temp.anon();
 do $$ declare r jsonb; begin
+  -- r92 (0311): claiming IS accepting and an answer is final - Kiran's reject is refused; the office cancels the task instead
   r := public.worker_respond(pg_temp.get('kiran_tok')::uuid, pg_temp.get('kiran_task')::uuid, 'reject');
+  perform pg_temp.res('14a Kiran cannot reject a claimed (accepted) shift task', r ->> 'refused' = 'true', r::text);
+end $$;
+select pg_temp.su();
+update public.event_tasks set status = 'cancelled' where id = pg_temp.get('kiran_task')::uuid;
+select pg_temp.anon();
+do $$ declare r jsonb; begin
   r := public.crew_claim_shift(pg_temp.get('suresh_tok')::uuid, pg_temp.get('shift1')::uuid);
-  perform pg_temp.res('14 Kiran rejects the task: his place frees up and Suresh can take it', r ->> 'status' = 'approved', r::text);
+  perform pg_temp.res('14 the office cancels Kiran''s task: his place frees up and Suresh can take it', r ->> 'status' = 'approved', r::text);
 end $$;
 select pg_temp.su();
 do $$ declare s text; begin

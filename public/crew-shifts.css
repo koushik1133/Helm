@@ -86,3 +86,5 @@
 .cs-site>.cs-item{margin-top:8px}
 .cs-site-small>summary{font-weight:600;font-size:13px;color:var(--accent,#047857)}
 .cs-sitebar .cs-offnote{margin-top:2px}
+/* r92: touch screens - bigger day cells and form fields */
+@media (pointer:coarse){.cs-cell{width:40px;height:40px;line-height:38px}.cs-form input,.cs-form select,.cs-edit input{height:44px;font-size:16px}}

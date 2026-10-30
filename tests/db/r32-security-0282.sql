@@ -70,8 +70,8 @@ end $$;
 -- ================================================================================= ACL-01 verify_task
 do $$ declare t uuid; v text; r public.event_tasks; begin
   perform pg_temp.su();
-  insert into public.event_tasks(quote_id, category, title, seq, status, assignee_name, assignee_phone, org_id)
-    values ('a0000000-0000-4000-8000-00000000da01', 'setup', 'R32 stage', 1, 'completed', 'Ravi', '+919800000099', 'a0000000-0000-4000-8000-000000000001')
+  insert into public.event_tasks(quote_id, category, title, seq, status, verify_status, assignee_name, assignee_phone, org_id)   -- r92: waiting for QC
+    values ('a0000000-0000-4000-8000-00000000da01', 'setup', 'R32 stage', 1, 'completed', 'pending', 'Ravi', '+919800000099', 'a0000000-0000-4000-8000-000000000001')
     returning id into t;
   insert into _kv values ('task', t::text);
   perform pg_temp.member('r32_qa@a.test', 'quality');

@@ -62,6 +62,8 @@ run "r23-quote-validity-0262" "R23-QUOTE-VALIDITY-0262: ALL PASS \(69/69\)" psql
 run "r84-otp-single-use-0307" "R84-OTP-SINGLE-USE-0307: ALL PASS \(9/9\)" psql -q -f tests/db/r84-otp-single-use-0307.sql
 # r86 (0308): "Complete your profile" saves for a member of an ended trial studio; the Staff sync is skipped; crew_members stays read-only
 run "r86-profile-trial-gate-0308" "R86-PROFILE-TRIAL-0308: ALL PASS \(10/10\)" psql -q -f tests/db/r86-profile-trial-gate-0308.sql
+# r92 (0311): crew task lifecycle on the server - accept / reject final, reassign locked once accepted, QC only from pending, audit rows; re-applies itself twice, rolled back (early: later suites re-apply OLDER worker_respond / reassign_task / verify_task layers)
+run "r92-task-lifecycle-0311" "R92-TASK-LIFECYCLE-0311: ALL PASS \(28/28\)" psql -q -f tests/db/r92-task-lifecycle-0311.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
@@ -227,7 +229,7 @@ run "r22-closure-0254" "R22-CLOSURE-0254: ALL PASS \(68/68\)" psql -q -f tests/d
 run "r23-vendors-0256" "R23-VENDORS-0256: ALL PASS \(77/77\)" psql -q -f tests/db/r23-vendors-0256.sql
 run "r23-payment-schedules-0264" "R23-PAYMENT-SCHEDULES-0264: ALL PASS \(71/71\)" psql -q -f tests/db/r23-payment-schedules-0264.sql
 # 0265 re-applies itself twice (re-run safe); after every suite that re-applies 0132 / 0246 / 0252 (it replaces the 0252 ledger body)
-run "r23-crew-0265" "R23-CREW-0265: ALL PASS \(60/60\)" psql -q -f tests/db/r23-crew-0265.sql
+run "r23-crew-0265" "R23-CREW-0265: ALL PASS \(61/61\)" psql -q -f tests/db/r23-crew-0265.sql
 # 0261 re-applies itself (after 0254, whose bell_feed / event_activity it wraps; proves a re-run is safe)
 run "r23-link-views-0261" "R23-LINK-VIEWS-0261: ALL PASS \(62/62\)" psql -q -f tests/db/r23-link-views-0261.sql
 # 0266 re-applies itself (after r22-closure, which re-applies 0254 over the bell_feed wrapper)
