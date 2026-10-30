@@ -87,7 +87,7 @@ await (async () => {
 t('37: "No date set" asks before saving and offers Undo that restores the old value + title', () => {
   assert.match(CAL, /ok=await BPUI\.confirm\("Set the date of "\+label\+" to "\+fmtDate\(v\)/);
   assert.match(CAL, /if\(!ok\)\{ inp\.value=""; delete inp\.dataset\.busy;/);
-  assert.match(CAL, /action:\{label:"Undo",onClick:\(\)=>undoDate\(ev\)\}/);
+  assert.match(CAL, /action:\{label:"Undo",onClick:\(\)=>undoDate\(undoEv\)\}/);
   assert.match(CAL, /const patch=\{eventDate:ev\.eventDate\|\|null\}; if\(ev\.title\) patch\.title=ev\.title;/);
   // the old save-on-change path is gone
   assert.doesNotMatch(CAL, /BPStore\.quotes\.updateMeta\(inp\.dataset\.set,\{eventDate:inp\.value\}\)/);

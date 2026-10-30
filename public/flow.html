@@ -905,7 +905,8 @@
       const client=Object.assign({}, cur, { venue:vn||null, address:va||null, venueId:vid, venueName:vnm, setting:vs, venueLen:vfl, venueWid:vfw });
       // venue-save fix: this write moved quotes.updated_at, and the next step-1 save then hit a false
       // "changed elsewhere" (reload, typing lost). Refresh the lock base; a failure is shown, never swallowed.
-      const row=await BPStore.quotes.updateMeta(id,{ client });
+      let row; try{ row=await BPStore.quotes.updateMeta(id,{ client }, ev.updatedAt); }   // r79: lock - never overwrite a concurrent edit
+      catch(e){ if(e&&e.code==="CONFLICT"){ draftSave(); await BPUI.alert(e.message+" Your unsaved typing is kept and comes back after the reload.",{title:"This quote was changed elsewhere"}); leaving=true; location.reload(); return; } throw e; }
       ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at;
     }
     persisted.venue=!!(pl.venue_name||pl.venue_address||pl.venue_contact||pl.access_notes||vs);

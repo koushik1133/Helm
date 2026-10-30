@@ -12,7 +12,7 @@
    - Opening a link counts one click (referral_click: a number per code per day, nothing about the person).
    - Demo (localhost + ?demo=1, referral-demo.js): recognises DEMO123 / SHAADISQ-7K2Q and the demo partner codes.
    DOM via textContent only. */
-(function () {
+(function (run) { var g = window.HelmReferralDemoGate; if (g && g.wanted) g.ready.then(run); else run(); })(function () {
   "use strict";
   var R = window.HelmReferral; if (!R) return;
   var D = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(String(location.hostname || "")) ? window.HelmReferralDemo || null : null;
@@ -129,4 +129,4 @@
   if (cBox) cBox.addEventListener("change", function () { var c = R.normalizeCode(inp.value); if (c) remember(c); });
   new MutationObserver(sync).observe(agree, { attributes: true, attributeFilter: ["hidden"] });
   sync();
-})();
+});

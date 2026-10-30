@@ -127,7 +127,7 @@ t("REF-01 the pages promise what the server gives: 8 days free, then 1 free mont
   assert.match(signup, /8 days free, then 1 free month after your first payment\./);
   assert.match(refer, /then 1 free month after their first payment/);
   assert.match(referJs, /8 days free, then 1 free month after your first payment\./);
-  assert.match(read("public/login.html"), /referral-signup\.js\?v=2/); assert.match(refer, /refer\.js\?v=2/);
+  assert.match(read("public/login.html"), /referral-signup\.js\?v=3/); assert.match(refer, /refer\.js\?v=3/);
 });
 t("REF-02 / REF-03 in 0279 + APPLY-0279 + APPLY-0279b (for a database that already ran 0279)", () => {
   assert.match(sql, /if not public\._r29_rate\('at:' \|\| auth\.uid\(\)::text, 10\) then return jsonb_build_object\('ok', false, 'reason', 'rate'\); end if;/);
@@ -155,7 +155,7 @@ t("REF-01 leftover: the funnel step and the HQ demo notes say what the server gi
   for (const f of ["login.html", "refer.html", "hq-referrals.html"]) {
     const src = read("public/" + f);
     assert.match(src, /\/referral-rules\.js\?v=2/, f + " loads the new rules"); assert.doesNotMatch(src, /referral-rules\.js\?v=1\b/);
-    assert.match(src, /\/referral-demo\.js\?v=3/, f + " loads the new demo notes");
+    assert.match(src, /\/referral-demo-gate\.js\?v=\d+/, f + " loads the demo gate (r78: demo itself only on localhost)"); assert.doesNotMatch(src, /\/referral-demo\.js/);
   }
 });
 t("REF-04 per-network keys: cf-connecting-ip first, IPv6 by its /64, IPv4 unchanged; in 0279, APPLY-0279 and APPLY-0279b", () => {
