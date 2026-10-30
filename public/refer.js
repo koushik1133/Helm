@@ -4,7 +4,7 @@
    a plain notice. Referred studios show their name only if they agreed at sign-up (else their city).
    Demo (localhost + ?demo=1): renders made-up data from referral-demo.js.
    DOM via createElement / textContent only (CSP + Trusted Types). Rules text comes from referral-rules.js. */
-(function () {
+(function (run) { var g = window.HelmReferralDemoGate; if (g && g.wanted) g.ready.then(run); else run(); })(function () {
   "use strict";
   var R = window.HelmReferral, D = window.HelmReferralDemo || null;
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(String(location.hostname || ""));
@@ -182,4 +182,4 @@
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
-})();
+});
