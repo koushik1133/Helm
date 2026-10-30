@@ -28,6 +28,10 @@
 // the quote, 30 s cooldown, 4 per 30 min, demo, studio daily cap) and takes one trial e-mail slot (30 a day per
 // studio, 5 a day per address) -> over the cap 429. SMS and WhatsApp codes stay refused in the trial (403
 // { trial: true }); an ended trial / the sample master / a database without 0212: e-mail refused too (403).
+//
+// R108 (0318): a quote with no price (total missing or <= 0, public_quote_ready) gets no code -> 409 { not_priced: true }
+// with "This quote isn't ready yet - please contact <Studio>."; the database refuses its approval too (0318 trigger).
+// A database without 0318: the check is skipped (unchanged behaviour). The e-mail / SMS / WhatsApp sends are unchanged.
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
@@ -42,6 +46,23 @@ const TRIAL_OTP_MSG = "Approval codes are not sent while your planner's studio i
 const TRIAL_CHANNEL_MSG = "In your planner's free trial the code is sent by e-mail only - use \"Send code to my e-mail\" or the Test mode confirm on this page.";
 const TRIAL_CAP_MSG = "Your planner's free trial has reached today's e-mail limit - use the Test mode confirm on this page.";
 
+// R108 (0318): { priced, studio } for this link, or null (unknown link / database without 0318 / any error)
+// deno-lint-ignore no-explicit-any
+async function quoteReady(admin: any, token: string): Promise<any> {
+  try {
+    const { data, error } = await admin.rpc("public_quote_ready", { p_token: token });
+    return !error && data && typeof data === "object" ? data : null;
+  } catch (_) { return null; }
+}
+const studioName = (v: unknown) => String(v || "").replace(/[\r\n<>]/g, " ").trim().slice(0, 120);
+// R108: a quote with no price is not sent a code (fails open when the database cannot say)
+// deno-lint-ignore no-explicit-any
+async function notPricedMsg(admin: any, token: string): Promise<string | null> {
+  const info = await quoteReady(admin, token);
+  if (!info || info.priced !== false) return null;
+  return "This quote isn't ready yet - please contact " + (studioName(info.studio) || "your planner") + ".";
+}
+
 function newCode(): string {
   // CSPRNG (Math.random is predictable); rejection sampling avoids modulo bias
   const buf = new Uint32Array(1), lim = 4294967296 - (4294967296 % 900000);
@@ -55,6 +76,8 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
   const ua = String(req.headers.get("user-agent") || "").slice(0, 400);
   // deno-lint-ignore no-explicit-any
   let dest: any = null;
+  const np = await notPricedMsg(admin, token);
+  if (np) return json({ error: np, not_priced: true }, 409);
   if (await trialSendBlocked(admin, { token })) {   // 0179: the studio is on (or ended) its free trial
     if (channel !== "email") return json({ error: TRIAL_CHANNEL_MSG, trial: true }, 403);
     // 0212: an active trial e-mails the code (all checks + one capped slot in the database)
@@ -62,7 +85,7 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
     if (tErr) {
       if (isMissingFn(tErr) || isTrialNoSend(tErr)) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
       if (String(tErr.code || "") === "HL429" && String(tErr.hint || "") === "trial_email_cap") return json({ error: TRIAL_CAP_MSG, trial: true }, 429);
-      const [status, msg] = otpFailure(String(tErr.code || ""));
+      const [status, msg] = otpFailure(String(tErr.code || ""), channel);
       return json({ error: msg }, status);
     }
     if (!tDest || !tDest.phone_key || !tDest.email) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
@@ -71,12 +94,12 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
     const { data: pDest, error: bErr } = await admin.rpc("wa_otp_begin", { p_token: token, p_channel: channel, p_user_agent: ua });
     if (isTrialNoSend(bErr)) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
     if (bErr || !pDest || !pDest.phone_key) {
-      const [status, msg] = otpFailure(String(bErr?.code || ""));
+      const [status, msg] = otpFailure(String(bErr?.code || ""), channel);
       return json({ error: msg }, status);
     }
     const { error: aErr } = await admin.rpc("otp_send_authorize", { p_token: token, p_phone: pDest.phone_key });
     if (isTrialNoSend(aErr)) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
-    if (aErr) { const [status, msg] = otpFailure(String(aErr.code || "")); return json({ error: msg }, status); }
+    if (aErr) { const [status, msg] = otpFailure(String(aErr.code || ""), channel); return json({ error: msg }, status); }
     dest = pDest;
   }
   const code = newCode();
@@ -121,13 +144,14 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
 }
 
 // DB error → [http status, generic message] (never error.message)
-function otpFailure(code: string): [number, string] {
+function otpFailure(code: string, channel: "sms" | "whatsapp" | "email" = "sms"): [number, string] {
   switch (code) {
     case "HL404": return [404, "invalid link"];
-    case "HL403": return [400, "use the mobile number your event manager has on file"];
-    case "HL400": return [400, "enter a valid Indian mobile number"];
+    // 0151: an e-mail / WhatsApp code needs BOTH the client's mobile and (for e-mail) a valid e-mail saved on the quote
+    case "HL403": return [400, channel === "sms" ? "use the mobile number your event manager has on file" : "your planner has not saved your mobile number and e-mail address on file yet - please contact your planner"];
+    case "HL400": return [400, channel === "sms" ? "enter a valid Indian mobile number" : "your planner has not saved a valid mobile number on file yet - please contact your planner"];
     case "HL429": return [429, "too many requests — please try again later"];
-    default: return [400, "could not send the SMS — please try again later"];
+    default: return [400, channel === "sms" ? "could not send the SMS — please try again later" : "could not send the code — please try again in a minute"];
   }
 }
 
@@ -158,6 +182,8 @@ Deno.serve(async (req) => {
 
     // 0179: no SMS from a free-trial studio (checked before any code is stored; 0212 keeps SMS off in the trial)
     if (await trialSendBlocked(admin, { token })) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
+    const npS = await notPricedMsg(admin, token);   // R108: no code for a quote without a price
+    if (npS) return json({ error: npS, not_priced: true }, 409);
 
     // who may receive it + per-studio daily cap (server-side)
     const { data: dest, error: aErr } = await admin.rpc("otp_send_authorize", { p_token: token, p_phone: phone });
