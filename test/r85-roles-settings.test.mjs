@@ -66,7 +66,7 @@ t('Settings page: switch, sticky header, reset with confirm, same save path, str
   assert.match(C, /<link rel="stylesheet" href="roles-matrix\.css\?v=\d+">/);
   assert.match(C, /<div class="rm-sticky" id="rmSticky">\s*<div class="roletabs" id="roleTabs"><\/div>/);
   assert.match(C, /<div class="rm-callout" id="mgrClose" hidden><\/div>/);
-  assert.match(C, /role="switch" aria-checked="\$\{on\}" aria-label="Managers can close events"/);
+  assert.match(C, /role="switch" aria-checked="\$\{on\?"true":"false"\}" aria-label="Managers can close events"/);
   assert.match(C, /setCell\("manager","closure", on \? \{view:true, edit:false\} : \{view:true, edit:true\}\)/);
   assert.match(C, /id="rmReset"/); assert.match(C, /title:"Reset to defaults\?"/);
   assert.match(C, /BPStore\.auth\.admin\.setAccess\(role, a\.key, !!d\.view, !!\(d\.view&&d\.edit\)\)/);
