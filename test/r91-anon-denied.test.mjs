@@ -12,7 +12,7 @@ const B = 'https://x.supabase.co/rest/v1/';
 
 t('guard exists and runs before the network call', () => {
   assert.match(S, /function anonDenied\(input, init\)/);
-  const a = S.indexOf('function authAwareFetch'); const body = S.slice(a, a + 400);
+  const a = S.indexOf('function authAwareFetchInner'); const body = S.slice(a, a + 400);
   assert.ok(body.indexOf('anonDenied(input, init)') > -1 && body.indexOf('anonDenied') < body.indexOf('coalescedFetch'));
   assert.match(S, /"Bearer " \+ CFG\.anonKey/);
 });

@@ -23,7 +23,8 @@ t('double click: buttons locked before the prompt; group offer only after the lo
 });
 t('row actions: Edit layout, name opens the workspace', () => {
   assert.match(q, /\$\{canEditLayouts\?"Edit":"View"\} layout<\/button>/);   // r20-coord: "View layout" for layouts view-only
-  assert.match(q, /<a class="qname" href="event\.html\?id=\$\{esc\(encodeURIComponent\(x\.id\)\)\}"/);
+  assert.match(q, /<a class="qname" href="\$\{esc\(qHref\(x\)\)\}"/);   // R102: qHref = event.html?id=… (pretty form)
+  assert.match(q, /const h="event\.html\?id="\+encodeURIComponent\(x\.id\)/);
 });
 t('quotes Views row hides presets that duplicate the tabs', () => {
   assert.match(sf, /hidePresets: true/);
