@@ -307,6 +307,8 @@ run "r60-db-hardening-0301" "R60-DB-HARDENING-0301: ALL PASS \(49/49\)" psql -q 
 run "r67-definer-searchpath-0304" "R67-DEFINER-SEARCHPATH-0304: ALL PASS \(11/11\)" psql -q -f tests/db/r67-definer-searchpath-0304.sql
 # r82 (0306): referral PILOT list - on for a pilot studio only while the switch is off; non-pilot / partner codes "unknown"; pilot code attaches + shows on the page; 14-day hold kept; *__pre0306 kept; re-applies itself twice, rolled back
 run "r82-referral-pilot-0306" "R82-REFERRAL-PILOT-0306: ALL PASS \(14/14\)" psql -q -f tests/db/r82-referral-pilot-0306.sql
+# r87 (0309): referral_attach in pilot mode answers "unknown" for a real non-pilot / partner code like a missing code (no oracle); pilot code attaches; switch off/on unchanged; re-applies itself twice, rolled back
+run "r87-referral-attach-unknown-0309" "R87-REFERRAL-ATTACH-UNKNOWN-0309: ALL PASS \(8/8\)" psql -q -f tests/db/r87-referral-attach-unknown-0309.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
