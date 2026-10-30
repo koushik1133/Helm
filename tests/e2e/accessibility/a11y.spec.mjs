@@ -25,10 +25,10 @@ test('@a11y login: no critical/serious axe violations + keyboard reaches submit'
   expect(by.critical, 'no critical a11y violations on login').toEqual([]);
   expect(by.serious, 'no serious a11y violations on login').toEqual([]);
   // keyboard: tab to email, type, tab to password, tab to submit and activate
-  await page.locator('#email').focus();
-  await expect(page.locator('#email')).toBeFocused();
+  await page.locator('#loginForm #email').focus();
+  await expect(page.locator('#loginForm #email')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.locator('input[type=password]')).toBeFocused();
+  await expect(page.locator('#loginForm #pw')).toBeFocused();
 });
 
 test('@a11y dashboard: no critical axe violations', async ({ browser }) => {
