@@ -120,7 +120,7 @@ t('bell + toast use the resolver and mark read on click', () => {
   assert.match(api, /if \(m\.id\) item\.msg_id = m\.id;/);
 });
 t('destinations carry the anchors', () => {
-  assert.match(rd('ops.html'), /<div class="trow" data-id="\$\{esc\(t\.id\)\}">/);
+  assert.match(rd('ops.html'), /<div class="trow\$\{t\.status==='cancelled'\?' is-cancelled':''\}" data-id="\$\{esc\(t\.id\)\}">/);   // r96: cancelled rows get is-cancelled
   assert.match(rd('chat.html'), /data-mid="\$\{esc\(m\.id\)\}"/);
   assert.match(rd('chat.html'), /get\("c"\)/);
   assert.match(rd('settlement.html'), /<div class="card" id="payments">/);

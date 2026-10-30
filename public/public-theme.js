@@ -4,7 +4,7 @@
    'bps.theme' (light|dark) and then the OS preference are used again. Dark CSS is kept, just never applied. */
 (function () {
   var root = document.documentElement, pt = 'emerald', mode = 'light';
-  var ok = { cobalt: 1, midnight: 1, emerald: 1, graphite: 1, studio: 1 };
+  var ok = { cobalt: 1, emerald: 1, graphite: 1, studio: 1 };   /* R98: midnight parked (owner may restore); a saved midnight falls back to emerald */
   var DARK_ON = window.HELM_DARK_MODE === true;
   try {
     var s = localStorage.getItem('helm.shellb.theme');

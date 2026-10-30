@@ -48,7 +48,7 @@
 
   const CSS = [
     ".ob{max-width:960px;margin:0 auto}.ob h2{margin:0 0 4px;font-size:20px}.ob .sub{color:var(--ink-3,#6b6577);font-size:13px;margin:0 0 14px}",
-    ".ob-steps{display:flex;gap:6px;overflow-x:auto;padding:4px 0 12px;margin:0;list-style:none}",
+    ".ob-steps{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 12px;margin:0;list-style:none}",
     ".ob-steps li{flex:0 0 auto}.ob-steps button{display:flex;align-items:center;gap:7px;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);border-radius:999px;padding:7px 12px;font:600 12.5px var(--font,system-ui);color:var(--ink-2,#4b475f);cursor:pointer}",
     ".ob-steps button[aria-current=step]{border-color:var(--accent,#047857);color:var(--accent,#047857);background:var(--accent-soft,#e3f4ed)}",
     ".ob-steps button:disabled{opacity:.5;cursor:not-allowed}.ob-steps .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--line-2,#f1ede7);font-size:11px}",
@@ -67,11 +67,11 @@
     ".ob-err{color:#a12626;font-size:12px}.ob-note{font-size:12.5px;color:var(--ink-3,#6b6577)}.ob-warn{background:#fff7e8;border:1px solid #f1d9a8;border-radius:10px;padding:9px 12px;font-size:12.5px;margin:8px 0}",
     ".ob-map{display:grid;grid-template-columns:minmax(120px,200px) 1fr;gap:8px 12px;align-items:center}.ob-map select{padding:7px 8px;border-radius:8px;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:inherit;font:inherit}",
     ".ob-lock{padding:14px;border:1px dashed var(--line,#e8e3db);border-radius:12px;color:var(--ink-3,#6b6577)}",
-    ".ob-bf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}.ob-bf .full{grid-column:1/-1}.ob-bf label{display:block;font-size:12.5px;font-weight:600;margin:0 0 4px}",
-    ".ob-bf input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line,#e8e3db);border-radius:8px;font:inherit;background:var(--panel,#fff);color:inherit}",
+    ".ob-bf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 16px}.ob-bf .full{grid-column:1/-1}.ob-bf label{display:block;font-size:12.5px;font-weight:600;margin:0 0 6px}",
+    ".ob-bf input{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line,#e8e3db);border-radius:8px;font:inherit;background:var(--panel,#fff);color:inherit}",
     ".ob-bf input[aria-invalid=true]{border-color:#c43c3c}.ob-bf .ob-err{margin-top:3px}@media (max-width:640px){.ob-bf{grid-template-columns:1fr}}",
     ".ob-bar{height:8px;border-radius:99px;background:var(--line-2,#f1ede7);overflow:hidden}.ob-bar i{display:block;height:100%;background:var(--accent,#047857);width:0}",
-    ".ob-bf select,.ob-bf textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line,#e8e3db);border-radius:8px;font:inherit;background:var(--panel,#fff);color:inherit;min-height:0}",
+    ".ob-bf select,.ob-bf textarea{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line,#e8e3db);border-radius:8px;font:inherit;background:var(--panel,#fff);color:inherit;min-height:0}",
     ".ob-bf input[type=color]{padding:2px;height:40px}.ob-req{font:600 10.5px var(--font,system-ui);color:#9a5a08;background:#fff1de;border-radius:99px;padding:1px 7px;margin-left:4px}",
     ".ob-prog{display:flex;align-items:center;gap:10px;margin:0 0 8px}.ob-prog progress{flex:1 1 auto;height:8px;accent-color:var(--accent,#047857)}",
     ".ob-inv{list-style:none;padding:0;margin:8px 0}.ob-inv li{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-2,#f1ede7)}.ob-inv input{flex:1 1 220px;min-width:0;padding:7px 8px;border:1px solid var(--line,#e8e3db);border-radius:8px;font:12px var(--mono,monospace)}",
@@ -365,6 +365,7 @@
     const v = Object.assign(O.billingFromOrg(org), bill.values); const e = bill.errors || {};
     if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Settings → General."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const full = { legal_name: 1, line1: 1, line2: 1 };
+    const ctryFull = true; // R95: the Country picker spans the row like the address lines
     const ac = { legal_name: "organization", line1: "address-line1", line2: "address-line2", city: "address-level2", state: "address-level1", pin: "postal-code", phone: "tel", location: "off", gstin: "off" };
     const cc = O.countryCode(v.country), india = cc === "IN", tid = O.taxIdOf(cc), meta = billMeta(cc);
     const label = (f) => billLabel(f, meta);
@@ -374,7 +375,7 @@
       const id = "ob_b_" + f.key, eid = id + "_err", bad = !!e[f.key];
       if (f.type === "country") {
         const opt = (c) => `<option value="${esc(c.iso)}"${c.iso === cc ? " selected" : ""}>${esc(c.name)}</option>`;
-        return `<div><label for="${esc(id)}">Country * <span class="ob-note">(sets tax, tax ID and currency)</span></label><select id="${esc(id)}" data-bill="country" data-billcountry="1" data-picker="search" aria-describedby="${esc(eid)}">`
+        return `<div class="${ctryFull ? "full" : ""}"><label for="${esc(id)}">Country * <span class="ob-note">(sets tax, tax ID and currency)</span></label><select id="${esc(id)}" data-bill="country" data-billcountry="1" data-picker="search" aria-describedby="${esc(eid)}">`
           + ctry.map(opt).join("") + (others.length ? `<optgroup label="Other countries (custom tax)">${others.map(opt).join("")}</optgroup>` : "")
           + `</select><div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
       }

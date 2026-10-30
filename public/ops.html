@@ -103,6 +103,12 @@
   .opsfilter select{flex:0 1 170px;min-width:0}
   .f-hide{display:none!important}
   .btn.sm.reassign-locked{cursor:not-allowed}
+  /* r96: cancelled tasks are kept, greyed out, with the reason */
+  .st.cancelled{background:#eceff3;color:#56606e}
+  .trow.is-cancelled{color:var(--ink-3)} .trow.is-cancelled .tt{text-decoration:line-through}
+  .trow .creason{flex-basis:100%;font-size:12px;color:var(--ink-3);padding-left:98px;overflow-wrap:anywhere}
+  .btn.sm.tcancel{color:var(--bad,#b42318);border-color:#f1c4bf}
+  #ct_reason{width:100%;min-height:80px;resize:vertical}
   /* r92: tablet (641-1024px) */
   @media (min-width:641px) and (max-width:1024px){
     .crewrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
@@ -118,10 +124,10 @@
     .titem input,input[type=checkbox]{min-height:0;width:22px;height:22px}
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=83"><link rel="stylesheet" href="/ui-pickers.css?v=1"><script src="/ui-pickers.js?v=1" defer></script>
+<link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=2"><script src="/ui-pickers.js?v=3" defer></script>
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="crew-shifts.css?v=4">
-<script src="/shell-proto.js?v=53" id="shellProto"></script>
+<script src="/shell-proto.js?v=54" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -219,6 +225,18 @@
   </form>
 </div>
 
+<div class="lmodal" id="cancelTaskModal" hidden role="dialog" aria-modal="true" aria-labelledby="ct_title">
+  <form class="lsheet form" id="cancelTaskForm" novalidate>
+    <h3 id="ct_title">Cancel task</h3>
+    <p class="muted s-249d010" id="ct_task"></p>
+    <p class="muted">The task stays on the list, greyed out, and the crew member sees "Cancelled by the office". An open-shift place is freed again.</p>
+    <label for="ct_reason">Reason (required)</label>
+    <textarea id="ct_reason" required minlength="3" maxlength="300" placeholder="e.g. Client cut this item / crew member is sick"></textarea>
+    <div class="lerr" id="ct_err" role="alert" hidden></div>
+    <div class="foot"><button type="button" class="btn" id="ct_back" data-close>Keep task</button><button type="submit" class="btn primary danger" id="ct_save">Cancel task</button></div>
+  </form>
+</div>
+
 <div class="lmodal" id="schedModal" hidden role="dialog" aria-modal="true" aria-labelledby="sc_title">
   <form class="lsheet form" id="schedForm" novalidate>
     <h3 id="sc_title">Schedule task</h3>
@@ -256,9 +274,9 @@
 <script src="/trusted-types.js?v=6"></script>
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
-<script src="phone-input.js?v=8"></script>
+<script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=314"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=317"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -426,13 +444,14 @@
   $("#cr_add") && $("#cr_add").addEventListener("click",addCrew);
   ["#cr_name","#cr_phone"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); if(!$("#cr_add").disabled) addCrew(); } }));
 
+  const CANCELLABLE=['assigned','accepted','in_progress'];   // r96 (0312): the office can cancel these (reason required)
   const STATUS_LABEL={unassigned:"Unassigned",assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected",cancelled:"Cancelled"};
   // r20: display only - a task saved as "unassigned" that already names an assignee reads "Assigned" (the row is never rewritten)
   const shownStatus=(t)=>(t && t.status==="unassigned" && (String(t.assignee_name||"").trim() || t.crew_id)) ? "assigned" : (t && t.status);
   // one task row; `label` is the left chip (category in crew-mode, assignee in section-mode)
   function taskRow(t, byId, label){
     const tn=esc(t.title||"task"), stS=shownStatus(t);
-    return `<div class="trow" data-id="${esc(t.id)}">
+    return `<div class="trow${t.status==='cancelled'?' is-cancelled':''}" data-id="${esc(t.id)}">
       <span class="cat">${esc(label||"")}</span><span class="tt">${esc(t.title)}</span>
       <span class="st ${esc(stS)}">${STATUS_LABEL[stS]||esc(stS)}</span>
       ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:var(--accent-soft);color:var(--accent)" title="Done by the vendor ${esc(t.assignee_name||'')}">🤝 vendor</span>`:''}
@@ -444,7 +463,9 @@
       ${canEditOps?`<button type="button" class="btn sm spc" title="Toggle recurring reminder" aria-label="${t.is_special?"Turn off recurring reminder for":"Turn on recurring reminder for"} ${tn}">${t.is_special?'🔕':'🔔'}</button>`:""}
       ${canEditOps&&['rejected','assigned'].includes(t.status)?`<button type="button" class="btn sm reassign" aria-label="Reassign ${tn}">Reassign</button>`:""}
       ${canEditOps&&['accepted','in_progress','completed'].includes(t.status)?`<button type="button" class="btn sm reassign-locked" disabled title="Locked: task accepted" aria-label="Reassign ${tn} - locked: task accepted">Reassign</button>`:""}
-      ${canVerify && t.status==='completed' && t.verify_status==='pending' ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
+      ${canEditOps&&CANCELLABLE.includes(t.status)?`<button type="button" class="btn sm danger tcancel" title="Cancel this task (a reason is required)" aria-label="Cancel ${tn}">Cancel</button>`:""}
+      ${canVerify && t.status==='completed' && t.verify_status==='pending' ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}
+      ${t.status==='cancelled'?`<div class="creason">Cancelled${t.cancel_reason?": "+esc(t.cancel_reason):""}${t.cancelled_at?" · "+esc(fmtTime(t.cancelled_at)):""}</div>`:""}</div>`;
   }
   function workerLinkFor(phone){ const w=tokens.find(x=>x.phone===phone); return w? BPStore.links.url("work", w.token, location.origin+"/work.html?token="+w.token) : null; }
   function workerLinksBlock(){
@@ -491,6 +512,7 @@
     }
     host.querySelectorAll(".copy").forEach(b=>b.addEventListener("click",async()=>{ try{await navigator.clipboard.writeText(b.dataset.l); b.textContent="Copied ✓"; BPUI.toast("Worker link copied.",{type:"ok",timeout:2000}); setTimeout(()=>b.textContent="Copy link",1400);}catch{ BPUI.toast("Couldn't copy — select the link and copy it manually.",{type:"err"}); } }));
     host.querySelectorAll(".reassign").forEach(b=>b.addEventListener("click",()=>openReassign(b.closest(".trow").dataset.id)));
+    host.querySelectorAll(".tcancel").forEach(b=>b.addEventListener("click",()=>openCancelTask(b.closest(".trow").dataset.id)));
     host.querySelectorAll(".evid").forEach(b=>b.addEventListener("click",()=>openEvidence(b.closest(".trow").dataset.id)));
     // QC / special buttons: guarded (no double-submit) — while one is in flight, its whole row is locked
     const rowGuard=(b,fn)=>{ const row=b.closest(".trow"); if(row.dataset.busy) return; row.dataset.busy="1";
@@ -652,6 +674,29 @@
     });
   });
 
+  /* ---- r96 (0312): cancel a task - a reason is required; the row is kept, greyed out ---- */
+  let ctTaskId=null; const ctDirty=BPUI.trackDirty($("#cancelTaskForm"));
+  function openCancelTask(id){
+    const t=tasks.find(x=>x.id===id); if(!t || !CANCELLABLE.includes(t.status)) return;
+    ctTaskId=id;
+    $("#ct_task").textContent=`${t.title||"Task"}${t.assignee_name?" — "+t.assignee_name:""}`;
+    $("#ct_reason").value=""; $("#ct_err").hidden=true; ctDirty.clean(); $("#cancelTaskModal").hidden=false; $("#ct_reason").focus();
+  }
+  async function closeCancelTask(force){ if(!force && !(await BPUI.confirmDiscard(ctDirty))) return; $("#cancelTaskModal").hidden=true; ctTaskId=null; ctDirty.clean(); }
+  $("#ct_back").addEventListener("click",()=>closeCancelTask());
+  $("#cancelTaskModal").addEventListener("click",e=>{ if(e.target.id==="cancelTaskModal") closeCancelTask(); });
+  $("#cancelTaskForm").addEventListener("submit",e=>{ e.preventDefault();
+    const reason=$("#ct_reason").value.replace(/\s+/g," ").trim();
+    if(reason.length<3){ $("#ct_err").textContent="Please give a reason (at least 3 characters)."; $("#ct_err").hidden=false; $("#ct_reason").focus(); return; }
+    if(reason.length>300){ $("#ct_err").textContent="The reason is too long (300 characters at most)."; $("#ct_err").hidden=false; $("#ct_reason").focus(); return; }
+    BPUI.guard($("#cancelTaskForm"),async()=>{
+      try{ await BPStore.ops.cancel(ctTaskId,reason); await closeCancelTask(true); BPUI.toast("Task cancelled.",{type:"ok"}); }
+      catch(err){ $("#ct_err").textContent=BPUI.friendlyError(err,{action:"cancel the task"}); $("#ct_err").hidden=false; return; }
+      try{ await refresh(); }
+      catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"refresh the task list"}),{type:"err"}); }
+    });
+  });
+
   /* ---- schedule: a real date-time picker + a list of tasks to depend on ---- */
   const pad2=(n)=>String(n).padStart(2,"0");
   // r20: the picker shows + reads the STUDIO's wall clock (same zone as the task list), not the device's
@@ -727,7 +772,7 @@
   async function refreshDashboard(){ if(!quoteId) return;
     try{ [tasks,tokens,evidence]=await Promise.all([BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId), BPStore.ops.listEvidence(quoteId).catch(()=>evidence)]); renderDashboard(); }catch{} }
   // skip the poll while a modal is open or a row action is in flight, so the list doesn't re-render under the user
-  setInterval(()=>{ if(document.hidden || $("#app").hidden) return; if(!$("#reassignModal").hidden || !$("#schedModal").hidden || !$("#evModal").hidden) return; if(document.querySelector("#dashboard [data-busy]")) return; refreshDashboard(); }, 7000);
+  setInterval(()=>{ if(document.hidden || $("#app").hidden) return; if(!$("#reassignModal").hidden || !$("#cancelTaskModal").hidden || !$("#schedModal").hidden || !$("#evModal").hidden) return; if(document.querySelector("#dashboard [data-busy]")) return; refreshDashboard(); }, 7000);
   BPUI.boot(load);
 </script>
 <script src="crew-shifts.js?v=6"></script>

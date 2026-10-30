@@ -45,15 +45,32 @@
     var left = Math.max(MARGIN, Math.min(r.left, vw - MARGIN - w));
     pop.style.setProperty("top", top + "px");
     pop.style.setProperty("left", left + "px");
-    pop.classList.toggle("hp-up", up);
+    pop.classList.toggle("uip-up", up);
   }
 
+  // R95 no-flicker: the event that OPENED a popover must never also close it (pointerdown/mousedown of the
+  // same press, or a click that follows it). We remember the opening event and the press time.
+  var openEvt = null, openAt = 0;
+  function sameGesture(e) { return e === openEvt || (openAt && e.timeStamp && Math.abs(e.timeStamp - openAt) < 400 && e.type !== "keydown"); }
+  // R95: a modal <dialog> (showModal) sits in the browser's top layer, above ANY z-index, so a list appended to
+  // <body> opened BEHIND it (trial "Choose your state"). Mount inside the nearest open modal dialog instead.
+  function hostFor(anchor) { var d = anchor.closest && anchor.closest("dialog[open]"); return d || doc.body; }
   function mountPopover(pop, anchor, onClose) {
-    doc.body.appendChild(pop);
+    var host = hostFor(anchor);
+    host.appendChild(pop);
     place(pop, anchor);
-    requestAnimationFramePoly(function () { pop.classList.add("hp-open"); });
-    function reflow() { if (doc.body.contains(pop)) place(pop, anchor); }
-    function outside(e) { if (!pop.contains(e.target) && !anchor.contains(e.target)) close(); }
+    requestAnimationFramePoly(function () { pop.classList.add("uip-open"); });
+    function reflow(e) {
+      if (!pop.isConnected) return;
+      var t = e && e.target;
+      if (t && t.nodeType === 1 && pop.contains(t)) return; // scrolling the list itself
+      var r = anchor.getBoundingClientRect();
+      var box = t && t.nodeType === 1 && t.contains(anchor) ? t.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+      // the field scrolled out of its scroll box (or the page): close instead of floating detached
+      if (!anchor.isConnected || r.bottom < box.top || r.top > box.bottom) { close(false); return; }
+      place(pop, anchor);
+    }
+    function outside(e) { if (sameGesture(e)) return; if (!pop.contains(e.target) && !anchor.contains(e.target)) close(); }
     window.addEventListener("resize", reflow);
     window.addEventListener("scroll", reflow, true);
     doc.addEventListener("pointerdown", outside, true);
@@ -74,10 +91,12 @@
 
   /* ================================ SELECT ================================ */
   function enhanceSelect(sel) {
-    if (sel.__hp || sel.multiple || (sel.size && sel.size > 1) || optedOut(sel)) return;
+    // R95: selects owned by phone-input.js's searchable picker (data-picker="search", wrapped and hidden as
+    // .hp-sel-native) are skipped - two pickers on one control was half of the "flicker" report.
+    if (sel.__hp || sel.multiple || (sel.size && sel.size > 1) || optedOut(sel) || sel.hasAttribute("data-picker") || sel.helmPicker || sel.classList.contains("hp-sel-native")) return;
     sel.__hp = true;
-    sel.classList.add("hp-select");
-    var listId = "hp-lb-" + (++uid);
+    sel.classList.add("uip-select");
+    var listId = "uip-lb-" + (++uid);
     sel.setAttribute("aria-haspopup", "listbox");
 
     function items() {
@@ -95,11 +114,11 @@
       if (sel.disabled) return;
       var all = items();
       var optCount = all.filter(function (i) { return i.opt; }).length;
-      var pop = el("div", "hp-pop hp-select-pop");
+      var pop = el("div", "uip-pop uip-select-pop");
       pop.__minW = 200; pop.__maxW = 480;
       var search = null;
       if (optCount > 8) {
-        search = el("input", "hp-search");
+        search = el("input", "uip-search");
         search.type = "search"; search.placeholder = "Search"; search.autocomplete = "off";
         search.setAttribute("role", "combobox"); search.setAttribute("aria-controls", listId);
         search.setAttribute("aria-expanded", "true"); search.setAttribute("aria-autocomplete", "list");
@@ -107,7 +126,7 @@
         search.setAttribute("data-native-picker", "");
         pop.appendChild(search);
       }
-      var list = el("div", "hp-list"); list.id = listId; list.setAttribute("role", "listbox");
+      var list = el("div", "uip-list"); list.id = listId; list.setAttribute("role", "listbox");
       var lab = sel.getAttribute("aria-label") || (sel.labels && sel.labels[0] && sel.labels[0].textContent.trim()) || "Options";
       list.setAttribute("aria-label", lab);
       pop.appendChild(list);
@@ -118,23 +137,23 @@
         rows = []; q = (q || "").toLowerCase().trim();
         var pendingGroup = null;
         all.forEach(function (it, i) {
-          if (it.group != null) { pendingGroup = el("div", "hp-group", it.group); pendingGroup.setAttribute("role", "presentation"); return; }
+          if (it.group != null) { pendingGroup = el("div", "uip-group", it.group); pendingGroup.setAttribute("role", "presentation"); return; }
           var t = it.opt.textContent.trim();
           if (q && t.toLowerCase().indexOf(q) < 0) return;
           if (pendingGroup) { list.appendChild(pendingGroup); pendingGroup = null; }
-          var row = el("div", "hp-opt");
+          var row = el("div", "uip-opt");
           row.id = listId + "-" + i; row.setAttribute("role", "option");
           row.setAttribute("aria-selected", it.opt.selected ? "true" : "false");
           if (it.disabled) row.setAttribute("aria-disabled", "true");
-          row.appendChild(el("span", "hp-opt-t", t || " "));
-          var tick = el("span", "hp-tick"); tick.setAttribute("aria-hidden", "true"); row.appendChild(tick);
+          row.appendChild(el("span", "uip-opt-t", t || " "));
+          var tick = el("span", "uip-tick"); tick.setAttribute("aria-hidden", "true"); row.appendChild(tick);
           row.addEventListener("pointerdown", function (e) { e.preventDefault(); });
           row.addEventListener("click", function () { if (!it.disabled) choose(it.opt); });
           row.addEventListener("pointermove", function () { setActive(rows.indexOf(rec)); });
           var rec = { row: row, it: it };
           rows.push(rec); list.appendChild(row);
         });
-        if (!rows.length) list.appendChild(el("div", "hp-empty", "No matches"));
+        if (!rows.length) list.appendChild(el("div", "uip-empty", "No matches"));
         var cur = -1;
         rows.forEach(function (r, i) { if (r.it.opt.selected) cur = i; });
         setActive(cur >= 0 ? cur : nextEnabled(-1, 1), true);
@@ -144,11 +163,11 @@
         return from;
       }
       function setActive(i, center) {
-        if (active >= 0 && rows[active]) rows[active].row.classList.remove("hp-active");
+        if (active >= 0 && rows[active]) rows[active].row.classList.remove("uip-active");
         active = i;
         var r = rows[i];
         if (!r) { (search || sel).removeAttribute("aria-activedescendant"); return; }
-        r.row.classList.add("hp-active");
+        r.row.classList.add("uip-active");
         (search || sel).setAttribute("aria-activedescendant", r.row.id);
         var top = r.row.offsetTop, bot = top + r.row.offsetHeight;
         if (center) list.scrollTop = top - list.clientHeight / 2 + r.row.offsetHeight / 2;
@@ -204,10 +223,15 @@
     function isOpen() { return sel.getAttribute("aria-expanded") === "true"; }
     sel.addEventListener("mousedown", function (e) {
       if (isTouchPhone() || e.button !== 0) return;
-      e.preventDefault();
-      sel.focus();
-      if (isOpen()) { if (open) open.close(false); } else openList();
+      e.preventDefault(); // keep the native list shut
+      e.stopPropagation(); // page "click outside" handlers must not see the opening press
+      try { sel.focus({ preventScroll: true }); } catch (_) { sel.focus(); }
+      if (isOpen()) { if (open) open.close(false); return; }
+      openEvt = e; openAt = e.timeStamp || 0;
+      openList();
     });
+    // the click that ends the opening press must not toggle anything (Safari/label forwarding)
+    sel.addEventListener("click", function (e) { if (!isTouchPhone() && isOpen()) e.stopPropagation(); });
     sel.addEventListener("keydown", function (e) {
       if (isTouchPhone() || isOpen()) return;
       if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " " || (e.altKey && e.key === "ArrowDown")) {
@@ -227,28 +251,28 @@
   function enhanceDate(inp) {
     if (inp.__hp || optedOut(inp)) return;
     inp.__hp = true;
-    inp.classList.add("hp-date");
-    var wrap = el("span", "hp-date-wrap");
+    inp.classList.add("uip-date");
+    var wrap = el("span", "uip-date-wrap");
     inp.parentNode.insertBefore(wrap, inp);
     wrap.appendChild(inp);
-    var face = el("button", "hp-date-face");
+    var face = el("button", "uip-date-face");
     face.type = "button";
     face.setAttribute("aria-haspopup", "dialog");
-    var faceText = el("span", "hp-date-text");
-    var icon = el("span", "hp-cal-ico"); icon.setAttribute("aria-hidden", "true");
+    var faceText = el("span", "uip-date-text");
+    var icon = el("span", "uip-cal-ico"); icon.setAttribute("aria-hidden", "true");
     face.appendChild(faceText); face.appendChild(icon);
     wrap.appendChild(face);
 
     function sync() {
       var touch = isTouchPhone();
-      wrap.classList.toggle("hp-native", touch);
+      wrap.classList.toggle("uip-native", touch);
       var v = pretty(inp.value);
       faceText.textContent = v || inp.getAttribute("placeholder") || "Select date";
-      face.classList.toggle("hp-empty", !v);
+      face.classList.toggle("uip-empty", !v);
       face.disabled = inp.disabled || inp.readOnly;
       var lbl = (inp.labels && inp.labels[0] && inp.labels[0].textContent.trim()) || inp.getAttribute("aria-label") || "Date";
       face.setAttribute("aria-label", lbl + (v ? ", " + v : ", not set"));
-      face.classList.toggle("hp-invalid", inp.getAttribute("aria-invalid") === "true");
+      face.classList.toggle("uip-invalid", inp.getAttribute("aria-invalid") === "true");
     }
     sync();
     inp.addEventListener("input", sync);
@@ -269,21 +293,21 @@
       var sel = parse(inp.value);
       var view = new Date((sel || today).getFullYear(), (sel || today).getMonth(), 1);
       var focusD = sel || (min && today < min ? min : (max && today > max ? max : today));
-      var pop = el("div", "hp-pop hp-cal");
+      var pop = el("div", "uip-pop uip-cal");
       pop.__minW = 296; pop.__maxW = 320; pop.__cap = 420;
       pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Choose date");
-      var head = el("div", "hp-cal-head");
-      var title = el("div", "hp-cal-title"); title.setAttribute("aria-live", "polite");
-      var prev = el("button", "hp-cal-nav hp-prev"); prev.type = "button"; prev.setAttribute("aria-label", "Previous month");
-      var next = el("button", "hp-cal-nav hp-next"); next.type = "button"; next.setAttribute("aria-label", "Next month");
-      var navs = el("div", "hp-cal-navs"); navs.appendChild(prev); navs.appendChild(next);
+      var head = el("div", "uip-cal-head");
+      var title = el("div", "uip-cal-title"); title.setAttribute("aria-live", "polite");
+      var prev = el("button", "uip-cal-nav uip-prev"); prev.type = "button"; prev.setAttribute("aria-label", "Previous month");
+      var next = el("button", "uip-cal-nav uip-next"); next.type = "button"; next.setAttribute("aria-label", "Next month");
+      var navs = el("div", "uip-cal-navs"); navs.appendChild(prev); navs.appendChild(next);
       head.appendChild(title); head.appendChild(navs);
-      var grid = el("div", "hp-cal-grid"); grid.setAttribute("role", "grid");
-      var dow = el("div", "hp-cal-dow"); dow.setAttribute("aria-hidden", "true");
+      var grid = el("div", "uip-cal-grid"); grid.setAttribute("role", "grid");
+      var dow = el("div", "uip-cal-dow"); dow.setAttribute("aria-hidden", "true");
       ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].forEach(function (d) { dow.appendChild(el("span", null, d)); });
-      var foot = el("div", "hp-cal-foot");
-      var clear = el("button", "hp-cal-btn", "Clear"); clear.type = "button";
-      var tbtn = el("button", "hp-cal-btn hp-cal-today", "Today"); tbtn.type = "button";
+      var foot = el("div", "uip-cal-foot");
+      var clear = el("button", "uip-cal-btn", "Clear"); clear.type = "button";
+      var tbtn = el("button", "uip-cal-btn uip-cal-today", "Today"); tbtn.type = "button";
       if ((min && today < min) || (max && today > max)) tbtn.disabled = true;
       if (inp.required) clear.disabled = !inp.value;
       foot.appendChild(clear); foot.appendChild(tbtn);
@@ -299,21 +323,21 @@
         prev.disabled = !!(min && pm < min); next.disabled = !!(max && nm > max);
         var row;
         for (var i = 0; i < 42; i++) {
-          if (i % 7 === 0) { row = el("div", "hp-cal-row"); row.setAttribute("role", "row"); grid.appendChild(row); }
+          if (i % 7 === 0) { row = el("div", "uip-cal-row"); row.setAttribute("role", "row"); grid.appendChild(row); }
           var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-          var b = el("button", "hp-day", String(d.getDate())); b.type = "button";
+          var b = el("button", "uip-day", String(d.getDate())); b.type = "button";
           b.setAttribute("role", "gridcell");
           b.setAttribute("aria-label", pad(d.getDate()) + " " + MONTHS_LONG[d.getMonth()] + " " + d.getFullYear());
           b.__d = d;
-          if (d.getMonth() !== view.getMonth()) b.classList.add("hp-out");
-          if (+d === +today) { b.classList.add("hp-today"); b.setAttribute("aria-current", "date"); }
-          if (sel && +d === +sel) { b.classList.add("hp-sel"); b.setAttribute("aria-selected", "true"); }
+          if (d.getMonth() !== view.getMonth()) b.classList.add("uip-out");
+          if (+d === +today) { b.classList.add("uip-today"); b.setAttribute("aria-current", "date"); }
+          if (sel && +d === +sel) { b.classList.add("uip-sel"); b.setAttribute("aria-selected", "true"); }
           if (off(d)) b.disabled = true;
           b.tabIndex = +d === +focusD ? 0 : -1;
           (function (dd) { b.addEventListener("click", function () { pick(iso(dd)); }); })(d);
           row.appendChild(b);
         }
-        if (focus) { var f = grid.querySelector('.hp-day[tabindex="0"]'); if (f) f.focus(); }
+        if (focus) { var f = grid.querySelector('.uip-day[tabindex="0"]'); if (f) f.focus(); }
       }
       function moveFocus(d) {
         if (min && d < min) d = new Date(min); if (max && d > max) d = new Date(max);
@@ -334,7 +358,7 @@
       pop.addEventListener("keydown", function (e) {
         var k = e.key;
         if (k === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); return; }
-        if (!e.target.classList || !e.target.classList.contains("hp-day")) return;
+        if (!e.target.classList || !e.target.classList.contains("uip-day")) return;
         var d = e.target.__d, step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[k];
         if (step) { e.preventDefault(); moveFocus(new Date(d.getFullYear(), d.getMonth(), d.getDate() + step)); }
         else if (k === "Home") { e.preventDefault(); moveFocus(new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7)); }
@@ -353,6 +377,95 @@
     }
   }
 
+  /* ============================== DATALIST =============================== */
+  // R95: <input list=...> gets the same rounded suggestion popover; the field stays free text. The list id
+  // moves to data-uip-list so the browser's own (black, in Safari) datalist popover never shows.
+  function enhanceList(inp) {
+    var id = inp.getAttribute("list"); if (!id || optedOut(inp) || isTouchPhone()) return;
+    if (inp.__hpl) { inp.setAttribute("data-uip-list", id); inp.removeAttribute("list"); return; } // list re-set later
+    inp.__hpl = true;
+    inp.setAttribute("data-uip-list", id);
+    inp.removeAttribute("list");
+    inp.setAttribute("autocomplete", "off");
+    inp.setAttribute("role", "combobox");
+    inp.setAttribute("aria-autocomplete", "list");
+    inp.setAttribute("aria-expanded", "false");
+    var listId = "hp-dl-" + (++uid), rows = [], active = -1, closeFn = null, list = null, pop = null;
+    function values() {
+      var dl = doc.getElementById(inp.getAttribute("data-uip-list")); if (!dl) return [];
+      var seen = {}, out = [];
+      Array.prototype.forEach.call(dl.querySelectorAll("option"), function (o) {
+        var v = (o.value || o.textContent || "").trim(); if (!v || seen[v]) return; seen[v] = 1;
+        out.push({ v: v, label: (o.label && o.label !== o.value) ? o.label : "" });
+      });
+      return out;
+    }
+    function setActive(i) {
+      if (rows[active]) rows[active].classList.remove("uip-active");
+      active = i;
+      if (!rows[i]) { inp.removeAttribute("aria-activedescendant"); return; }
+      rows[i].classList.add("uip-active"); inp.setAttribute("aria-activedescendant", rows[i].id);
+      var r = rows[i], top = r.offsetTop, bot = top + r.offsetHeight;
+      if (top < list.scrollTop) list.scrollTop = top; else if (bot > list.scrollTop + list.clientHeight) list.scrollTop = bot - list.clientHeight;
+    }
+    function choose(v) {
+      inp.value = v; closeList();
+      fire(inp, "input"); fire(inp, "change");
+    }
+    function render() {
+      var q = inp.value.toLowerCase().trim(), all = values();
+      var hits = all.filter(function (it) { return !q || it.v.toLowerCase().indexOf(q) >= 0 || it.label.toLowerCase().indexOf(q) >= 0; });
+      // starts-with matches first, like Apple's suggestion lists
+      hits.sort(function (a, b) { return (a.v.toLowerCase().indexOf(q) === 0 ? 0 : 1) - (b.v.toLowerCase().indexOf(q) === 0 ? 0 : 1); });
+      if (hits.length === 1 && hits[0].v.toLowerCase() === q) hits = [];
+      if (!hits.length) { closeList(); return; }
+      if (!pop) {
+        pop = el("div", "uip-pop uip-select-pop uip-dl-pop");
+        pop.__minW = 200; pop.__maxW = 480; pop.__cap = 280;
+        list = el("div", "uip-list"); list.id = listId; list.setAttribute("role", "listbox");
+        list.setAttribute("aria-label", "Suggestions");
+        pop.appendChild(list);
+        inp.setAttribute("aria-controls", listId);
+        inp.setAttribute("aria-expanded", "true");
+        closeFn = mountPopover(pop, inp, function () {
+          pop = null; list = null; closeFn = null; rows = []; active = -1;
+          inp.setAttribute("aria-expanded", "false"); inp.removeAttribute("aria-activedescendant");
+        });
+      }
+      while (list.firstChild) list.removeChild(list.firstChild);
+      rows = []; active = -1;
+      hits.slice(0, 200).forEach(function (it, i) {
+        var row = el("div", "uip-opt"); row.id = listId + "-" + i; row.setAttribute("role", "option");
+        row.setAttribute("aria-selected", "false");
+        row.appendChild(el("span", "uip-opt-t", it.v));
+        if (it.label) row.appendChild(el("span", "uip-opt-sub", it.label));
+        row.addEventListener("pointerdown", function (e) { e.preventDefault(); });
+        row.addEventListener("mousedown", function (e) { e.preventDefault(); });
+        row.addEventListener("click", function () { choose(it.v); });
+        row.addEventListener("pointermove", function () { setActive(i); });
+        rows.push(row); list.appendChild(row);
+      });
+      place(pop, inp);
+      requestAnimationFramePoly(function () { if (pop) pop.classList.add("uip-open"); });
+    }
+    function closeList() { if (closeFn) closeFn(false); }
+    inp.addEventListener("focus", function () { if (!isTouchPhone() && !inp.readOnly && !inp.disabled) render(); });
+    inp.addEventListener("mousedown", function (e) { if (e.button === 0 && !pop && doc.activeElement === inp) { openEvt = e; openAt = e.timeStamp || 0; render(); } });
+    inp.addEventListener("input", function (e) { if (e.isTrusted !== false && doc.activeElement === inp) render(); });
+    inp.addEventListener("blur", function () { closeList(); });
+    inp.addEventListener("keydown", function (e) {
+      var k = e.key;
+      if (k === "ArrowDown" || k === "ArrowUp") {
+        e.preventDefault();
+        if (!pop) { render(); if (!pop) return; }
+        var n = rows.length; if (!n) return;
+        setActive(k === "ArrowDown" ? (active + 1) % n : (active <= 0 ? n - 1 : active - 1));
+      } else if (k === "Enter" && pop && rows[active]) { e.preventDefault(); choose(rows[active].firstChild.textContent); }
+      else if (k === "Escape" && pop) { e.preventDefault(); e.stopPropagation(); closeList(); }
+      else if (k === "Tab") closeList();
+    });
+  }
+
   /* ================================ scan ================================ */
   function scan(root) {
     if (!root || !root.querySelectorAll) return;
@@ -360,17 +473,21 @@
     else if (root.matches && root.matches('input[type="date"]')) enhanceDate(root);
     Array.prototype.forEach.call(root.querySelectorAll("select"), enhanceSelect);
     Array.prototype.forEach.call(root.querySelectorAll('input[type="date"]'), enhanceDate);
+    if (root.matches && root.matches("input[list]")) enhanceList(root);
+    Array.prototype.forEach.call(root.querySelectorAll("input[list]"), enhanceList);
   }
   function start() {
     scan(doc.body);
     // New selects/dates (and new <option>s, which the popover reads fresh on open) are picked up here.
     new MutationObserver(function (muts) {
       for (var i = 0; i < muts.length; i++) {
+        // a list="" set after render (flow-dish-editor, menu-pkg-editor, onboarding) - enhance it then
+        if (muts[i].type === "attributes") { var t = muts[i].target; if (t.matches && t.matches("input[list]")) enhanceList(t); continue; }
         var a = muts[i].addedNodes;
-        for (var j = 0; j < a.length; j++) if (a[j].nodeType === 1 && !(a[j].classList && a[j].classList.contains("hp-pop"))) scan(a[j]);
+        for (var j = 0; j < a.length; j++) if (a[j].nodeType === 1 && !(a[j].classList && a[j].classList.contains("uip-pop"))) scan(a[j]);
       }
-    }).observe(doc.body, { childList: true, subtree: true });
+    }).observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["list"] });
   }
-  window.__helmPickers = { scan: scan, version: 1 };
+  window.__helmPickers = { scan: scan, version: 2, _sameGesture: sameGesture };
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", start); else start();
 })();

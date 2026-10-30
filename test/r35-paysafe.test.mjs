@@ -197,7 +197,7 @@ await t('B8 the card: no innerHTML, the safety note + both regions in control.ht
   assert.match(CC, /id="pst_safe"[^>]*>For your clients' safety: changing these needs your two-step code, every admin is told at once, and clients see new details only after 24 hours\./);
   assert.match(CC, /id="pst_pending" role="region"/); assert.match(CC, /id="pst_flags" role="region"/);
   assert.match(CC, /payment-schedule-settings\.js\?v=4/); assert.match(CC, /payment-schedule\.css\?v=4/);
-  assert.match(CC, /store-api\.js\?v=314/);
+  assert.match(CC, /store-api\.js\?v=317/);
 });
 
 // ---- C. e-mail (comms-dispatch) ----------------------------------------------------------------------------------------

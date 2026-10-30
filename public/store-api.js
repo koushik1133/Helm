@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=53"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=54"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -121,7 +121,7 @@ window.HelmUrl = HelmUrl;
    DARK MODE FLAG (Oct 2026, owner decision): dark mode is OFF everywhere for now. Every page renders LIGHT, saved
    'bp_theme' / 'bps.theme' = dark and the OS prefers-color-scheme are ignored, and no light/dark toggle is shown.
    The dark CSS is kept untouched: set window.HELM_DARK_MODE = true (e.g. in config.js) to bring it all back.
-   Colour themes (emerald default, cobalt, midnight, graphite, studio) are separate and still switchable. */
+   Colour themes (emerald default, cobalt, graphite, studio; midnight parked R98) are separate and still switchable. */
 (function () {
   var DARK_ON = window.HELM_DARK_MODE === true;
   var root = document.documentElement;
@@ -1452,7 +1452,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "56";
+  const AUTH_UI_VERSION = "57";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1468,7 +1468,7 @@ window.HelmUrl = HelmUrl;
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   // verify-166: PR #166 merged four branches that each shipped a different store-api.js as v=232 (and shell-b as 114) - re-bumped so no browser keeps a stale copy
-  const STUDIO_SEARCH_VERSION = "16";
+  const STUDIO_SEARCH_VERSION = "17";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "7";
@@ -3781,6 +3781,8 @@ window.HelmUrl = HelmUrl;
       { p_quote_id: quoteId, p_category: category, p_titles: titles, p_vendor_id: vendorId }),
     reassign: (taskId, crewId, name, phone) => rpc("reassign_task",
       { p_task_id: taskId, p_crew_id: crewId || null, p_name: name, p_phone: phone }),
+    // r96 (0312): the office cancels an assigned / accepted / in-progress task; a reason (3-300 chars) is required
+    cancel: (taskId, reason) => rpc("cancel_task", { p_task: taskId, p_reason: String(reason || "").trim() }),
     // ---- Phase 35: quality-engineer verification ----
     verify: (taskId, pass, note) => rpc("verify_task", { p_id: taskId, p_pass: !!pass, p_note: note || null }),
     verifySummary: (quoteId) => rpc("task_verify_summary", { p_quote: quoteId }).then(r => (Array.isArray(r) ? r[0] : r)),
@@ -13386,7 +13388,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "8", phoneLib = null;
+  var PHONE_LIB_V = "9", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;
