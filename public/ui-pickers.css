@@ -1,0 +1,123 @@
+/* ui-pickers.css — R94 Apple-style closed controls + popovers (pairs with ui-pickers.js). */
+
+/* ---- closed controls: everywhere, incl. touch phones and pages without the script ---- */
+select:not([multiple]):not([size]):not([data-native-picker]),
+select[size="1"]:not([data-native-picker]) {
+  -webkit-appearance: none; appearance: none;
+  border-radius: 10px;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.6 6 7.6l3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 12px;
+  cursor: pointer;
+}
+input[type="date"]:not([data-native-picker]), input[type="time"]:not([data-native-picker]),
+input[type="datetime-local"]:not([data-native-picker]) { border-radius: 10px; }
+select:focus-visible, input[type="date"]:focus-visible, input[type="time"]:focus-visible,
+input[type="datetime-local"]:focus-visible, .hp-date-face:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-halo, rgba(16, 122, 87, .22));
+  border-color: var(--accent, #107a57);
+}
+select[aria-expanded="true"] { border-color: var(--accent, #107a57); box-shadow: 0 0 0 3px var(--focus-halo, rgba(16, 122, 87, .22)); }
+
+/* ---- date field: face button over the (visually hidden) real input ---- */
+.hp-date-wrap { position: relative; display: inline-block; max-width: 100%; vertical-align: middle; }
+label > .hp-date-wrap, .field .hp-date-wrap, div > .hp-date-wrap { display: block; }
+.hp-date-wrap:not(.hp-native) > input.hp-date {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; pointer-events: none;
+}
+.hp-date-wrap.hp-native > .hp-date-face { display: none; }
+.hp-date-face {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 40px; padding: 9px 12px;
+  border: 1px solid var(--line-strong, #d6dbe1); border-radius: 10px;
+  background-color: var(--bg-raised, #fff); color: var(--ink, #1b1930);
+  font: inherit; text-align: left; cursor: pointer;
+  transition: border-color .14s ease, box-shadow .14s ease;
+}
+.hp-date-face:hover:not(:disabled) { border-color: var(--accent, #107a57); }
+.hp-date-face:disabled { opacity: .6; cursor: not-allowed; }
+.hp-date-face.hp-empty .hp-date-text { color: var(--muted, #8a8f98); }
+.hp-date-face.hp-invalid { border-color: var(--bad, #c0392b); }
+.hp-cal-ico {
+  width: 16px; height: 16px; flex: none; opacity: .65;
+  background: no-repeat center / 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23374151' stroke-width='1.4' stroke-linecap='round'%3E%3Crect x='2' y='3' width='12' height='11' rx='2.5'/%3E%3Cpath d='M2 6.5h12M5.5 1.8v2.4M10.5 1.8v2.4'/%3E%3C/svg%3E");
+}
+
+/* ---- popover shell ---- */
+.hp-pop {
+  position: fixed; z-index: 2147483000; box-sizing: border-box;
+  display: flex; flex-direction: column;
+  background: var(--bg-raised, #fff); color: var(--ink, #1b1930);
+  border: 1px solid rgba(0, 0, 0, .06); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .14), 0 2px 6px rgba(15, 23, 42, .08);
+  overflow: hidden;
+  opacity: 0; transform: translateY(-4px) scale(.98); transform-origin: top center;
+  transition: opacity .16s ease, transform .18s cubic-bezier(.2, .8, .2, 1);
+  font-size: 14px;
+}
+.hp-pop.hp-up { transform-origin: bottom center; transform: translateY(4px) scale(.98); }
+.hp-pop.hp-open { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .hp-pop { transition: none; transform: none; } }
+
+/* select popover */
+.hp-search {
+  margin: 8px 8px 4px; padding: 8px 10px 8px 30px; border-radius: 9px !important;
+  border: 1px solid transparent; background-color: rgba(118, 118, 128, .12);
+  font: inherit; color: inherit; outline: none; flex: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='4.2'/%3E%3Cpath d='m9.2 9.2 3 3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 10px center;
+}
+.hp-search:focus { box-shadow: 0 0 0 3px var(--focus-halo, rgba(16, 122, 87, .22)); background-color: rgba(118, 118, 128, .08); }
+.hp-list { overflow-y: auto; overscroll-behavior: contain; padding: 4px; flex: 1 1 auto; min-height: 0; }
+.hp-group { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted, #8a8f98); }
+.hp-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer; user-select: none;
+}
+.hp-opt-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hp-opt.hp-active { background: var(--accent-soft, #e3f4ed); }
+.hp-opt[aria-selected="true"] { font-weight: 600; color: var(--accent, #107a57); }
+.hp-opt[aria-selected="true"] .hp-tick {
+  width: 14px; height: 14px; flex: none;
+  background: no-repeat center / 14px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none' stroke='%23107a57' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m2.8 7.3 2.7 2.7 5.7-6'/%3E%3C/svg%3E");
+}
+.hp-opt[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.hp-empty { padding: 12px; color: var(--muted, #8a8f98); text-align: center; }
+
+/* calendar popover */
+.hp-cal { padding: 12px; overflow: auto; }
+.hp-cal-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 8px; }
+.hp-cal-title { font-weight: 600; font-size: 15px; }
+.hp-cal-navs { display: flex; gap: 4px; }
+.hp-cal-nav {
+  width: 30px; height: 30px; border-radius: 999px; border: 0; cursor: pointer;
+  background: transparent no-repeat center / 14px;
+  color: var(--accent, #107a57);
+}
+.hp-prev { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none' stroke='%23107a57' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.8 2.8 4.6 7l4.2 4.2'/%3E%3C/svg%3E"); }
+.hp-next { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none' stroke='%23107a57' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5.2 2.8 4.2 4.2-4.2 4.2'/%3E%3C/svg%3E"); }
+.hp-cal-nav:hover:not(:disabled) { background-color: var(--accent-soft, #e3f4ed); }
+.hp-cal-nav:disabled { opacity: .3; cursor: default; }
+.hp-cal-dow, .hp-cal-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.hp-cal-dow span { text-align: center; font-size: 11px; font-weight: 600; color: var(--muted, #8a8f98); padding: 4px 0; }
+.hp-day {
+  width: 36px; height: 36px; justify-self: center; padding: 0; border: 0; border-radius: 999px; background: transparent;
+  font: inherit; color: inherit; cursor: pointer; transition: background-color .12s ease;
+}
+.hp-day:hover:not(:disabled) { background: var(--accent-soft, #e3f4ed); }
+.hp-day:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent, #107a57) inset; }
+.hp-day.hp-out { color: var(--muted, #a0a5ad); }
+.hp-day.hp-today { color: var(--accent, #107a57); font-weight: 700; box-shadow: 0 0 0 1.5px var(--accent, #107a57) inset; }
+.hp-day.hp-sel, .hp-day.hp-sel:hover { background: var(--accent, #107a57); color: #fff; font-weight: 600; box-shadow: none; }
+.hp-day:disabled { opacity: .3; cursor: not-allowed; text-decoration: line-through; }
+.hp-cal-foot { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line, #eceef1); }
+.hp-cal-btn {
+  border: 0; background: transparent; color: var(--accent, #107a57); font: inherit; font-weight: 600;
+  padding: 6px 12px; border-radius: 8px; cursor: pointer;
+}
+.hp-cal-btn:hover:not(:disabled) { background: var(--accent-soft, #e3f4ed); }
+.hp-cal-btn:disabled { opacity: .35; cursor: default; }
