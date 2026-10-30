@@ -54,10 +54,12 @@
 //   SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT (default 465), SMTP_FROM (default SMTP_USER)
 //                                     preferred e-mail transport (shared mailer). Display name:
 //                                     EMAIL_BRAND_MODE "helm" (default) -> "Helm Events"; "studio" ->
-//                                     the studio's sender name (0150) or "<Studio> via Helm".
+//                                     the studio's sender name (0150) or "<Studio> via Helm Events".
 //   RESEND_API_KEY, RESEND_FROM       fallback transport, used only when SMTP is not set; the display
 //                                     name comes from the studio's Integrations page (0150).
-//   Neither set -> e-mail rows are marked "skipped". Reply-To = the studio's reply-to (0150), both.
+//   Neither set -> e-mail rows are marked "skipped". Reply-To = the studio's reply-to (0150), else (R107) the
+//                                     studio's business e-mail, else the studio owner's e-mail - never Helm's
+//                                     own sending address (a client reply there is lost); both transports.
 //   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_API_VERSION (default v21.0)
 //   WHATSAPP_TPL_TASK_ASSIGNED        approved template for "you've been assigned" (e.g. helm_task_assigned)
 //   WHATSAPP_TPL_EVENT_REMINDER       approved template for event reminders  (e.g. helm_event_reminder)
@@ -89,6 +91,7 @@ import { runsheetReminderMessage, enquiryReplyMessage, RUNSHEET_TX_REASON, ENQUI
 import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 import { brandMode, sendMail, type SmtpSend } from "../_shared/mailer.ts";
+import { rowReplyTo } from "../_shared/reply-to.mjs";   // R107: Reply-To fallback (business e-mail -> owner)
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -281,6 +284,10 @@ Deno.serve(async (req) => {
 
     const origin = appOrigin();
     const counts = { sent: 0, skipped: 0, failed: 0, invalid: 0 };
+    // R107: a studio row's Reply-To - its own reply-to (0150), else business e-mail, else the owner's (one lookup per studio)
+    const rtCache = new Map<string, string>();
+    const withReply = async (lane: string, rowId: string, ident: Identity): Promise<Identity> =>
+      ({ ...ident, reply_to: (await rowReplyTo(admin, lane, rowId, ident.reply_to, { env, cache: rtCache })) || null });
     for (const r of (Array.isArray(rows) ? rows : [])) {
       const id = String(r?.id ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
@@ -293,6 +300,7 @@ Deno.serve(async (req) => {
         // 0150: sender name / reply-to of the row's studio (a database without 0150 -> defaults)
         let ident: Identity = {};
         try { const { data } = await admin.rpc("comms_outbox_email_identity", { p_id: id }); if (data && typeof data === "object") ident = data as Identity; } catch (_) { /* defaults */ }
+        ident = await withReply("outbox", id, ident);
         let extra: Extra | null = { footer: txFooter(purpose === "invite_site" || purpose === "booklet_link" ? "client_link" : "pay_reminder", { app: origin, address: postalAddress(env) }) };
         if (purpose === "quote_expiry") extra = { footer: txFooter("client_link", { app: origin, address: postalAddress(env) }) };   // 0262: a client-link reminder
         if (NON_TRANSACTIONAL.has(purpose)) {
@@ -375,7 +383,7 @@ Deno.serve(async (req) => {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const msg = deliveryMessage(r, origin);
-      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const ident: Identity = await withReply("delivery", id, (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {});
       const extra: Extra = { footer: txFooter("delivery", { app: origin, address: postalAddress(env) }) };
       const res: Res = msg.text ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
       const { error: mErr } = await admin.rpc("delivery_reminder_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
@@ -390,7 +398,7 @@ Deno.serve(async (req) => {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const msg = vendorRequestMessage(r, origin);
-      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const ident: Identity = await withReply("vendor", id, (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {});
       const extra: Extra = { footer: txFooter(VENDOR_TX_REASON, { app: origin, address: postalAddress(env) }) };
       const res: Res = msg.text ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
       const { error: mErr } = await admin.rpc("vendor_request_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
@@ -404,7 +412,7 @@ Deno.serve(async (req) => {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const msg = runsheetReminderMessage(r, origin);
-      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const ident: Identity = await withReply("runsheet", id, (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {});
       const extra: Extra = { footer: txFooter(RUNSHEET_TX_REASON, { app: origin, address: postalAddress(env) }) };
       const res: Res = msg.text && EMAIL.test(to) ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
       const { error: mErr } = await admin.rpc("runsheet_reminder_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
@@ -418,7 +426,7 @@ Deno.serve(async (req) => {
       const id = String(r?.id ?? ""), to = String(r?.to ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const msg = enquiryReplyMessage(r);
-      const ident: Identity = (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {};
+      const ident: Identity = await withReply("enquiry", id, (r?.identity && typeof r.identity === "object") ? r.identity as Identity : {});
       const extra: Extra = { footer: txFooter(ENQUIRY_TX_REASON, { app: origin, address: postalAddress(env) }) };
       const res: Res = msg.text && EMAIL.test(to) ? await sendEmail(id, to, msg.subject, msg.text, String(r?.studio ?? ""), ident, extra) : "skipped";
       const { error: mErr } = await admin.rpc("enquiry_reply_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });

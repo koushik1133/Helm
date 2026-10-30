@@ -10,8 +10,10 @@
 //   set up, Resend only when SMTP is not. Callers that pass nothing keep the order above.
 //
 // Display name: EMAIL_BRAND_MODE (single switch). "helm" (default, any unset/unknown value) ->
-// "Helm Events"; "studio" -> "<Studio> via Helm". The address is always the configured sender
-// (SPF/DKIM pass). Reply-To: the studio's business e-mail when it is a valid address (both modes).
+// "Helm Events"; "studio" -> "<Studio> via Helm Events" (R107 owner wording). The address is always the
+// configured sender (SPF/DKIM pass). Reply-To: what the caller resolved (_shared/reply-to.mjs: studio
+// reply-to / business e-mail / owner's e-mail); an address equal to the sender is dropped (R107: a reply
+// to Helm's own sending address is lost), so no Reply-To is better than that one.
 // Designed HTML (email-layout.mjs layout() with opts.reason) already carries the compliance line,
 // so only the text footer is appended to it.
 // Logs carry only the provider + status code, never the recipient, body or any code.
@@ -50,7 +52,7 @@ export function brandMode(env: EnvGet = envOf()): BrandMode {
 export function fromName(studio: unknown, mode: BrandMode = "helm"): string {
   if (mode !== "studio") return HELM_BRAND;
   const s = cleanName(studio);
-  return s ? s + " via Helm" : HELM_BRAND;
+  return s ? s + " via " + HELM_BRAND : HELM_BRAND;
 }
 // "Name <addr>" from a configured sender (which may already be "X <a@b>")
 export function senderAddr(configured: string): string {
@@ -84,7 +86,8 @@ export async function sendMail(msg: MailMsg, opts: { env?: EnvGet; smtp?: SmtpSe
   if (!EMAIL_RE.test(to)) return { status: "failed", reason: "no valid e-mail address on file" };
   const cfg = mailConfig(opts.env || envOf(), opts.prefer);
   if (!cfg.provider) return { status: "not_configured", reason: "e-mail sending is not set up yet" };
-  const replyTo = msg.replyTo && EMAIL_RE.test(String(msg.replyTo).trim()) ? String(msg.replyTo).trim() : undefined;
+  const rt = String(msg.replyTo ?? "").trim();
+  const replyTo = rt && EMAIL_RE.test(rt) && rt.toLowerCase() !== senderAddr(cfg.from!).toLowerCase() ? rt : undefined;
   const subject = String(msg.subject || "").replace(/[\r\n]+/g, " ").slice(0, 200);
   const envGet = opts.env || envOf();
   const from = senderHeader(cfg.from!, msg.studio, brandMode(envGet), msg.fromName);

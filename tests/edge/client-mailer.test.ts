@@ -34,7 +34,7 @@ Deno.test("mailer: provider order Resend > SMTP > not_configured; sender name", 
   assertEquals(mailConfig(e({ SMTP_HOST: "h", SMTP_USER: "u@x.com", SMTP_PASS: "p", SMTP_PORT: "587" })).smtp!.tls, false);
   assertEquals(mailConfig(e({ RESEND_API_KEY: "k", RESEND_FROM: "a@b.com", SMTP_HOST: "h", SMTP_USER: "u", SMTP_PASS: "p" })).provider, "resend");
   assertEquals(senderHeader("Helm <mail@helm.events>", "Sparkle\r\nBcc: x"), '"Helm Events" <mail@helm.events>');
-  assertEquals(senderHeader("Helm <mail@helm.events>", "Sparkle\r\nBcc: x", "studio"), '"Sparkle Bcc: x via Helm" <mail@helm.events>');
+  assertEquals(senderHeader("Helm <mail@helm.events>", "Sparkle\r\nBcc: x", "studio"), '"Sparkle Bcc: x via Helm Events" <mail@helm.events>');
   assertEquals(brandMode(e({})), "helm"); assertEquals(brandMode(e({ EMAIL_BRAND_MODE: "garbage" })), "helm");
   assertEquals(brandMode(e({ EMAIL_BRAND_MODE: " Studio " })), "studio");
   assertEquals(fromName("", "studio"), "Helm Events");
@@ -49,7 +49,7 @@ Deno.test("mailer: SMTP path uses injected client, from = 'Helm Events' (default
   assertEquals(sent.m.from, '"Helm Events" <me@gmail.com>'); assertEquals(sent.m.replyTo, "studio@sparkle.in");
   await sendMail({ to: "c@example.com", subject: "Hi", text: "t", studio: "Sparkle" },
     { env: (k: string) => k === "EMAIL_BRAND_MODE" ? "studio" : env(k), smtp: async (cfg, m) => { sent = { cfg, m }; } });
-  assertEquals(sent.m.from, '"Sparkle via Helm" <me@gmail.com>');
+  assertEquals(sent.m.from, '"Sparkle via Helm Events" <me@gmail.com>');
   assertEquals(sent.cfg.port, 465);
   const f = await sendMail({ to: "c@example.com", subject: "Hi", text: "t" }, { env, smtp: async () => { throw new Error("535 auth pw"); } });
   assertEquals(f.status, "failed"); assert(!String(f.reason).includes("pw"));

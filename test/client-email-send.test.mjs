@@ -24,7 +24,7 @@ t("client-mailer: JWT verified, quote read as caller, recipient from DB only", (
 });
 t("mailer: Resend then SMTP (built-in client, no denomailer), EMAIL_BRAND_MODE helm|studio", () => {
   const smtp = read("supabase/functions/_shared/smtp.ts");
-  assert.doesNotMatch(mailer, /denomailer@\d|import\(/); assert.match(mailer, /from "\.\/smtp\.ts"/); assert.match(mailer, /" via Helm"/);
+  assert.doesNotMatch(mailer, /denomailer@\d|import\(/); assert.match(mailer, /from "\.\/smtp\.ts"/); assert.match(mailer, /" via " \+ HELM_BRAND/);
   assert.match(mailer, /EMAIL_BRAND_MODE/); assert.match(mailer, /HELM_BRAND = "Helm Events"/);
   assert.match(smtp, /Deno\.connectTls/); assert.match(smtp, /=\?UTF-8\?B\?/); assert.match(smtp, /AUTH PLAIN \[redacted\]/);
   assert.match(mailer, /reason: smtpReason\(e\)/); assert.match(mailer, /"\[redacted\]"/);
