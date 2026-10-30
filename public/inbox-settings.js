@@ -41,14 +41,15 @@
     card.appendChild(h("h3", { text: "Inbox & e-mail digest" }));
     card.appendChild(h("p", { cls: "mnote", text: "Everyone has their own Inbox (🔔 → Open inbox): mark read, Done or Snooze. Helm only e-mails what is still unread - anything read, Done or snoozed is left out, and an item is never e-mailed twice. People can pick their own setting on their Inbox page; this is the default for everyone who has not." }));
     card.appendChild(on);
-    card.appendChild(h("div", { cls: "cmgrid" }, [
-      h("label", { for: "ibs_def" }, ["Default for the team ", def]),
-      h("label", { for: "ibs_hour" }, ["Daily digest at (studio time) ", hour]),
-      h("label", { for: "ibs_age" }, ["Only items unread for at least ", age])]));
-    card.appendChild(h("label", { cls: "cmchk", for: "ibs_bell" }, [bell, " Opening the bell marks everything read (off: an item is read when it is opened or marked)"]));
+    // r88: tidy form - each label sits above its control (3 columns on desktop, 1 on a phone; see automations.css)
+    card.appendChild(h("div", { cls: "ibs-grid" }, [
+      h("label", { cls: "ibs-fld", for: "ibs_def" }, [h("span", { cls: "ibs-lbl", text: "Default for the team" }), def]),
+      h("label", { cls: "ibs-fld", for: "ibs_hour" }, [h("span", { cls: "ibs-lbl", text: "Daily digest at (studio time)" }), hour]),
+      h("label", { cls: "ibs-fld", for: "ibs_age" }, [h("span", { cls: "ibs-lbl", text: "Only items unread for at least" }), age])]));
+    card.appendChild(h("label", { cls: "cmchk ibs-chk", for: "ibs_bell" }, [bell, h("span", { text: "Opening the bell marks everything read (off: an item is read when it is opened or marked)" })]));
     if (chosen) card.appendChild(h("p", { cls: "mnote", text: chosen + " team member" + (chosen === 1 ? " has" : "s have") + " chosen their own setting (" + (ppl.daily || 0) + " daily, " + (ppl.instant_important || 0) + " instant, " + (ppl.off || 0) + " off)." }));
     card.appendChild(h("p", { cls: "mnote", text: "E-mails go out once Helm's e-mail sending is switched on for your account. Free-trial studios do not send them." }));
-    card.appendChild(msg); card.appendChild(save);
+    card.appendChild(msg); card.appendChild(h("div", { cls: "ibs-actions" }, [save]));
     card.hidden = false;
     if (!cfg.can_manage) {
       Array.prototype.forEach.call(card.querySelectorAll("input,select,button"), function (x) { x.disabled = true; });
