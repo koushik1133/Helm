@@ -106,6 +106,12 @@
         </div>
       </div>
 
+      <!-- R108 (0318): a quote with no price yet cannot be approved (the server refuses it too) -->
+      <div id="notPriced" hidden>
+        <div class="seclabel">Quote not priced yet</div>
+        <p class="sub" id="notPricedText">This quote isn't ready yet - it has no price. Please contact your planner; you can approve it once the price is added.</p>
+      </div>
+
       <div id="step2" hidden>
         <div class="seclabel">② Verify &amp; consent</div>
         <div class="fld otp"><label for="c_otp">Enter the 6-digit OTP</label><input id="c_otp" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="––––––"></div>
@@ -151,7 +157,7 @@
 <script src="/config.js?v=112"></script>
 <script src="/phone-input.js?v=9"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=320"></script><script src="/quote-validity.js?v=4"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=321"></script><script src="/quote-validity.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -161,14 +167,16 @@
   const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
 
   // Terms shown to the client (versioned — the exact text is stored with their consent)
-  const TERMS_VERSION="v1-2026-09";
+  // R108: v2 - the consent clause is channel-neutral ("the one-time code we sent you": e-mail, WhatsApp or SMS);
+  // v1-2026-09 said "the OTP sent to your mobile". Consents already given keep the v1 id they were recorded with.
+  const TERMS_VERSION="v2-2026-10";
   const TERMS_HTML=`
     <h4>1. Quotation & pricing</h4><p>The amounts shown are based on the details provided and include applicable GST (SAC 998596). Final billing may adjust for changes in guest count, scope, or statutory taxes.</p>
     <h4>2. Booking & payment</h4><p>Your booking is confirmed only upon successful payment against the payment link. Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
     <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
-    <h4>4. Consent</h4><p>By verifying the OTP sent to your mobile and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
+    <h4>4. Consent</h4><p>By verifying the one-time code we sent you and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
     <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`;
-  // Country terms (new versions; India above stays byte-identical as v1-2026-09). Picked by the
+  // Country terms (India above = v2-2026-10; -AE / -US ids follow it). Picked by the
   // quote's tax country snapshot (apTax), India when absent. The exact id shown is stored with the consent.
   const TERMS_BY_COUNTRY={
     IN:{v:TERMS_VERSION, html:TERMS_HTML},
@@ -176,13 +184,13 @@
     <h4>1. Quotation & pricing</h4><p>All amounts are in UAE dirhams (AED) and include UAE Value Added Tax (VAT) at 5% where applicable. The supplier's Tax Registration Number (TRN) is shown on its tax invoices, and a VAT "Tax Invoice" is issued on request. Final billing may adjust for changes in guest count, scope, or statutory taxes.</p>
     <h4>2. Booking & payment</h4><p>Your booking is confirmed only once your planner records your payment. Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
     <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
-    <h4>4. Consent</h4><p>By verifying the OTP sent to your mobile and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
+    <h4>4. Consent</h4><p>By verifying the one-time code we sent you and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
     <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`},
     US:{v:TERMS_VERSION+"-US", html:`
     <h4>1. Quotation & pricing</h4><p>All amounts are in US dollars (USD). Applicable state and local sales tax is added as shown. Tax-exempt clients must provide a valid exemption certificate before the event; without one, sales tax applies. Final billing may adjust for changes in guest count, scope, or statutory taxes.</p>
     <h4>2. Booking & payment</h4><p>Your booking is confirmed only once your planner records your payment. Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
     <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
-    <h4>4. Consent</h4><p>By verifying the OTP sent to your mobile and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
+    <h4>4. Consent</h4><p>By verifying the one-time code we sent you and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
     <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`}
   };
   const termsKey=(tax)=>{ const c=(tax&&tax.country)||"IN"; return Object.prototype.hasOwnProperty.call(TERMS_BY_COUNTRY,c)?c:"IN"; };
@@ -193,6 +201,25 @@
   function phoneCountry(tax){ const cc=(tax&&tax.country)||"IN"; const el=$("#c_phone"); if(!el) return;
     el.setAttribute("data-country", cc); const dial={IN:"+91",AE:"+971",US:"+1"}[cc]; if(dial) el.setAttribute("placeholder", dial+" …");
     if(el.helmPhone && !el.helmPhone.national()) el.helmPhone.setCountry(cc); }
+
+  // R108: a quote is approvable only with a total above zero (0318 refuses the approval on the server too)
+  const isPriced=(p)=>{ const t=p&&typeof p==="object"?Number(p.total):NaN; return isFinite(t) && t>0; };
+  let apStudio="";
+  const contactWho=()=>apStudio||"your planner";
+  function showNotPriced(){
+    ["#step1","#step2"].forEach((sel)=>{ const x=$(sel); if(x) x.hidden=true; });
+    $("#notPricedText").textContent="This quote isn't ready yet - it has no price. Please contact "+contactWho()+"; you can approve it once the price is added.";
+    $("#notPriced").hidden=false;
+  }
+  // R108: a failed send is always said out loud (never a silent nothing)
+  function sendFail(e){
+    const m=String((e&&e.message)||"").trim();
+    if(/invalid link|expired/i.test(m)) return "This approval link is no longer valid. Please contact "+contactWho()+" for a new one.";
+    if(/isn't ready yet|free trial|too many|on file|valid e-mail|Indian mobile|outside India|e-mail limit/i.test(m) && m.length<300)
+      return m.charAt(0).toUpperCase()+m.slice(1)+(/[.!?]$/.test(m)?"":".");
+    return "We couldn't send the code. Try again in a minute or contact "+contactWho()+".";
+  }
+  const AP_PROD=(typeof window!=="undefined" && window.HELM_IS_PROD_HOST===true);
 
   function setMsg(kind,text){ const m=$("#msg"); if(!text){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(text)}</div>`; }
 
@@ -233,7 +260,8 @@
       if(apTax && apTax.country!=="IN") BPStore.tax.rows(c, p, apTax).forEach(r=>add(r.label, Math.round(r.amount||0)));
       else if(p.placeOfSupply==='inter') add("IGST", Math.round(c.igst||0)); else { const hv=(BPStore.tax&&BPStore.tax.halves)?BPStore.tax.halves((+c.cgst||0)+(+c.sgst||0)):[Math.round(c.cgst||0),Math.round(c.sgst||0)]; add("CGST", hv[0]); add("SGST", hv[1]); }
     }
-    rows.push(`<div class="r grand"><span>Total payable</span><span class="amt">${inr((p&&Number(p.total))||0)}</span></div>`);
+    rows.push(isPriced(p) ? `<div class="r grand"><span>Total payable</span><span class="amt">${inr((p&&Number(p.total))||0)}</span></div>`
+      : `<div class="r grand"><span>Total payable</span><span class="amt">Not priced yet</span></div>`);
     return rows.join("");
   }
 
@@ -296,6 +324,11 @@
     // 0128 trial test mode: only shown when the server says this link's studio is an active trial
     if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false; { ["#sendOtp","#sendWa"].forEach((sel)=>{ const b=$(sel); if(b){ b.hidden=true; b.style.display="none"; } }); const wn=$("#waNote"); const em=$("#sendEmailOtp"); const emailOn=!(BPStore.approval.emailEnabled && !BPStore.approval.emailEnabled()); if(!emailOn && em){ em.hidden=true; em.style.display="none"; } if(wn){ if(emailOn) wn.textContent="Free trial: we send the one-time code to the e-mail address your planner has on file for you. SMS and WhatsApp codes are not used in the trial."; else wn.hidden=true; } }   // 0176 / 0212: a trial sends no SMS / WhatsApp; the code by e-mail works (capped by the server)
       $("#payManual").textContent="Trial test mode: in a real studio your client pays by UPI/card through the payment link. In this trial you can skip that step - record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
+    // R108: no price -> "Quote not priced yet - please contact <Studio>" instead of the approval steps (0318 refuses it too)
+    const apOpen=quote.approval_status!=="approved" && quote.approval_status!=="paid";
+    if(apOpen && !isPriced(quote.pricing)) showNotPriced();
+    if(BPStore.approval.quoteReady){ BPStore.approval.quoteReady(token).then((r)=>{ if(!r || typeof r!=="object") return;
+      apStudio=String(r.studio||"").slice(0,120); if(apOpen && r.priced===false) showNotPriced(); }).catch(()=>{}); }
     // resume state
     if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }
     else if(quote.approval_status==='paid'){ showStep('stepPaid'); await showPaid(); }
@@ -321,7 +354,9 @@
     if(name.length<2){ setMsg("err","Please enter your name."); $("#c_name").focus(); return; }
     const label=btn.textContent; btn.textContent="Sending…"; $("#resend").disabled=true;
     try{ const r=await BPStore.approval.requestChannelOtp(token, channel);
-      if(r && r.sent===false && !r.dev_code){ setMsg("err",(r&&r.message)||"We couldn't send the code right now. Please contact your event manager to approve this event."); if(channel==="whatsapp"){ showStep('step2'); offerEmail(); } return; }
+      if(r && r.sent===false && !r.dev_code){ setMsg("err",(r&&r.message)||("We couldn't send the code. Try again in a minute or contact "+contactWho()+".")); if(channel==="whatsapp"){ showStep('step2'); offerEmail(); } return; }
+      // R108: on the live site a "simulated" answer means nothing was sent - say so, stay on this step
+      if(AP_PROD && r && r.simulated && !r.dev_code){ setMsg("err","We couldn't send the code. Try again in a minute or contact "+contactWho()+"."); return; }
       otpChannel=channel; showStep('step2');
       const where=(r&&r.masked)||(channel==="email"?"your e-mail":"your WhatsApp");
       if(r && r.dev_code) setMsg("dev","SIMULATION MODE — your code is "+r.dev_code+" (in production it is sent by "+(channel==="email"?"e-mail":"WhatsApp")+" to "+where+").");
@@ -329,7 +364,7 @@
       else setMsg("ok","A code has been sent by "+(channel==="email"?"e-mail":"WhatsApp")+" to "+where+". It expires in 10 minutes.");
       clearTimeout(fbTimer); $("#emailFallback").hidden=true;
       if(channel==="whatsapp") fbTimer=setTimeout(offerEmail, 60000);
-    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"send the code"})); if(channel==="whatsapp" && !/wait|too many/i.test(String(e&&e.message))){ showStep('step2'); offerEmail(); } }
+    }catch(e){ setMsg("err",sendFail(e)); if(/isn't ready yet/i.test(String(e&&e.message))){ showNotPriced(); return; } if(channel==="whatsapp" && !/wait|too many/i.test(String(e&&e.message))){ showStep('step2'); offerEmail(); } }
     finally{ btn.textContent=label; $("#resend").disabled=false; }
   });
   $("#sendWa").addEventListener("click", ()=>sendChannel("whatsapp", $("#sendWa")));
@@ -344,11 +379,11 @@
     try{ const r=await BPStore.approval.requestOtp(token, phone);
       // The server answers {sent:false} when no delivery channel is configured —
       // never tell the client an OTP is on its way when it isn't.
-      if(r && r.sent===false && !r.dev_code){ setMsg("err","We couldn't send the OTP right now. Please contact your event manager to approve this event."); return; }
+      if(r && r.sent===false && !r.dev_code){ setMsg("err","We couldn't send the code. Try again in a minute or contact "+contactWho()+"."); return; }
       showStep('step2');
       if(r && r.dev_code) setMsg("dev","SIMULATION MODE — your OTP is "+r.dev_code+" (in production this is sent by SMS).");
       else setMsg("ok","An OTP has been sent to "+phone+".");
-    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"send the OTP"})); }
+    }catch(e){ setMsg("err",sendFail(e)); if(/isn't ready yet/i.test(String(e&&e.message))) showNotPriced(); }
     finally{ b.textContent="Send OTP to my phone by SMS"; $("#resend").disabled=false; }
   });
   $("#sendOtp").addEventListener("click", sendOtp);
@@ -375,7 +410,7 @@
         setMsg("err",(r&&r.message)||"Verification failed.");
         if(r&&r.error==="quote_expired"&&window.HelmQuoteValidity) HelmQuoteValidity.refreshClient();   // r23 (0262): show the expired banner + request button
       }
-    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"verify the OTP"})); }
+    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"verify the OTP"})); if(e && e.hint==="quote_not_priced") showNotPriced(); }
     finally{ b.textContent="✓ Confirm & approve"; }
   }));
 
@@ -387,7 +422,7 @@
     try{ const r=await BPStore.approval.trialTestApprove(token, $("#c_phone").value.trim(), name, shownTerms.v, consentText(shownTerms.v)+" [trial test - OTP skipped]", navigator.userAgent);
       if(r && r.approved === true){ showStep('step3'); $("#approvedNote").textContent="Confirmed in trial test mode (no OTP sent). The event is now Confirmed - the studio can create the event group and share the booklet."; $("#payManual").hidden=false; setMsg(); }
       else setMsg("err",(r&&r.message)||"Could not approve in trial test mode.");
-    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"approve in trial test mode"})); }
+    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"approve in trial test mode"})); if(e && e.hint==="quote_not_priced") showNotPriced(); }
   }));
 
   // No online pay on a production host until Razorpay is live (sim checkout is 404 there)

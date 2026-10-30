@@ -3720,6 +3720,8 @@ window.HelmUrl = HelmUrl;
     // "Send by email": client-mailer e-mails the approval / booklet link to the client e-mail ON THE
     // QUOTE (server picks the address). Off when liveChannels.email is false.
     emailEnabled: () => LIVE.email !== false,
+    // ---- R108 (0318): { priced, studio } for this link (null before 0318 / unknown link) ----
+    quoteReady: (token) => mode === "supabase" && token ? rpc("public_quote_ready", { p_token: token }).catch(() => null) : Promise.resolve(null),
     emailLink: (quoteId, kind) => LIVE.email === false
       ? Promise.resolve({ status: "not_configured", reason: "e-mail sending is switched off for this site" })
       : callFn("client-mailer", { quote_id: quoteId, kind: kind === "booklet" ? "booklet" : "approval" }),

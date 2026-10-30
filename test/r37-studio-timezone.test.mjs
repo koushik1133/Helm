@@ -116,7 +116,7 @@ t('store: vendor bill overdue + default bill date + bell Today/Yesterday use the
 t('store: every page loads the new store-api.js (v296) and country-profile.js (v6)', () => {
   for (const f of ['calendar.html', 'quotes.html', 'reports.html', 'inbox.html', 'flow.html', 'dashboard.html']) {
     const h = r('public/' + f);
-    assert.match(h, /store-api\.js\?v=320/, f); assert.match(h, /country-profile\.js\?v=7/, f);
+    assert.match(h, /store-api\.js\?v=321/, f); assert.match(h, /country-profile\.js\?v=7/, f);
     assert.ok(h.indexOf('country-profile.js') < h.indexOf('store-api.js'), f + ': helper before the store');
   }
 });

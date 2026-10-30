@@ -72,6 +72,8 @@ run "r97-layout-rules-0313" "R97-LAYOUT-RULES-0313: ALL PASS \(24/24\)" psql -q 
 run "r103-profile-payment-0314" "R103-PROFILE-PAYMENT-0314: ALL PASS \(13/13\)" psql -q -f tests/db/r103-profile-payment-gate-0314.sql
 # r105 (0315): sign-up "Contact sales" saves a sales request for the account with NO studio (no waiting-for-payment studio); duplicates folded; rolled back
 run "r105-signup-sales-0315" "R105-SIGNUP-SALES-0315: ALL PASS \(21/21\)" psql -q -f tests/db/r105-signup-sales-0315.sql
+# r108 (0318): a client cannot approve a quote with no price (total 0 / missing) - HL409 friendly message, no consent, code not used up; priced quote approves; public_quote_ready {priced, studio}; re-applies itself twice, rolled back
+run "r108-unpriced-approval-0318" "R108-UNPRICED-APPROVAL-0318: ALL PASS \(13/13\)" psql -q -f tests/db/r108-unpriced-approval-0318.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
