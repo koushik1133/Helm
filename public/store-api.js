@@ -4779,6 +4779,12 @@ window.HelmUrl = HelmUrl;
       if (mode !== "supabase") { const a = readLs("bp_layout_rules"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_layout_rules", JSON.stringify(a)); return true; }
       const { error } = await supa.from("layout_rules").update(patch).eq("id", id); if (error) throw error; return true;
     },
+    // R97: a studio's own event type (org_id comes from the database default; RLS = Settings edit access)
+    async create(row) {
+      const rec = { event_type: String((row && row.event_type) || "").trim().toLowerCase(), rules: (row && row.rules) || {}, seq: +(row && row.seq) || 0, active: true };
+      if (mode !== "supabase") { const a = readLs("bp_layout_rules"); const r = Object.assign({ id: "lr_" + Date.now().toString(36) }, rec); a.push(r); localStorage.setItem("bp_layout_rules", JSON.stringify(a)); return r; }
+      const { data, error } = await supa.from("layout_rules").insert(rec).select("*").single(); if (error) throw error; return data;
+    },
   };
 
   /* ---------------- combined people picker (staff + vendors) ---------------- */

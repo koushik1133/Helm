@@ -94,8 +94,8 @@ t("control.html: dish add + layout rules use inline field errors, keep values, n
   assert.match(h, /FR\.dish\(\{category:ci\.value,name:ni\.value,kind:ki\.value\}, dishCache\)/);
   assert.match(h, /BPUI\.guard\(\$\("#dc_add"\)/, "no double submit");
   assert.doesNotMatch(h, /Enter a category and dish name\./, "old top-of-page message gone");
-  assert.match(h, /FR\.layoutRule\(\{spg:ins\.spg\.value,buf:ins\.buf\.value,bars:ins\.bars\.value\}\)/);
-  assert.match(h, /Object\.assign\(\{\}, \(row\.rules&&typeof row\.rules==="object"\)\?row\.rules:\{\}, v\.value/, "other rule keys are merged, never dropped");
+  // R97: layout rules moved to layout-rules.js (inline errors + merge of other keys are tested in r97-layout-rules.test.mjs)
+  assert.match(h, /HelmLayoutRules\.mount\(\$\("#layoutRuleList"\)/);
   assert.doesNotMatch(h, /V\.money\(raw,\{field:"Buffet table per N guests"\}\)/, "buffet per N is a whole number, not money");
   assert.doesNotMatch(h, /setMsg\("ok","Layout rule saved\."\)/, "layout rule messages stay in their own box");
   // integer inputs carry no step="1"/max=, so the global hardener never mangles "2.5" -> 25 or clamps silently

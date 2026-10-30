@@ -64,6 +64,8 @@ run "r84-otp-single-use-0307" "R84-OTP-SINGLE-USE-0307: ALL PASS \(9/9\)" psql -
 run "r86-profile-trial-gate-0308" "R86-PROFILE-TRIAL-0308: ALL PASS \(10/10\)" psql -q -f tests/db/r86-profile-trial-gate-0308.sql
 # r92 (0311): crew task lifecycle on the server - accept / reject final, reassign locked once accepted, QC only from pending, audit rows; re-applies itself twice, rolled back (early: later suites re-apply OLDER worker_respond / reassign_task / verify_task layers)
 run "r92-task-lifecycle-0311" "R92-TASK-LIFECYCLE-0311: ALL PASS \(28/28\)" psql -q -f tests/db/r92-task-lifecycle-0311.sql
+# r97 (0313): layout_rules limits checked by the database (only changed keys; inserts re-check only the R97 keys), custom event types under RLS; rolled back
+run "r97-layout-rules-0313" "R97-LAYOUT-RULES-0313: ALL PASS \(24/24\)" psql -q -f tests/db/r97-layout-rules-0313.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql

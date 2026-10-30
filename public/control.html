@@ -272,7 +272,7 @@
 <link rel="stylesheet" href="delivery-tracker.css?v=2">
 <link rel="stylesheet" href="venues.css?v=8">
 <link rel="stylesheet" href="studio-templates.css?v=5"><link rel="stylesheet" href="asset-price-grid.css?v=3">
-<link rel="stylesheet" href="menu-pkg-editor.css?v=6">
+<link rel="stylesheet" href="menu-pkg-editor.css?v=6"><link rel="stylesheet" href="layout-rules.css?v=1">
 <link rel="stylesheet" href="team-safety.css?v=2">
 <link rel="stylesheet" href="theme.css?v=83"><link rel="stylesheet" href="/ui-pickers.css?v=1"><script src="/ui-pickers.js?v=1" defer></script>
 <link rel="stylesheet" href="event-reminders.css?v=2">
@@ -624,7 +624,7 @@
 
     <div class="card">
       <h3>Default layout rules (per event type)</h3>
-      <p class="mnote s-020d693">The defaults the layout generator uses for each event type — seats per guest, buffet tables per N guests, bars, and which components to include. Change these here (no developer needed) and every generated layout follows them.</p>
+      <p class="mnote s-020d693">What the layout generator starts from for each event type: seats, round tables, aisle, buffet, bars, exits and what goes on the floor.</p>
       <div id="layoutRuleList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
     </div><!-- /pane-pricing -->
@@ -926,14 +926,14 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=8"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=313"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=314"></script>
 <script src="event-reminders.js?v=6"></script><script src="cc-field-rules.js?v=3"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=6"></script>
 <script src="hq-invoice.js?v=2"></script>
-<script src="page-tours.js?v=9"></script>
-<script src="tour.js?v=31"></script>
+<script src="page-tours.js?v=10"></script>
+<script src="tour.js?v=32"></script>
 <script src="pkg-review.js?v=9"></script>
 <script src="onboarding-core.js?v=8"></script>
 <script src="studio-billing-form.js?v=3"></script>
@@ -953,7 +953,7 @@
 <script src="studio-templates.js?v=15"></script>
 <script src="team-safety.js?v=3"></script>
 <script src="item-pricing.js?v=2"></script><script src="target-margin-settings.js?v=2"></script><script src="quote-validity.js?v=4"></script><script src="stage-machine-settings.js?v=2"></script><script src="payment-schedule.js?v=3"></script><script src="payment-schedule-settings.js?v=4"></script>
-<script src="asset-price-grid.js?v=5"></script><script src="pricing-form-core.js?v=4"></script><script src="menu-pkg-editor.js?v=5"></script>
+<script src="asset-price-grid.js?v=5"></script><script src="pricing-form-core.js?v=4"></script><script src="menu-pkg-editor.js?v=5"></script><script src="layout-rules.js?v=1"></script>
 <script src="trial-demo.js?v=19"></script>
 <script src="trial-upgrade.js?v=3"></script>
 <script src="settings-search-core.js?v=2"></script>
@@ -1296,50 +1296,13 @@
     catch(e){ setMsg("err",errMsg(e,"save item prices")); }
   }));
 
+  // R97: Settings > Layout rules - one editor (layout-rules.js): event-type list + steppers + live preview + one Save
   async function renderLayoutRules(){
     let rules=[];
     try{ rules=(await BPStore.layoutRules.list())||[]; }catch(e){ BPUI.loadError($("#layoutRuleList"), e, renderLayoutRules, {what:"layout rules"}); return; }
-    if(!rules.length){ $("#layoutRuleList").innerHTML='<div class="row" style="color:var(--ink-3)">No layout rules yet.</div>'; return; }
-    const num=(r,k,d)=>numAttr((r.rules||{})[k], d);
-    const on=(r,k)=>((r.rules||{})[k]===true);
-    $("#layoutRuleList").innerHTML = rules.map(r=>{ const et=esc(r.event_type); const k="lr_"+esc(r.id); return `
-      <div class="lr" data-id="${esc(r.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
-        <strong style="text-transform:capitalize">${et}</strong>
-        <div class="grid" style="margin-top:8px">
-          <div class="fld"><label for="${k}_spg">Seats per guest <span class="lr_rng">(more than 0, up to 10)</span></label><input id="${k}_spg" class="lr_spg" type="number" min="0" step="0.1" inputmode="decimal" aria-required="true" value="${num(r,'seatsPerGuest',1)}" aria-label="Seats per guest for ${et}"></div>
-          <div class="fld"><label for="${k}_buf">Buffet table per N guests <span class="lr_rng">(10 to 500)</span></label><input id="${k}_buf" class="lr_buf" type="number" min="0" inputmode="numeric" aria-required="true" value="${num(r,'buffetPer',100)}" aria-label="Buffet table per N guests for ${et}"></div>
-          <div class="fld"><label for="${k}_bars">Bars <span class="lr_rng">(0 to 20)</span></label><input id="${k}_bars" class="lr_bars" type="number" min="0" inputmode="numeric" aria-required="true" value="${num(r,'bars',0)}" aria-label="Bars for ${et}"></div>
-        </div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--ink-2)">
-          <label><input type="checkbox" class="lr_stage" ${on(r,'stage')?'checked':''}> Stage</label>
-          <label><input type="checkbox" class="lr_dance" ${on(r,'dancefloor')?'checked':''}> Dance floor</label>
-          <label><input type="checkbox" class="lr_walk" ${on(r,'walkway')?'checked':''}> Walkway</label>
-          <label><input type="checkbox" class="lr_dj" ${on(r,'dj')?'checked':''}> DJ</label>
-        </div>
-        <div class="actions" style="margin-top:8px"><span class="lr_msg mnote" role="status" aria-live="polite"></span><button type="button" class="btn primary lr_save" aria-label="Save ${et} layout rule">Save</button></div>
-      </div>`; }).join("");
-    $("#layoutRuleList").querySelectorAll(".lr").forEach(box=>{
-      const sv=box.querySelector(".lr_save");
-      // inline errors under each field (blank / 0 / negative / decimals where whole numbers / out of range);
-      // a blank no longer saves a silent default, and the rule's other keys are kept (merged, never dropped)
-      const lm=box.querySelector(".lr_msg"), say=(k,t)=>{ lm.textContent=t||""; lm.dataset.kind=k||""; };
-      sv.addEventListener("click",()=>BPUI.guard(sv,async()=>{
-        const FR=window.HelmCCFields, ins={spg:box.querySelector(".lr_spg"),buf:box.querySelector(".lr_buf"),bars:box.querySelector(".lr_bars")};
-        Object.values(ins).forEach(x=>FR.fieldError(x,"")); say("","");
-        const v=FR.layoutRule({spg:ins.spg.value,buf:ins.buf.value,bars:ins.bars.value});
-        if(!v.ok){ FR.showErrors([[ins.spg,v.errors.spg],[ins.buf,v.errors.buf],[ins.bars,v.errors.bars]]); return; }
-        const row=rules.find(x=>String(x.id)===String(box.dataset.id))||{};
-        const next=Object.assign({}, (row.rules&&typeof row.rules==="object")?row.rules:{}, v.value, { stage:box.querySelector(".lr_stage").checked,
-          dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked });
-        say("","Saving…");
-        try{ await BPStore.layoutRules.update(box.dataset.id,{rules:next}); row.rules=next;
-          ins.spg.value=String(v.value.seatsPerGuest); ins.buf.value=String(v.value.buffetPer); ins.bars.value=String(v.value.bars);
-          say("ok","Saved."); }
-        catch(e){ say("",""); const p=document.createElement("p"); p.className="msg err lr_err"; p.setAttribute("role","alert"); p.textContent=errMsg(e,"save the layout rule");
-          const old=box.querySelector(".lr_err"); if(old) old.remove(); box.querySelector(".actions").before(p); }
-      }));
-      box.addEventListener("input",()=>{ if(lm.dataset.kind==="ok") say("",""); const o=box.querySelector(".lr_err"); if(o) o.remove(); });
-    });
+    let canEdit=isAdmin; if(!canEdit){ try{ canEdit=await BPStore.auth.canEditArea("controls"); }catch(e){ canEdit=false; } }
+    if(!rules.length && !canEdit){ const p=document.createElement("p"); p.className="mnote"; p.textContent="No layout rules yet."; $("#layoutRuleList").replaceChildren(p); return; }
+    HelmLayoutRules.mount($("#layoutRuleList"), { rows:rules, canEdit, store:BPStore.layoutRules, errMsg });
   }
 
   // Menu packages: dishes grouped by category as chips + category / dish dropdowns from the dish catalog

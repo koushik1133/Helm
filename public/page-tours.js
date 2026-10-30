@@ -190,9 +190,11 @@
           { sel: "#menuCard", title: "Menu packages", desc: "Standard, Gold, Premium or your own: the packages clients pick from in their booklet." },
         ],
         rules: [
-          { sel: "#layoutRuleList", title: "Default layout rules", desc: "For each event type: how many seats, buffets and bars the layout generator places for a given guest count." },
-          { sel: "#layoutRuleList .lr", title: "One event type", desc: "Seats per guest, a buffet table per so many guests, and bars. Tick the parts to include: stage, dance floor, walkway, DJ." },
-          { sel: "#layoutRuleList .lr_save", title: "Save each type", desc: "Each event type saves on its own. New layouts use it; floors you already made are not changed." },
+          { sel: "#layoutRuleList .lrx-list", title: "Event types", desc: "Pick an event type to edit its layout rule. A dot means it has unsaved changes. Add your own event type at the bottom." },
+          { sel: "#layoutRuleList .lrx-ed", title: "One rule, in plain words", desc: "Seats for each guest, guests per round table, aisle width, when to add a buffet line, bars, exits and what goes on the floor. Use - and + or type a number." },
+          { sel: "#layoutRuleList .lrx-pv", title: "Live preview", desc: "Type a guest count to see what the layout generator will start from for this event type." },
+          { sel: "#layoutRuleList .lrx-acts", title: "Copy or reset", desc: "Copy the settings of another event type, or go back to Helm's defaults for this one." },
+          { sel: "#layoutRuleList .lrx-bar", title: "One Save for everything", desc: "Changes to any event type wait here until you press Save changes. New layouts use them; floors you already made are not changed." },
         ],
         data: [
           { sel: "#imp_staff", title: "Import from Excel", desc: "Bring in staff, dishes, inventory and vendors from an Excel or CSV file." },
