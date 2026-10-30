@@ -43,3 +43,35 @@
   #autoCard .au-ctl{width:100%;justify-content:flex-start}
   #autoCard .au-state{text-align:left;min-width:0}
 }
+
+/* r88: ONE on/off switch for every Settings toggle (Automations list + "Auto-expire client links").
+   control-split.css squeezes every card checkbox to 16px (knob hung below the track) - these selectors outrank it.
+   Track 44x24 (grey off, brand green on), 20px knob centred, 44px tall hit area, focus ring, reduced motion. */
+#app .card input[type=checkbox][role=switch],#app.cs-on .cs-main .card input[type=checkbox][role=switch]{
+  appearance:none;-webkit-appearance:none;position:relative;box-sizing:border-box;flex:0 0 44px;width:44px;min-width:44px;height:24px;min-height:24px;
+  margin:10px 0;padding:0;border:0;border-radius:999px;background:var(--ink-3,#8a8794);opacity:1;accent-color:auto;cursor:pointer;vertical-align:middle;transition:background-color .15s ease}
+#app .card input[type=checkbox][role=switch]::before,#app.cs-on .cs-main .card input[type=checkbox][role=switch]::before{content:"";position:absolute;left:0;right:0;top:-10px;bottom:-10px}
+#app .card input[type=checkbox][role=switch]::after,#app.cs-on .cs-main .card input[type=checkbox][role=switch]::after{
+  content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s ease}
+#app .card input[type=checkbox][role=switch]:checked,#app.cs-on .cs-main .card input[type=checkbox][role=switch]:checked{background:var(--accent,#047857)}
+#app .card input[type=checkbox][role=switch]:checked::after,#app.cs-on .cs-main .card input[type=checkbox][role=switch]:checked::after{transform:translateX(20px)}
+#app .card input[type=checkbox][role=switch]:focus-visible,#app.cs-on .cs-main .card input[type=checkbox][role=switch]:focus-visible{outline:2px solid var(--accent,#047857);outline-offset:3px}
+#app .card input[type=checkbox][role=switch]:disabled,#app.cs-on .cs-main .card input[type=checkbox][role=switch]:disabled{opacity:.5;cursor:default}
+#app .card input[type=checkbox][role=switch][hidden]{display:none}
+@media (prefers-reduced-motion:reduce){#app .card input[type=checkbox][role=switch],#app .card input[type=checkbox][role=switch]::after{transition:none}}
+#autoCard .au-ctl{min-height:44px}
+#autoCard .au-state{line-height:1.2}
+
+/* r88: Inbox & e-mail digest card - labels above controls, equal-width selects, aligned checkbox + Save */
+#inboxCard .ibs-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 16px;margin:10px 0 12px}
+#inboxCard .ibs-fld{display:flex;flex-direction:column;gap:6px;min-width:0;margin:0}
+#inboxCard .ibs-lbl{font-size:12px;font-weight:600;color:var(--ink-2)}
+#inboxCard .ibs-fld select{width:100%;min-width:0;box-sizing:border-box;min-height:40px;margin:0}
+#inboxCard .ibs-chk{display:flex;align-items:flex-start;gap:10px;margin:4px 0 10px;font-size:13px;line-height:1.45;color:var(--ink)}
+#app #inboxCard .ibs-chk input[type=checkbox]{margin-top:2px}
+#inboxCard .mnote{font-size:12px;color:var(--ink-3)}
+#inboxCard .ibs-actions{display:flex;justify-content:flex-start;margin-top:4px}
+@media(max-width:720px){#inboxCard .ibs-grid{grid-template-columns:1fr}}
+#autoCard .au-ctl > *{margin-top:0;margin-bottom:0;align-self:center}
+#app #autoCard .au-ctl input[type=checkbox][role=switch]{margin:10px 0}
+#autoCard .au-go{display:inline-flex;align-items:center;justify-content:center;min-height:36px}
