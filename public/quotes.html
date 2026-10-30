@@ -59,6 +59,7 @@
   tbody td{padding:12px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   tbody tr:hover{background:var(--panel-2)}
   .code{font-family:var(--mono);font-weight:600}
+  .code a.qcode{color:inherit;text-decoration:none}.code a.qcode:hover .refchip,.code a.qcode:focus-visible .refchip{text-decoration:underline}
   .refchip{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:2px 8px;white-space:nowrap}
   .muted{color:var(--ink-3);font-size:12px}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
@@ -282,7 +283,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=7"></script><script src="store-api.js?v=318"></script><script src="flow-resume.js?v=6" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=4"></script><script src="quote-rates.js?v=4"></script><script src="venue-suggest.js?v=3"></script>
+<script src="new-quote-dialog.js?v=7"></script><script src="country-profile.js?v=7"></script><script src="store-api.js?v=319"></script><script src="flow-resume.js?v=6" data-mount></script><script src="quote-state.js?v=4"></script><script src="quote-validity.js?v=4"></script><script src="quote-rates.js?v=4"></script><script src="venue-suggest.js?v=3"></script>
 <script src="event-sizing.js?v=5"></script><script src="quote-smart-filter.js?v=2"></script><script src="approval-watch.js?v=2"></script><script src="event-group-picker.js?v=5"></script><script src="link-views.js?v=4"></script>
 <script src="page-tours.js?v=11"></script>
 <script src="tour.js?v=32"></script>
@@ -320,6 +321,8 @@
   const shelf={ready:false, rows:[], byId:{}, archived:0, deleted:0};
   const shelfFmt=(iso)=>{ try{ const d=new Date(iso); return isNaN(d)?"":d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:(function () { try { var B = (typeof window !== "undefined" && window.BPStore) || null, z = B && B.studioTimezone ? B.studioTimezone() : ""; if (z) return z; } catch (e) {} return "Asia/Kolkata"; })()}); }catch(e){ return ""; } };   // r37: studio zone
   // the quote NAME (custom, or the TYPE_CITY_GUESTS_DATE auto name); the code is only the Ref
+  // R102: the quote's own page as a real link (Cmd/Ctrl/middle-click → new tab), already in the pretty /<studio>/… form
+  function qHref(x){ const h="event.html?id="+encodeURIComponent(x.id); try{ return (window.HelmUrl&&HelmUrl.upgrade)?HelmUrl.upgrade(h):h; }catch(e){ return h; } }
   function qName(x){ const H=window.HelmEventName; return H&&H.displayName?H.displayName(x):(x.title||x.code||""); }
   function shelfItem(r){ return { id:r.id, code:r.code, title:r.title, eventType:r.event_type, status:r.status,
       lifecycleStage:r.lifecycle_stage||"quote", approvalStatus:r.approval_status||"none", currentVersion:r.current_version,
@@ -644,8 +647,8 @@
     tb.innerHTML=visible.map(x=>{
       const pr=x.pricing||{}; const client=(x.client&&x.client.name)||(pr.client&&pr.client.name)||"";
       return `<tr data-id="${esc(x.id)}" class="${needsAttention(x)?'is-attention':(x.status==='confirmed'?'is-confirmed':'')}">
-        <td class="code"><span class="refchip" title="Reference code">${esc(x.code)}</span></td>
-        <td><a class="qname" href="event.html?id=${esc(encodeURIComponent(x.id))}" title="Open the event workspace"><b>${esc(qName(x))}</b></a><div class="muted">${esc(x.eventType||"")}</div></td>
+        <td class="code"><a class="qcode" href="${esc(qHref(x))}" title="Open the event workspace" aria-label="Open ${esc(x.code)}"><span class="refchip">${esc(x.code)}</span></a></td>
+        <td><a class="qname" href="${esc(qHref(x))}" title="Open the event workspace"><b>${esc(qName(x))}</b></a><div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel" aria-label="Floor-plan (layout) version of ${esc(x.code)}" title="Floor-plan layout versions — quotation versions (Q1, Q2…) are in the quote's history"><option>Layout v${esc(x.currentVersion)}</option></select></td>
         <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statusPill(x)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>

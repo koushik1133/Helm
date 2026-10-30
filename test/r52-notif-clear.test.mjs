@@ -73,7 +73,7 @@ t('chat.markRead(id, { strict }) throws only when asked (the chat page keeps the
   assert.match(api, /catch \(e\) \{ if \(opts && opts\.strict\) throw e; \}/);
 });
 t('refresh: an answer that started before a local change is not drawn (no flicker back to the old count)', () => {
-  assert.match(mount, /const refreshNow = async \(\) => \{ lastRf = Date\.now\(\); const g = mutGen; let f = null;/);
+  assert.match(mount, /const refreshNow = async \(\) => \{ lastRf = Date\.now\(\); const g = mutGen; const f = await safeFeed\(\);/);
   assert.match(mount, /if \(g !== mutGen\) return f;\n\s+setDot\(serverUnread\(f\)\);/);
 });
 t('opening the bell: the dot only goes to 0 when bell_mark_seen worked', () => {
