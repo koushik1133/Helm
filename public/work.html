@@ -31,6 +31,7 @@
   .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:20px;float:right}
   .st.assigned{background:#eef1f0;color:#2f4a42} .st.accepted{background:#e6f6f2;color:#0f766e}
   .st.in_progress{background:#fff7e6;color:#946200} .st.completed{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
+  .st.cancelled{background:#eceff3;color:#56606e} .task.is-cancelled{opacity:.7} .task.is-cancelled .tt{text-decoration:line-through} .cxl{font-size:13px;font-weight:600;color:var(--ink-3,#56606e)}
   .acts{display:flex;gap:8px;flex-wrap:wrap}
   .btn{height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;flex:1;min-width:120px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
@@ -153,13 +154,13 @@
 <script src="/telemetry.js?v=9"></script>
 <script src="/config.js?v=112"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=313"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=314"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const LINK=BPStore.links.parse("work");   // branded /<studio>/work/<token> (server-verified below)
   const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
-  const LABEL={assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected"};
+  const LABEL={assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected",cancelled:"Cancelled"};
   let data=null, equip=[], upd=null;
   // 0132: an item assigned/changed in the last 24 hours gets an "Updated" badge
   const UPD_MS=24*60*60*1000;
@@ -273,7 +274,8 @@
         else if(t.status==='in_progress') acts=`<button type="button" class="btn primary" data-a="complete">Mark done</button>`;
         else if(t.status==='completed') acts=`<span class="done">✅ Completed — thank you</span>`;
         else if(t.status==='rejected') acts=`<span class="rej">Rejected</span>`;
-        return `<div class="task" data-id="${esc(String(t.id))}"><span class="st ${esc(t.status)}">${LABEL[t.status]||esc(t.status)}</span>
+        else if(t.status==='cancelled') acts=`<span class="cxl">Cancelled by the office</span>`;   // r96 (0312): no actions
+        return `<div class="task${t.status==='cancelled'?' is-cancelled':''}" data-id="${esc(String(t.id))}"><span class="st ${esc(t.status)}">${LABEL[t.status]||esc(t.status)}</span>
           <div class="tt">${esc(t.title)}${isUpd(changed[String(t.id)])?`<span class="upd">Updated</span>`:""}</div><div class="acts">${acts}</div></div>`;
       }).join("")).join("") : '<div class="card muted">No tasks assigned to you yet.</div>';
     host.querySelectorAll(".task").forEach(card=>{
