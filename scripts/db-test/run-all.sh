@@ -303,6 +303,8 @@ run "r58-crew-events-0299" "R58-CREW-EVENTS-0299: ALL PASS \(70/70\)" psql -q -f
 run "r60-db-hardening-0301" "R60-DB-HARDENING-0301: ALL PASS \(49/49\)" psql -q -f tests/db/r60-db-hardening-0301.sql
 # r67 (0304): two SECURITY DEFINER functions hardened to an EMPTY search_path (save_quotation_version, password_change_required); behavior proven identical to the kept *__pre0304 copies; re-applies itself twice (re-run safe), rolled back
 run "r67-definer-searchpath-0304" "R67-DEFINER-SEARCHPATH-0304: ALL PASS \(11/11\)" psql -q -f tests/db/r67-definer-searchpath-0304.sql
+# r82 (0306): referral PILOT list - on for a pilot studio only while the switch is off; non-pilot / partner codes "unknown"; pilot code attaches + shows on the page; 14-day hold kept; *__pre0306 kept; re-applies itself twice, rolled back
+run "r82-referral-pilot-0306" "R82-REFERRAL-PILOT-0306: ALL PASS \(14/14\)" psql -q -f tests/db/r82-referral-pilot-0306.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

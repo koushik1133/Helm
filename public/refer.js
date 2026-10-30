@@ -68,7 +68,7 @@
     }).then(function (r) {
       if (r == null) return;
       if (!r || r.program_on === false || !r.code) { boot($("rfSoon")); return; }
-      render(fromServer(r)); boot($("rfApp"));
+      render(fromServer(r)); if (r.pilot) { var pn = $("rfPilot"); if (pn) pn.hidden = false; } boot($("rfApp"));   /* r82 (0306): early-access pilot */
     }).catch(function (e) {
       var c = String((e && e.code) || ""), m = String((e && e.message) || "");
       var soon = $("rfSoon");

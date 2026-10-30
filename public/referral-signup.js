@@ -8,7 +8,8 @@
      The form's code + the consent box are kept for this tab (sessionStorage "helm.signup.ref") so they survive the
      e-mail confirm step; store-api.js sends them with the sign-up and attaches them once the studio exists
      (BPStore.referral.attachPending -> referral_attach). The server decides whether it counts - never this file.
-   - The look-up (referral_lookup) works signed out, is rate-limited and never says who owns a code.
+   - The look-up (referral_lookup) works signed out and is rate-limited. r82 (0306): for a working STUDIO code it also
+     returns the referring studio's name, shown as "You were referred by <studio>" (textContent only); partner codes never.
    - Opening a link counts one click (referral_click: a number per code per day, nothing about the person).
    - Demo (localhost + ?demo=1, referral-demo.js): recognises DEMO123 / SHAADISQ-7K2Q and the demo partner codes.
    DOM via textContent only. */
@@ -65,7 +66,8 @@
       return r;
     }).then(function (r) {
       r = r || {};
-      if (r.ok) return { kind: r.kind === "partner" ? "partner" : "referral", offer: r.offer || "", terms: r.terms || "" };
+      if (r.ok) return { kind: r.kind === "partner" ? "partner" : "referral", offer: r.offer || "", terms: r.terms || "",
+                        referrer: r.kind === "partner" ? "" : String(r.referrer || "").slice(0, 80) };   /* r82 (0306): who referred you */
       var why = { expired: "This code has expired.", full: "This code has reached its limit.", inactive: "This code is no longer active.",
                   off: "Referral codes are not open yet." }[r.reason];
       if (why) return { kind: "refused", why: why };
@@ -109,7 +111,7 @@
     if (!banner) return;
     var signup = !agree.hidden;
     if (!signup || !hit || !code || hit.kind === "unknown" || hit.kind === "refused") { banner.hidden = true; return; }
-    if (hit.kind === "referral") { bT.textContent = "A Helm studio invited you"; bS.textContent = "8 days free, then 1 free month after your first payment."; }
+    if (hit.kind === "referral") { bT.textContent = hit.referrer ? "You were referred by " + hit.referrer : "A Helm studio invited you"; bS.textContent = "8 days free, then 1 free month after your first payment."; }
     else if (hit.kind === "partner") { bT.textContent = "Partner offer: " + code; bS.textContent = hit.offer ? hit.offer.charAt(0).toUpperCase() + hit.offer.slice(1) + "." : "Thanks for coming via this partner."; }
     else { bT.textContent = "Signing up with code " + code; bS.textContent = "If it is valid: 8 days free, then 1 free month after your first payment."; }
     banner.hidden = false;

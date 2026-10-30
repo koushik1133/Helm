@@ -13,22 +13,19 @@ test.beforeAll(() => requireStagingEnv());
 test.describe.configure({ timeout: 120_000 });
 
 test('@smoke resume card follows the quote across devices until the quotation is saved', async ({ browser }) => {
-  const name = 'E2E resume ' + Date.now();
   const a = await authedPage(browser, 'admin');
   let quoteId = null;
   try {
-    // 1) start a quote (the "in progress" chooser may come first: start a new one)
+    // 1) start a quote: since r19 "New quote" opens flow.html directly (no name dialog / chooser)
     await a.page.locator('#createBtn').click();
-    const startNew = a.page.getByRole('button', { name: 'Start a new one' });
-    if (await startNew.isVisible({ timeout: 3_000 }).catch(() => false)) await startNew.click();
-    await a.page.getByLabel('Event name (optional)').fill(name);
-    await a.page.getByRole('button', { name: 'Create quote' }).click();
-    await a.page.waitForURL(/flow\.html\?quote=/, { timeout: 30_000 });
+    await a.page.waitForURL(/\/flow(\.html)?\?quote=/, { timeout: 30_000, waitUntil: 'domcontentloaded' });
     quoteId = new URL(a.page.url()).searchParams.get('quote');
     expect(quoteId).toMatch(/^[0-9a-f-]{36}$/);
 
     // 2) client + discovery, then into Requirements (the step save is debounced ~1.5 s)
     await a.page.locator('#c_name').fill('Resume Test');
+    // client e-mail is now required for step 1 to save (reserved example.com domain: no real inbox)
+    await a.page.locator('#c_email').fill('resume.e2e@example.com');
     await a.page.locator('#c_phone').fill('9876543210');
     await a.page.locator('#c_type').fill('Wedding');
     const d = new Date(Date.now() + 40 * 864e5).toISOString().slice(0, 10);
@@ -46,14 +43,14 @@ test('@smoke resume card follows the quote across devices until the quotation is
       const card = b.page.locator('#hdResume, #flowResume').first();
       await expect(card).toBeVisible({ timeout: 20_000 });
       await expect(card).toContainText('step 3 of 8');
-      await expect(card.getByRole('link', { name: /^Continue/ })).toHaveAttribute('href', new RegExp('flow\\.html\\?quote=' + quoteId + '#sec-reqs'));
+      await expect(card.getByRole('link', { name: /^Continue/ })).toHaveAttribute('href', new RegExp('flow(\\.html)?\\?quote=' + quoteId + '#sec-reqs'));
       // the Quotes "In progress" tab lists it for the whole studio
       await b.page.goto('/quotes.html?view=inprogress');
       await expect(b.page.locator('#ipWrap')).toContainText('Stopped at: Requirements', { timeout: 20_000 });
 
       // 4) save the quotation in step 8 -> finished
       await a.page.locator('#q_guests').fill('50');
-      await a.page.locator('#q_platePrice').fill('500');
+      // plate price is read-only now (set by the menu package / Settings -> Pricing)
       await a.page.locator('#q_save').click();
       await expect(a.page.locator('#q_msg')).toContainText(/Saved/, { timeout: 20_000 });
 

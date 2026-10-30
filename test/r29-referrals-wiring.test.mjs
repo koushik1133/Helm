@@ -127,7 +127,7 @@ t("REF-01 the pages promise what the server gives: 8 days free, then 1 free mont
   assert.match(signup, /8 days free, then 1 free month after your first payment\./);
   assert.match(refer, /then 1 free month after their first payment/);
   assert.match(referJs, /8 days free, then 1 free month after your first payment\./);
-  assert.match(read("public/login.html"), /referral-signup\.js\?v=3/); assert.match(refer, /refer\.js\?v=3/);
+  assert.match(read("public/login.html"), /referral-signup\.js\?v=4/); assert.match(refer, /refer\.js\?v=4/);
 });
 t("REF-02 / REF-03 in 0279 + APPLY-0279 + APPLY-0279b (for a database that already ran 0279)", () => {
   assert.match(sql, /if not public\._r29_rate\('at:' \|\| auth\.uid\(\)::text, 10\) then return jsonb_build_object\('ok', false, 'reason', 'rate'\); end if;/);
