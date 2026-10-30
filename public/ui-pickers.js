@@ -52,12 +52,16 @@
   // same press, or a click that follows it). We remember the opening event and the press time.
   var openEvt = null, openAt = 0;
   function sameGesture(e) { return e === openEvt || (openAt && e.timeStamp && Math.abs(e.timeStamp - openAt) < 400 && e.type !== "keydown"); }
+  // R95: a modal <dialog> (showModal) sits in the browser's top layer, above ANY z-index, so a list appended to
+  // <body> opened BEHIND it (trial "Choose your state"). Mount inside the nearest open modal dialog instead.
+  function hostFor(anchor) { var d = anchor.closest && anchor.closest("dialog[open]"); return d || doc.body; }
   function mountPopover(pop, anchor, onClose) {
-    doc.body.appendChild(pop);
+    var host = hostFor(anchor);
+    host.appendChild(pop);
     place(pop, anchor);
     requestAnimationFramePoly(function () { pop.classList.add("uip-open"); });
     function reflow(e) {
-      if (!doc.body.contains(pop)) return;
+      if (!pop.isConnected) return;
       var t = e && e.target;
       if (t && t.nodeType === 1 && pop.contains(t)) return; // scrolling the list itself
       var r = anchor.getBoundingClientRect();

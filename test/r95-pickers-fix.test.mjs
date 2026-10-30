@@ -52,3 +52,10 @@ const ob = fs.readFileSync("public/onboarding.js", "utf8");
 assert.match(ob, /\.ob-steps\{display:flex;flex-wrap:wrap/);
 assert.match(ob, /gap:18px 16px/);
 console.log("r95-pickers-fix: ok");
+
+// R95 follow-up: lists opened from a modal <dialog> (top layer) must mount inside that dialog, not <body>
+{
+  const src = (await import('node:fs')).readFileSync(new URL('../public/ui-pickers.js', import.meta.url), 'utf8');
+  if (!/closest\("dialog\[open\]"\)/.test(src) || !/host\.appendChild\(pop\)/.test(src)) { console.error('FAIL: popover not mounted inside open dialog'); process.exit(1); }
+  console.log('  ✓ popover mounts inside an open modal dialog');
+}
