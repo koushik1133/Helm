@@ -359,7 +359,7 @@
       var hh = Math.max(isFinite(h) && px(cs.height) ? h : 0, isFinite(mh) ? mh : 0);
       if (hh > 0 && cs.boxSizing !== "border-box") hh += (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
       if (hh > 0) set("--hp-h", hh + "px");
-      set("--hp-py", px(cs.paddingTop)); set("--hp-px", px(cs.paddingRight));
+      set("--hp-py", px(cs.paddingTop)); set("--hp-px", px(cs.paddingLeft)) /* R95: left, not right - a select's right padding holds the chevron */;
       set("--hp-r", px(cs.borderTopLeftRadius));
     } catch (e) {}
   }
