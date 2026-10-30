@@ -30,7 +30,9 @@ export async function svcGet(path) {
 // Returns { runId, leadId, quoteId, phone }. The lead is converted server-side via convert_lead_to_quote.
 export async function bootstrapCanonicalLead(runId) {
   const tok = await signIn('sales');
-  const phone = '5' + Math.floor(1000000000 + Math.random() * 8999999999);
+  // valid 10-digit Indian mobile (+91, lead digit 9) - the approve page phone widget and the
+  // server's phone-on-file check both expect a real-shaped number.
+  const phone = '+91' + (9000000000 + Math.floor(Math.random() * 999999999));
   // leads RLS requires org_id = current_org_id() (and owner); fetch the caller's profile.
   const prof = (await jj(await fetch(STAGING_URL + '/rest/v1/profiles?select=id,org_id', { headers: anonH(tok) })))[0];
   const lead = (await jj(await fetch(STAGING_URL + '/rest/v1/leads', {

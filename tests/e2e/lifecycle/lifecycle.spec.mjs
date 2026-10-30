@@ -28,7 +28,7 @@
 import { test, expect } from '@playwright/test';
 import { requireStagingEnv } from '../helpers/env.mjs';
 import { authedPage } from '../helpers/session.mjs';
-import { reStoreOtp, signIn } from '../helpers/fixtures.mjs';
+import { reStoreOtp, signIn, stubOtpDelivery } from '../helpers/fixtures.mjs';
 import { newRunId, bootstrapCanonicalLead, rpcAs, svcGet, continuityChain } from '../helpers/lifecycle.mjs';
 
 test.beforeAll(() => requireStagingEnv());
@@ -114,7 +114,8 @@ test.describe('@lifecycle continuous single-event journey', () => {
       await page.goto(`/approve.html?token=${tok}`);
       await page.locator('#c_phone').fill(RUN.phone);
       await page.locator('#c_name').fill(`${RUN.id} Client`);
-      await page.locator('#sendOtp').click();
+      await stubOtpDelivery(page);
+  await page.locator('#sendOtp').click();
       await expect(page.locator('#c_otp')).toBeVisible();   // wait for the UI send+store to finish (step2 shown)
       await reStoreOtp(tok, RUN.phone, code);       // NOW overwrite the UI-sent random code with the known one
       await page.locator('#c_otp').fill(code);
