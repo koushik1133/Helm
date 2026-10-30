@@ -40,6 +40,7 @@
     // round 19: City / State / Country in the "Name your studio" step; invite progress + results
     ".td-loc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.td-loc .td-fld{min-width:0}.td-loc select{width:100%;min-width:0;max-width:100%}",
     "@media (max-width:480px){.td-loc{grid-template-columns:minmax(0,1fr)}}",
+    ".td-loc-line .linkbtn{background:none;border:0;padding:0;margin-left:4px;font:inherit;color:var(--accent,#0f7a43);text-decoration:underline;cursor:pointer}",
     ".td-fld input[readonly]{background:var(--panel-2,#faf8f5);color:var(--ink-2,#4b475f)}",
     ".td-prog{margin:4px 0 10px;font-size:13px;color:var(--ink-2,#4b475f)}",
     ".td-res{margin:0 0 12px;padding:0;list-style:none;font-size:14px}.td-res li{margin:0 0 6px;padding:8px 10px;border-radius:9px;border:1px solid var(--line,#e8e3db)}",
@@ -641,6 +642,25 @@
       const loc = el("div", "td-loc"); loc.appendChild(fc.box); loc.appendChild(fs.box);
       const fp = field("tdw_phone", "Phone (optional)", "tel", "", "Shown on your quotes. Leave empty if you like."); fp.input.maxLength = 40;
       body.appendChild(fn.box); body.appendChild(loc); body.appendChild(fk.box); body.appendChild(fp.box);
+      // r105 (owner: "ask location ONCE"): the sign-up already saved city / state (brand.billing) - prefill them and,
+      // when both are there, skip the location group (one line + "Change"); the values are still sent on Continue
+      try {
+        const O = global.BPStore && BPStore.org && BPStore.org.current ? BPStore.org.current() : null;
+        if (O && O.then) O.then((o) => {
+          const bl = o && o.brand && typeof o.brand === "object" && o.brand.billing && typeof o.brand.billing === "object" ? o.brand.billing : {};
+          const cc = String(bl.country || "IN").toUpperCase(), city = typeof bl.city === "string" ? bl.city.trim() : "", stv = typeof bl.state === "string" ? bl.state.trim() : "";
+          if (cc !== "IN") return;
+          if (city && !fc.input.value) fc.input.value = city;
+          if (stv && !fs.input.value) { fs.input.value = stv; if (fs.input.value !== stv) fs.input.value = ""; }
+          if (fc.input.value.trim().length >= 2 && fs.input.value) {
+            loc.hidden = true; fk.box.hidden = true;
+            const line = el("p", "td-hint td-loc-line", "Location: " + fc.input.value.trim() + ", " + fs.input.value + ", India (from your sign-up) ");
+            const ch = el("button", "linkbtn", "Change"); ch.type = "button";
+            ch.addEventListener("click", () => { loc.hidden = false; fk.box.hidden = false; line.remove(); try { fc.input.focus(); } catch (e) {} });
+            line.appendChild(ch); body.insertBefore(line, fp.box);
+          }
+        }, () => {});
+      } catch (e) {}
       const next = btn("Continue", "btn primary", async () => {
         // r23 (0257): the server refuses any other name - always send the studio's own
         const name = String(t.name || "").trim(), city = fc.input.value.trim(), state = fs.input.value.trim();

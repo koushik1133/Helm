@@ -91,7 +91,7 @@ t('sign-up: ?mode=paid reads as sales while Pay now is off; trial / sales unchan
   assert.equal(SF.payOn(), false);
   assert.match(SFJ, /function wantMode\(\) \{ return payGate\(intent\.mode \|\| mode\(metaOf\(\)\.helm_signup_mode\), payOn\(\)\); \}/);
   assert.match(SFJ, /if \(kind === "pay" && !payOn\(\)\) kind = "sales";/, 'never the payment path');
-  assert.match(SFJ, /: "Contact sales and our team sets up your plan with you, or try Helm free for " \+ days \+ " days - no payment needed\.";/);
+  assert.match(SFJ, /: "Contact sales and our team sets up your plan with you - no studio is opened and nothing is charged until you agree a plan\. Or start your one free " \+ days \+ "-day trial below\.";/);
   assert.match(SFJ, /if \(note\) note\.textContent = currencyNote\(st\.currency, pay\);/);   // r25: per currency; with Pay now off no UPI wording
   assert.doesNotMatch(SF.currencyNote('INR', false), /UPI|Pay now/); assert.doesNotMatch(SF.currencyNote('USD', false), /UPI|Pay now|GST/);
   assert.match(read('public/login.html'), /<p class="helper st-note" id="stNote">/);
@@ -105,7 +105,7 @@ t('checkout: Pay now off = Contact sales button, no online payment, no UPI / ban
   assert.match(CO, /if \(!payOn\(\)\) \{ cardSales\(p\); return; \}/);
   assert.match(CO, /b\.textContent = !payOn\(\) \|\| onRequest/);
   assert.match(CO, /if \(st\.sales && payOn\(\)\) renderPayDetails\(\);/);
-  assert.match(CO, /if \(st\.pending && !payOn\(\)\) \$\("#coPendingNote"\)\.textContent = "Your studio is ready\. Choose Contact sales/);
+  assert.match(CO, /if \(st\.pending && !payOn\(\)\) \$\("#coPendingNote"\)\.textContent = "Your studio is waiting for its plan\. Choose Contact sales/);
   for (const f of ['public/checkout.html', 'public/login.html']) {
     const h = read(f);
     assert.ok(h.indexOf('config.js?v=') > 0 && h.indexOf('config.js?v=') < h.indexOf('plan-cards.js?v='), f + ': config before plan cards');

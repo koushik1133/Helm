@@ -56,8 +56,8 @@ t('intent: ?plan&mode deep links, the old ?trial=1 / ?direct=1 links, a remember
 t('studio step: name required (2-80), link preview follows the server slug rule, team size / event types whitelisted', () => {
   assert.equal(SF.slugify('Aurora Events!'), 'aurora-events'); assert.equal(SF.slugify('A'), 'a-studio'); assert.equal(SF.slugify('***'), 'studio');
   assert.equal(SF.slugify('x'.repeat(60)).length, 36);
-  const v = SF.detailsCheck({ name: '  Aurora  Events ', city: ' Hyderabad ', teamSize: '2-5', eventTypes: ['wedding', 'rave', 'wedding', 'corporate'] });
-  assert.equal(v.ok, true); assert.deepEqual(v.clean, { name: 'Aurora Events', city: 'Hyderabad', teamSize: '2-5', eventTypes: ['wedding', 'corporate'] });
+  const v = SF.detailsCheck({ name: '  Aurora  Events ', city: ' Hyderabad ', state: 'Telangana', teamSize: '2-5', eventTypes: ['wedding', 'rave', 'wedding', 'corporate'] });
+  assert.equal(v.ok, true); assert.deepEqual(v.clean, { name: 'Aurora Events', city: 'Hyderabad', state: 'Telangana', country: 'IN', teamSize: '2-5', eventTypes: ['wedding', 'corporate'] });
   assert.equal(SF.detailsCheck({ name: 'A' }).ok, false); assert.equal(SF.detailsCheck({ name: 'x'.repeat(81) }).ok, false);
   assert.equal(SF.detailsCheck({ name: 'Ok name', teamSize: '7' }).clean.teamSize, '');
   // the same codes as the database check (studio_account_event_types_ck = venues.event_types)
@@ -130,7 +130,7 @@ t('sign-up step 4 actions: Try free = the ONE trial; Pay now / Contact sales = p
   const src = read('public/signup-flow.js');
   assert.match(src, /await global\.BPTrialSignup\.start\(d\.name\);/);
   assert.match(src, /B\.signup\.createDirect\(\{ name: d\.name, plan: p\.code, interval: st\.interval, termsVersion: st\.termsVersion \}\)/);
-  assert.match(src, /global\.location\.replace\(checkoutHref\(p\.code, st\.interval, kind === "sales"\)\);/);
+  assert.match(src, /global\.location\.replace\(checkoutHref\(p\.code, st\.interval, kind !== "pay"\)\);/);   // r105: sales + set-up after sales -> the checkout sales form
   assert.match(src, /if \(await B\.auth\.operatorToHq\(\)\) return;/);
   assert.match(API, /rpc\("create_direct_studio", \{ p_name: name/); assert.match(API, /rpc\("accept_account_terms", \{ p_version:/);
   assert.match(API, /rpc\("signup_plan_options", \{\}\)/); assert.match(API, /rpc\("my_studio_signup_details", \{/);
@@ -139,7 +139,7 @@ t('sign-up step 4 actions: Try free = the ONE trial; Pay now / Contact sales = p
 
 /* ---------------- checkout ---------------- */
 t('checkout: every card has Pay now / (Try free) / Contact sales; the plan from the sign-up is pre-picked', () => {
-  assert.match(CO, /window\.HelmPlanCards\.actions\(p, \{ interval: st\.interval,\n\s+trial: st\.pending && !st\.live && !st\.upgrade/);
+  assert.match(CO, /window\.HelmPlanCards\.actions\(p, \{ interval: st\.interval,\n\s+trial: false,/);   // r105: ONE trial button (#coOneTrial)
   assert.match(CO, /var pick = pickFrom\(location\.search, list\);/);
   assert.match(CO, /sales=signup/);
   assert.match(COH, /<script src="\/plan-cards\.js\?v=\d+"><\/script>\n<script src="trial-upgrade\.js\?v=\d+"><\/script>\n<script src="checkout\.js/);
