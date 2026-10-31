@@ -1,6 +1,6 @@
 // approve-country.test.mjs - client approval page (/<studio>/quote/<token>) for UAE / USA quotes:
 // the mobile country picker defaults to the quote's tax country, and the versioned terms are
-// country-specific (India text pinned by hash; -AE / -US ids follow it). R108: v2-2026-10 consent clause is channel-neutral.
+// country-specific (India text pinned by hash; -AE / -US ids follow it). R108: v3-2026-10 consent clause is channel-neutral.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -19,24 +19,24 @@ function page() {
   return ctx;
 }
 
-t('India terms text is pinned as v2-2026-10 (sha256; R108 channel-neutral consent clause)', () => {
+t('India terms text is pinned as v3-2026-10 (sha256; R108 channel-neutral consent clause; R110 no payment-link wording)', () => {
   const { T } = page();
-  assert.equal(T.TERMS_VERSION, 'v2-2026-10');
-  assert.equal(createHash('sha256').update(T.TERMS_HTML).digest('hex'), 'e2996b36f72682ca6ea5c8b560ccbb43225332f16dc8b282842653c41ffd3b5e');
+  assert.equal(T.TERMS_VERSION, 'v3-2026-10');
+  assert.equal(createHash('sha256').update(T.TERMS_HTML).digest('hex'), '0a07f5b0802eaad4006765314b68cf5a23d2461c1ea97402d44a91f1b7061c06');
   assert.equal(T.termsFor({ country: 'IN' }).html, T.TERMS_HTML);
-  assert.equal(T.termsFor(null).v, 'v2-2026-10');
-  assert.equal(T.termsFor({ country: 'ZZ' }).v, 'v2-2026-10');
-  assert.equal(T.consentText(T.TERMS_VERSION), 'I have read and agree to the Terms & Conditions (v2-2026-10), and I authorise this event and its charges.');
+  assert.equal(T.termsFor(null).v, 'v3-2026-10');
+  assert.equal(T.termsFor({ country: 'ZZ' }).v, 'v3-2026-10');
+  assert.equal(T.consentText(T.TERMS_VERSION), 'I have read and agree to the Terms & Conditions (v3-2026-10), and I authorise this event and its charges.');
 });
 t('UAE terms: own version id, VAT 5%, TRN, AED, Tax Invoice, no GST/SAC', () => {
   const { T } = page(); const x = T.termsFor({ country: 'AE' });
-  assert.equal(x.v, 'v2-2026-10-AE');
+  assert.equal(x.v, 'v3-2026-10-AE');
   for (const w of ['VAT', '5%', 'TRN', 'AED', 'Tax Invoice']) assert.ok(x.html.includes(w), w);
   assert.ok(!/GST|SAC|998596|₹/.test(x.html));
 });
 t('USA terms: own version id, state/local sales tax, exemption certificate, no GST/SAC', () => {
   const { T } = page(); const x = T.termsFor({ country: 'US' });
-  assert.equal(x.v, 'v2-2026-10-US');
+  assert.equal(x.v, 'v3-2026-10-US');
   for (const w of ['sales tax', 'state and local', 'exemption certificate', 'USD']) assert.ok(x.html.includes(w), w);
   assert.ok(!/GST|SAC|998596|₹/.test(x.html));
 });
