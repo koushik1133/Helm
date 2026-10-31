@@ -60,6 +60,8 @@ run "r22-create-studio-0255" "R22-CREATE-STUDIO-0255: ALL PASS \(46/46\)" psql -
 run "r23-quote-validity-0262" "R23-QUOTE-VALIDITY-0262: ALL PASS \(69/69\)" psql -q -f tests/db/r23-quote-validity-0262.sql
 # r84 (0307): one approval per quote - an older unused approval code cannot approve a second time; other open codes expire on a successful verify; re-approval still works; re-applies itself twice, rolled back (runs right after 0262: later suites re-apply OLDER verify_and_consent layers)
 run "r84-otp-single-use-0307" "R84-OTP-SINGLE-USE-0307: ALL PASS \(9/9\)" psql -q -f tests/db/r84-otp-single-use-0307.sql
+# r109 (0319): "Confirm & approve" works when the approval link is opened in a browser signed in to ANOTHER studio (consent org = quote org); paid + trial x e-mail + WhatsApp x total 0 / > 0; old behaviour reproduced (42501); rolled back
+run "r109-otp-verify-org-0319" "R109-OTP-VERIFY-ORG-0319: ALL PASS \(41/41\)" psql -q -f tests/db/r109-otp-verify-org-0319.sql
 # r86 (0308): "Complete your profile" saves for a member of an ended trial studio; the Staff sync is skipped; crew_members stays read-only
 run "r86-profile-trial-gate-0308" "R86-PROFILE-TRIAL-0308: ALL PASS \(10/10\)" psql -q -f tests/db/r86-profile-trial-gate-0308.sql
 # r92 (0311): crew task lifecycle on the server - accept / reject final, reassign locked once accepted, QC only from pending, audit rows; re-applies itself twice, rolled back (early: later suites re-apply OLDER worker_respond / reassign_task / verify_task layers)
@@ -74,6 +76,8 @@ run "r103-profile-payment-0314" "R103-PROFILE-PAYMENT-0314: ALL PASS \(13/13\)" 
 run "r105-signup-sales-0315" "R105-SIGNUP-SALES-0315: ALL PASS \(21/21\)" psql -q -f tests/db/r105-signup-sales-0315.sql
 # r108 (0318): a client cannot approve a quote with no price (total 0 / missing) - HL409 friendly message, no consent, code not used up; priced quote approves; public_quote_ready {priced, studio}; re-applies itself twice, rolled back
 run "r108-unpriced-approval-0318" "R108-UNPRICED-APPROVAL-0318: ALL PASS \(13/13\)" psql -q -f tests/db/r108-unpriced-approval-0318.sql
+# r112 (0321): a re-priced sent / approved quote keeps a new Q-version (never silent); payment schedule outstanding = closure balance; mismatch flag (template schedules); open payments re-split on re-approval / by Finance edit (audited, paid rows untouched, hand-made schedules left alone); re-applies itself twice, rolled back
+run "r112-reprice-money-0321" "R112-REPRICE-MONEY-0321: ALL PASS \(25/25\)" psql -q -f tests/db/r112-reprice-money-0321.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql

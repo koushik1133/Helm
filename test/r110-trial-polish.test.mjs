@@ -16,10 +16,10 @@ const REF = read('public/referral-signup.js'), FLOW = read('public/flow.html'), 
 const SF = read('public/signup-flow.js'), LOGIN = read('public/login.html');
 const P = require('../public/plan-cards.js');
 
-t('0320 in MANIFEST once, last; APPLY-0320 carries the migration verbatim; run-all runs its suite', () => {
+t('0320 in MANIFEST once, right after 0319; APPLY-0320 carries the migration verbatim; run-all runs its suite', () => {
   const nums = [...MAN.matchAll(/^forward {2}supabase\/migrations\/(\d{4})_/gm)].map((m) => m[1]);
   assert.equal(nums.filter((x) => x === '0320').length, 1);
-  assert.equal(nums[nums.length - 1], '0320');
+  assert.equal(nums[nums.indexOf('0320') - 1], '0319');
   assert.ok(APPLY.includes(SQL.trim()), 'APPLY-0320.sql embeds the canonical file unchanged');
   assert.match(APPLY, /^begin;$/m); assert.match(APPLY, /^commit;$/m);
   assert.match(RUNALL, /run "r110-trial-polish-0320" "R110-TRIAL-POLISH-0320: ALL PASS \\\(24\/24\\\)"/);

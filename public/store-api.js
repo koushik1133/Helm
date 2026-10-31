@@ -3053,6 +3053,7 @@ window.HelmUrl = HelmUrl;
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
         eventDate: q.event_date || null, eventTime: q.event_time || null, tax_snapshot: q.tax_snapshot || null, currency: q.currency || null,
         capacityDecision: q.capacity_decision || null,   // 0197: over-capacity decision (set_quote_capacity_decision)
+        consentStale: !!q.consent_stale,   // R112: waiting for the client to approve a changed price again
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
@@ -10546,6 +10547,8 @@ window.HelmUrl = HelmUrl;
       : Promise.reject(new Error("Needs a signed-in studio."))),
     archiveTemplate: (id) => (supa ? rpc("payment_schedule_template_archive", { p_id: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
     forQuote: (quoteId) => (supa ? rpc("payment_schedule_for_quote", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    // R112 (0321): re-split the OPEN payments so the schedule adds up to the current invoice total (Finance edit; audited)
+    resync: (quoteId) => (supa ? rpc("payment_schedule_resync", { p_quote: quoteId }) : Promise.reject(new Error("Needs a signed-in studio."))),
     apply: (quoteId, key, preview) => (supa ? rpc("payment_schedule_apply", { p_quote: quoteId, p_template: key || null, p_preview: !!preview })
       : Promise.reject(new Error("Needs a signed-in studio."))),
     pause: (quoteId, paused) => (supa ? rpc("payment_schedule_pause", { p_quote: quoteId, p_paused: !!paused }) : Promise.reject(new Error("Needs a signed-in studio."))),
