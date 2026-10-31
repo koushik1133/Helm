@@ -51,6 +51,9 @@
   function errText(e) { try { if (global.BPUI && global.BPUI.friendlyError) return global.BPUI.friendlyError(e, { action: "share the booklet" }); } catch (x) {} return String((e && e.message) || "Something went wrong"); }
 
   const BOOKLET_SUB = "A private, read-only page for your client: event details, floor plan, 3D view, menu, quotation, payments and terms. Internal costs and notes are never shown.";
+  // R113 (0322): free-trial approval = test mode (same words as trial-test-note.js on the quote page)
+  const TRIAL_NOTE = "Trial: your client sees a test-mode approval page (no code is sent).";
+  const TRIAL_ASK = "Their page gets an Approve button - in the free trial it is a test approval (code 000000, nothing is sent). Untick to share the booklet only.";
   const SHARE_SUB = "One private link for your client: the event booklet, the quotation and an Approve button. Internal costs and notes are never shown.";
 
   /* ---- r21: "Share with client" = booklet + approval link in ONE dialog ([data-approval] buttons) ----
@@ -84,7 +87,8 @@
     const ask = el("label", "bk-ask"); ask.setAttribute("for", "bkAsk");
     const cb = el("input"); cb.type = "checkbox"; cb.id = "bkAsk"; cb.checked = true;
     const txt = el("span"); txt.appendChild(el("b", "", "Ask the client to approve"));
-    txt.appendChild(el("small", "", "Their page gets an Approve button - they confirm with a one-time code. Untick to share the booklet only."));
+    const askSmall = el("small", "", "Their page gets an Approve button - they confirm with a one-time code. Untick to share the booklet only.");
+    txt.appendChild(askSmall);
     ask.appendChild(cb); ask.appendChild(txt); box.appendChild(ask);
     const inner = el("div", "bk-appr-body"); inner.id = "bkApprBody";
     inner.appendChild(el("h3", "bk-part-h", "Approval link"));
@@ -95,6 +99,14 @@
     const out = el("div", "bk-appr-out"); out.id = "bkApprOut";
     const msg = el("p", "bk-err"); msg.setAttribute("role", "alert");
     inner.appendChild(go); inner.appendChild(msg); inner.appendChild(out); box.appendChild(inner);
+    // R113 (0322): a free-trial studio (active or ended) sends the client NO code - their page is a test-mode approval
+    try {
+      if (st.trialOrg && typeof st.trialOrg.status === "function") st.trialOrg.status().then((t) => {
+        if (!t || t.is_trial_org !== true || doc.getElementById("bkTrialNote")) return;
+        askSmall.textContent = TRIAL_ASK;
+        const n = el("p", "bk-meta", TRIAL_NOTE); n.id = "bkTrialNote"; n.setAttribute("role", "note"); inner.insertBefore(n, go);
+      }).catch(() => {});
+    } catch (e) {}
     cb.addEventListener("change", () => setMode(cb.checked));
     go.addEventListener("click", async () => {
       msg.textContent = "";

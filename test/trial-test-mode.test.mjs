@@ -26,7 +26,9 @@ ok(/^-- VERIFY 0128/.test(verify) && !/\b(insert|update|delete)\b/i.test(verify.
 ok(/^[\x00-\x7F]*$/.test(mig), 'migration ASCII');
 ok(/rpc\("trial_test_approve"/.test(api) && /rpc\("trial_test_mode_for_token"/.test(api), 'store-api wired');
 ok(/id="trialSkip" hidden/.test(page), 'skip hidden by default');
-ok(/trialTestMode\(token\)\.then\(\(on\)=>\{ if\(on===true\)/.test(page), 'shown only on explicit server true');
-ok(/trialTestApprove\(/.test(page) && /r\.approved === true/.test(page), 'fail-closed approve');
+// R113 (0322): test mode shows only on an explicit server answer (public_trial_approval_mode test_mode true, or the 0128
+// boolean true before 0322) - HelmApproveTestMode.spec() returns null otherwise; the approval needs the test code 000000
+ok(/const tm=HelmApproveTestMode\.spec\(m\); if\(!tm\) return;/.test(page), 'shown only on explicit server true');
+ok(/trialTestApproveCode\(/.test(page) && /r && r\.approved === true/.test(page), 'fail-closed approve');
 ok(!/id="trialSkip"[^>]*style=/.test(page), 'no inline style');
 console.log(`trial-test-mode: ${n} checks passed`);

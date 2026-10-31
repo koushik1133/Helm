@@ -2,6 +2,7 @@
 -- approval code by e-mail) under caps (30 a day per studio, 5 a day per address); WhatsApp / SMS / payment links stay
 -- blocked; ended trials, the sample master, demo (sample) events and the owner switch off send nothing; paid studios
 -- are unchanged. Rolled back. Local disposable PG only. Nothing is ever sent (no dispatcher / edge function runs here).
+-- R113 (0322): the approval CODE by e-mail is no longer sent in a trial (test mode, code 000000) - checks 31 / 35 updated.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 begin;
@@ -201,8 +202,9 @@ do $$ declare t uuid; q uuid; qd uuid; r jsonb; r2 jsonb; c record; e text; m js
   -- approval code: e-mail yes (one slot), WhatsApp / SMS no
   perform pg_temp.svc();
   e := pg_temp.err(format('select public.trial_email_otp_begin(%L::uuid, %L)', v_tok, 'ua'));
-  perform pg_temp.res('31 trial approval code by e-mail: begins (on-file address), one slot', e = '' and pg_temp.ledger(t) = 4
-    and exists (select 1 from public.trial_email_sends where org_id = t and kind = 'otp'), e);
+  -- R113 (0322, owner): a trial sends NO approval code at all (test mode, code 000000) - the e-mail code is refused too
+  perform pg_temp.res('31 R113: trial approval code by e-mail now refused (trial_no_send), no slot taken', e like '42501 trial_no_send%'
+    and pg_temp.ledger(t) = 3 and not exists (select 1 from public.trial_email_sends where org_id = t and kind = 'otp'), e);
   e := pg_temp.err(format('select public.wa_otp_begin(%L::uuid, %L, null)', v_tok, 'whatsapp'));
   perform pg_temp.res('32 trial approval code on WhatsApp: still refused (trial_no_send)', e like '42501 trial_no_send%', e);
   e := pg_temp.err(format('select public.otp_send_authorize(%L::uuid, %L)', v_tok, '+91 93141 59265'));
@@ -210,7 +212,7 @@ do $$ declare t uuid; q uuid; qd uuid; r jsonb; r2 jsonb; c record; e text; m js
   e := pg_temp.err(format('select public.payment_link_begin(%L::uuid, 60)', v_tok));
   perform pg_temp.res('34 trial payment link: still refused (trial_no_send)', e like '42501 trial_no_send%', e);
   e := pg_temp.err(format('select public.trial_email_otp_begin(%L::uuid, %L)', v_tok, 'ua'));
-  perform pg_temp.res('35 a second e-mail code right away: the 0151 30-second wait still applies', e like 'HL429%', e);
+  perform pg_temp.res('35 R113: a second e-mail code right away: still refused (trial_no_send)', e like '42501 trial_no_send%', e);
   perform pg_temp.su();
 exception when others then perform pg_temp.su(); insert into _uf values ('2x trial', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 

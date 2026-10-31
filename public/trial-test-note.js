@@ -6,6 +6,8 @@
    real client step (OTP + UPI/card payment link) and a "Skip" button that
    records the payment offline instead (no gateway, no SMS). Non-trial studios:
    nothing is shown. The server still gates every write; this is guidance only.
+   R113 (0322): flow.html step 9 also says "Trial: your client sees a test-mode
+   approval page (no code is sent)" and shows "Approved (test mode)" in a trial.
    CSP: createElement/textContent only, no inline styles.
    ========================================================================= */
 (function (global) {
@@ -21,7 +23,22 @@
     return null;
   }
 
-  var api = { noteSpec: noteSpec, TEXT: TEXT };
+  // R113 (0322): in a free-trial studio (active or ended) the client approval is a TEST - no code is sent, the client
+  // uses the test code 000000. Pure (unit-tested): my_trial_org() answer -> share-panel spec, or null (paid studio).
+  var SHARE_NOTE = "Trial: your client sees a test-mode approval page (no code is sent).";
+  var ASK_TEXT = "Their page gets an Approve button - in the free trial it is a test approval (code 000000, nothing is sent). Untick to share the booklet only.";
+  function shareSpec(t) {
+    if (!t || typeof t !== "object" || t.is_trial_org !== true) return null;
+    return { note: SHARE_NOTE, ask: ASK_TEXT };
+  }
+  // "Approved ✓ on <date>" -> "Approved (test mode) ✓ on <date>" for a trial studio; unchanged otherwise
+  function approvedLabel(text, test) {
+    var s = String(text == null ? "" : text);
+    return test && /^Approved\b/.test(s) && !/test mode/i.test(s) ? s.replace(/^Approved/, "Approved (test mode)") : s;
+  }
+
+  var api = { noteSpec: noteSpec, TEXT: TEXT, shareSpec: shareSpec, approvedLabel: approvedLabel, SHARE_NOTE: SHARE_NOTE, ASK_TEXT: ASK_TEXT,
+    approvalTestMode: false };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
   global.HelmTrialTestNote = api;
@@ -44,6 +61,19 @@
     anchor.parentNode.insertBefore(box, anchor.nextSibling);
   }
 
+  // R113: flow.html step 9 "Share with client" - the trial note + "Approved (test mode)" (flow.html re-syncs on the event)
+  function renderShare(spec) {
+    if (!spec) return;
+    api.approvalTestMode = true;
+    var sub = doc.getElementById("csApproveSub");
+    if (sub && sub.parentNode && !doc.getElementById("csTrialNote")) {
+      var p = doc.createElement("p"); p.id = "csTrialNote"; p.className = "hint"; p.setAttribute("role", "note");
+      p.textContent = spec.note; sub.parentNode.insertBefore(p, sub.nextSibling);
+    }
+    var ask = doc.querySelector("#csAskRow small"); if (ask) ask.textContent = spec.ask;
+    try { global.dispatchEvent(new global.CustomEvent("helm:approval-test-mode")); } catch (e) {}
+  }
+
   var tries = 0;
   function run() {
     var st = global.BPStore, pg = page();
@@ -52,7 +82,7 @@
       if (++tries < 20) setTimeout(run, 500); // wait for the session to restore
       return;
     }
-    st.trialOrg.status().then(function (t) { render(noteSpec(t, pg)); }).catch(function () {});
+    st.trialOrg.status().then(function (t) { render(noteSpec(t, pg)); if (pg === "flow") renderShare(shareSpec(t)); }).catch(function () {});
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", function () { setTimeout(run, 0); });
   else setTimeout(run, 0);

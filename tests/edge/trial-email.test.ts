@@ -104,39 +104,42 @@ Deno.test("client-mailer: gate gives no clear answer -> pre-0212 rule, the trial
   } finally { rF(); rEnv(); }
 });
 
-Deno.test("send-otp: ACTIVE trial -> the code goes by E-MAIL (trial_email_otp_begin), WhatsApp / SMS refused", async () => {
+// R113 (0322, owner decision): a free trial (active or ended) gets NO approval code on any channel - test mode instead
+// (the client uses the test code 000000 on the approval page). The 0212 trial e-mail code path is no longer called.
+Deno.test("send-otp: R113 trial -> NO code on any channel (e-mail / WhatsApp / SMS): 403 test_mode, nothing stored or sent", async () => {
   resetSupaMock(); db(null);
   const rEnv = setEnv(ENV); const rF = providers();
   try {
     const h = await loadHandler(OTP);
-    const res = await h(post({ token: TOKEN, channel: "email" }));
-    assertEquals(res.status, 200);
-    const j = await res.json(); assertEquals(j.status, "sent"); assertEquals(j.channel, "email");
-    assertEquals(calls(/resend/), 1);
-    const begin = supaLog().find((e) => e.rpc === "trial_email_otp_begin");
-    assert(begin && begin.key === "service-role-secret");
-    assert(!supaLog().some((e) => e.rpc === "wa_otp_begin" || e.rpc === "otp_send_authorize"), "the trial path does its checks in one RPC");
-    assert(supaLog().some((e) => e.rpc === "admin_store_otp"), "code hash stored");
-    for (const body of [{ token: TOKEN, channel: "whatsapp" }, { token: TOKEN, phone: "+91 98000 00001" }]) {
-      const r2 = await h(post(body));
-      assertEquals(r2.status, 403); assertEquals((await r2.json()).trial, true);
+    for (const body of [{ token: TOKEN, channel: "email" }, { token: TOKEN, channel: "whatsapp" }, { token: TOKEN, phone: "+91 98000 00001" }]) {
+      const r = await h(post(body));
+      assertEquals(r.status, 403);
+      const j = await r.json(); assertEquals(j.trial, true); assertEquals(j.test_mode, true);
+      assert(/000000/.test(String(j.error)), "says to use the test code");
     }
-    assertEquals(calls(/msg91|graph\.facebook/), 0);
-    assertEquals(calls(/resend/), 1);
+    assert(!supaLog().some((e) => e.rpc === "trial_email_otp_begin"), "0212 trial e-mail code path not called");
+    assert(!supaLog().some((e) => e.rpc === "admin_store_otp"), "no code stored");
+    assertEquals(calls(/resend|msg91|graph\.facebook/), 0);
   } finally { rF(); rEnv(); }
 });
 
-Deno.test("send-otp: trial e-mail code over the cap -> 429; ended trial / no 0212 -> 403; nothing sent", async () => {
+Deno.test("send-otp: R113 - a database refusal of the store step (0322 trigger, trial_no_send) -> 403 test_mode, nothing sent", async () => {
   const rEnv = setEnv(ENV); const rF = providers();
   try {
-    for (const [err, status] of [[{ code: "HL429", hint: "trial_email_cap", message: "x" }, 429], [{ code: "42501", hint: "trial_no_send", message: "x" }, 403],
-                                 [{ code: "PGRST202", message: "missing" }, 403]] as const) {
-      resetSupaMock(); db(null, { data: null, error: err });
-      const h = await loadHandler(OTP);
-      const res = await h(post({ token: TOKEN, channel: "email" }));
-      assertEquals(res.status, status); assertEquals((await res.json()).trial, true);
-      assert(!supaLog().some((e) => e.rpc === "admin_store_otp"), "no code stored");
-    }
+    resetSupaMock();
+    g.__supaGetUser = () => ({ data: { user: null } });
+    g.__supaRpc = (name: string) => {
+      if (name === "trial_send_blocked") return { data: false, error: null };   // e.g. the trial started a moment ago
+      if (name === "public_quote_ready") return { data: { priced: true, studio: "S" }, error: null };
+      if (name === "wa_otp_begin") return { data: DEST, error: null };
+      if (name === "otp_send_authorize") return { data: { ok: true }, error: null };
+      if (name === "admin_store_otp") return { data: null, error: { code: "42501", hint: "trial_no_send", message: "x" } };
+      return { data: null, error: null };
+    };
+    g.__supaResolver = () => ({ data: null, error: null });
+    const h = await loadHandler(OTP);
+    const res = await h(post({ token: TOKEN, channel: "email" }));
+    assertEquals(res.status, 403); const j = await res.json(); assertEquals(j.trial, true); assertEquals(j.test_mode, true);
     assertEquals(calls(/resend|msg91|graph\.facebook/), 0);
   } finally { rF(); rEnv(); }
 });
