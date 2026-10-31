@@ -199,11 +199,11 @@ exception when others then perform pg_temp.su(); insert into _uf values ('4x pub
 -- ---- 4) Skip OTP on the sent sample quote (trial test mode) -----------------------------------------
 do $$ declare r jsonb; e text; begin
   perform pg_temp.login('mf_a@t.test');
-  r := public.trial_test_approve(pg_temp.get('A_token')::uuid, null, E'Demo \u00b7 Rohit Sharma', 'v1', 'I agree (test)', 'test');
+  r := public.trial_test_approve_code(pg_temp.get('A_token')::uuid, '000000', null, E'Demo \u00b7 Rohit Sharma', 'v1', 'I agree (test)', 'test');   -- R113 (0322): test code
   perform pg_temp.su();
   perform pg_temp.res('50 Skip OTP approves the sent sample quote', coalesce((r ->> 'approved')::boolean, false), r::text);
   perform pg_temp.login('mf_b@t.test');
-  e := coalesce((public.trial_test_approve(pg_temp.get('A_token')::uuid, null, 'x', 'v1', 'x', 'x')) ->> 'error', 'none');
+  e := coalesce((public.trial_test_approve_code(pg_temp.get('A_token')::uuid, '000000', null, 'x', 'v1', 'x', 'x')) ->> 'error', 'none');
   perform pg_temp.su();
   perform pg_temp.res('51 another studio cannot use the token', e <> 'none', e);
 exception when others then perform pg_temp.su(); insert into _uf values ('5x otp', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;

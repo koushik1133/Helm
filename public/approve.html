@@ -47,6 +47,8 @@
   .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca}
   .msg.dev{background:#fff7e6;color:#946200;border:1px solid #f2d492;font-family:var(--mono)}
+  .msg.dev.test-banner,#termsTrialNote{font-family:var(--font);font-weight:600;font-size:14px;line-height:1.5}
+  .terms.terms-preview{border-left:3px solid var(--warn);padding-left:12px}
   .done{text-align:center;padding:8px 0}
   .done .big{font-size:44px;line-height:1} .done h2{margin:8px 0 4px}
   .muted{color:var(--ink-3);font-size:12px}
@@ -71,6 +73,8 @@
   <div id="content" hidden>
     <!-- r23 (0262): "This quote is valid until dd/mm/yyyy" / expired + "Request a new quote" (quote-validity.js) -->
     <div id="qvBanner" class="qv-banner" hidden></div>
+    <!-- R113 (0322): free-trial studio - TEST MODE (no code is sent; the test code is 000000). approve-test-mode.js -->
+    <div id="testModeBanner" class="msg dev test-banner" role="status" hidden></div>
     <!-- Event summary + pricing -->
     <div class="card">
       <div class="s-1fadc7d">
@@ -82,7 +86,8 @@
 
     <!-- Terms -->
     <div class="card">
-      <div class="seclabel">Terms &amp; conditions <span id="tver" class="muted s-4496197"></span></div>
+      <div class="seclabel"><span id="termsLabel">Terms &amp; conditions</span> <span id="tver" class="muted s-4496197"></span></div>
+      <p class="msg dev" id="termsTrialNote" hidden></p>
       <div class="terms" id="terms"></div>
     </div>
 
@@ -99,10 +104,11 @@
         <p class="muted" id="waNote">We send a one-time code to the e-mail address or WhatsApp number your planner has on file for you.</p>
         <button class="btn" id="sendOtp" type="button">Send OTP to my phone by SMS</button>
         <div id="trialSkip" hidden>
-          <p class="muted" id="trialSkipInfo"><b>Trial test mode</b> &mdash; Your planner&rsquo;s studio is on its free trial. You can get your one-time code by e-mail (above), or confirm here instead. In the free trial no SMS or WhatsApp is sent and no online payment link is used; a confirmation here is recorded as a trial test and the event moves to Confirmed.</p>
-          <label class="agree"><input type="checkbox" id="t_agree">
-            <span>I have read and agree to the Terms &amp; Conditions above (trial test).</span></label>
-          <button class="btn primary" id="trialSkipBtn" type="button">Test mode - confirm</button>
+          <p class="muted" id="trialSkipInfo"><b>Test mode</b> &mdash; Your planner&rsquo;s studio is on a Helm free trial. No code is sent to you; use the test code 000000.</p>
+          <div class="fld otp" id="trialCodeRow"><label for="t_code">Test code</label><input id="t_code" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="000000"></div>
+          <label class="agree" id="trialAgreeRow"><input type="checkbox" id="t_agree">
+            <span>I have read the trial preview of the Terms &amp; Conditions above (test - not a binding booking).</span></label>
+          <button class="btn primary" id="trialSkipBtn" type="button">Simulate approval</button>
         </div>
       </div>
 
@@ -125,7 +131,7 @@
       <div id="step3" hidden>
         <div class="done">
           <div class="big" aria-hidden="true">✅</div>
-          <h2>Approved &amp; consented</h2>
+          <h2 id="approvedTitle">Approved &amp; consented</h2>
           <p class="muted" id="approvedNote"></p>
         </div>
         <button class="btn primary s-56f4356" id="payBtn" type="button">Proceed to payment</button>
@@ -148,7 +154,7 @@
   <div id="loadErr" hidden></div>
   </main>
 
-  <footer>Secured by one-time password verification · your consent is recorded with a timestamped audit trail.<br>Helm Events · event management</footer>
+  <footer><span id="footNote">Secured by one-time password verification · your consent is recorded with a timestamped audit trail.</span><br>Helm Events · event management</footer>
 </div>
 
 <script src="/trusted-types.js?v=6"></script>
@@ -157,7 +163,7 @@
 <script src="/config.js?v=112"></script>
 <script src="/phone-input.js?v=9"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=321"></script><script src="/quote-validity.js?v=4"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=322"></script><script src="/quote-validity.js?v=4"></script><script src="/approve-test-mode.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -321,9 +327,16 @@
     // r23 (0262): valid-until line; while an expired quote is locked the Approve steps are replaced by "Request a new quote"
     // (the server refuses the approval anyway). Approved / paid quotes show nothing.
     if(window.HelmQuoteValidity && quote.approval_status!=="approved" && quote.approval_status!=="paid") HelmQuoteValidity.mountClient($("#qvBanner"), "quote", token, { onState:(s)=>{ const lock=!!(s&&s.state==="expired"&&s.locked); ["#step1","#step2"].forEach((sel)=>{ const x=$(sel); if(x&&lock){ x.hidden=true; } }); if(lock) $("#flow").classList.add("qv-locked"); } }).catch(()=>{});
-    // 0128 trial test mode: only shown when the server says this link's studio is an active trial
-    if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false; { ["#sendOtp","#sendWa"].forEach((sel)=>{ const b=$(sel); if(b){ b.hidden=true; b.style.display="none"; } }); const wn=$("#waNote"); const em=$("#sendEmailOtp"); const emailOn=!(BPStore.approval.emailEnabled && !BPStore.approval.emailEnabled()); if(!emailOn && em){ em.hidden=true; em.style.display="none"; } if(wn){ if(emailOn) wn.textContent="Free trial: we send the one-time code to the e-mail address your planner has on file for you. SMS and WhatsApp codes are not used in the trial."; else wn.hidden=true; } }   // 0176 / 0212: a trial sends no SMS / WhatsApp; the code by e-mail works (capped by the server)
-      $("#payManual").textContent="Trial test mode: in a real studio your client pays by UPI/card through the payment link. In this trial you can skip that step - record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
+    // R113 (0322): a free-trial studio (active or ended) sends NO code - test mode: banner, terms marked as a trial
+    // preview, no send buttons, the test code 000000 + "Simulate approval" (the server re-checks trial + code).
+    // Before 0322 (no answer) the 0128 boolean is used. Paid studios: nothing changes here.
+    if(BPStore.approval.trialMode && window.HelmApproveTestMode){ BPStore.approval.trialMode(token).then((m)=>(m && typeof m==="object") ? m
+        : (BPStore.approval.trialTestMode ? BPStore.approval.trialTestMode(token) : null)).then((m)=>{
+      const tm=HelmApproveTestMode.spec(m); if(!tm) return;
+      HelmApproveTestMode.apply(tm);
+      if(quote.approval_status==="approved"||quote.approval_status==="paid") $("#approvedTitle").textContent="Approved (test mode)";   // an approval in a trial is a test
+      $("#payBtn").hidden=true; $("#payBtn").style.display="none";
+      $("#payManual").textContent="Trial preview: no payment is taken here. In a real studio your client pays by UPI/card through the payment link; in this trial the studio records a test payment itself (Payments / Record payment)."; }).catch(()=>{}); }
     // R108: no price -> "Quote not priced yet - please contact <Studio>" instead of the approval steps (0318 refuses it too)
     const apOpen=quote.approval_status!=="approved" && quote.approval_status!=="paid";
     if(apOpen && !isPriced(quote.pricing)) showNotPriced();
@@ -414,15 +427,18 @@
     finally{ b.textContent="✓ Confirm & approve"; }
   }));
 
-  // 0128 trial test mode: the server re-checks the trial and runs the normal consent path
+  // R113 (0322) trial TEST MODE: only the test code 000000; the server re-checks the trial + the code, records a TEST
+  // approval (consent test_mode, audit approval.test_mode) and runs the trial confirm (event Confirmed)
   $("#trialSkipBtn").addEventListener("click", ()=>BPUI.guard($("#trialSkipBtn"), async ()=>{
     setMsg(); const name=$("#c_name").value.trim();
     if(name.length<2){ setMsg("err","Please enter your name."); $("#c_name").focus(); return; }
+    const code=$("#t_code").value.trim(), bad=HelmApproveTestMode.checkCode(code);
+    if(bad){ setMsg("err",bad); $("#t_code").focus(); return; }
     if(!$("#t_agree").checked){ setMsg("err","Please tick the box to accept the terms."); $("#t_agree").focus(); return; }
-    try{ const r=await BPStore.approval.trialTestApprove(token, $("#c_phone").value.trim(), name, shownTerms.v, consentText(shownTerms.v)+" [trial test - OTP skipped]", navigator.userAgent);
-      if(r && r.approved === true){ showStep('step3'); $("#approvedNote").textContent="Confirmed in trial test mode (no OTP sent). The event is now Confirmed - the studio can create the event group and share the booklet."; $("#payManual").hidden=false; setMsg(); }
-      else setMsg("err",(r&&r.message)||"Could not approve in trial test mode.");
-    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"approve in trial test mode"})); if(e && e.hint==="quote_not_priced") showNotPriced(); }
+    try{ const r=await BPStore.approval.trialTestApproveCode(token, code, $("#c_phone").value.trim(), name, shownTerms.v, consentText(shownTerms.v)+" [trial test mode - code 000000, nothing sent]", navigator.userAgent);
+      if(r && r.approved === true){ showStep('step3'); $("#approvedTitle").textContent="Approved (test mode)"; $("#approvedNote").textContent=HelmApproveTestMode.APPROVED; $("#payManual").hidden=false; setMsg(); }
+      else setMsg("err",(r&&r.message)||"Could not approve in test mode.");
+    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"approve in test mode"})); if(e && e.hint==="quote_not_priced") showNotPriced(); }
   }));
 
   // No online pay on a production host until Razorpay is live (sim checkout is 404 there)

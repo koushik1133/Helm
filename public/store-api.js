@@ -3737,6 +3737,16 @@ window.HelmUrl = HelmUrl;
     trialTestApprove: (token, phone, clientName, termsVersion, consentText, ua) => lvApprove(token,
       rpc("trial_test_approve", { p_token: token, p_phone: phone || null, p_client_name: clientName,
         p_terms_version: termsVersion, p_consent_text: consentText, p_user_agent: ua })),
+    // ---- R113 (0322): free-trial approval = TEST MODE (no code is ever sent; the test code is 000000) ----
+    // { test_mode, can_approve, ended } for this link; null = unknown link / database without 0322 / any error
+    trialMode: (token) => mode === "supabase" && token ? rpc("public_trial_approval_mode", { p_token: token }).catch(() => null) : Promise.resolve(null),
+    // the server checks the trial + the test code; before 0322 (function missing) the 0176 trial confirm is used
+    trialTestApproveCode: (token, code, phone, clientName, termsVersion, consentText, ua) => lvApprove(token,
+      rpc("trial_test_approve_code", { p_token: token, p_code: code, p_phone: phone || null, p_client_name: clientName,
+        p_terms_version: termsVersion, p_consent_text: consentText, p_user_agent: ua })
+        .catch((e) => { if (!isMissingFn(e)) throw e;
+          return rpc("trial_test_approve", { p_token: token, p_phone: phone || null, p_client_name: clientName,
+            p_terms_version: termsVersion, p_consent_text: consentText, p_user_agent: ua }); })),
     generateToken: (quoteId) => rpc("generate_approval_token", { p_quote_id: quoteId }),
     markPaid: (quoteId, ref) => rpc("mark_paid", { p_quote_id: quoteId, p_provider_ref: ref || null }),
     async consents(quoteId) { if (!supa) return []; const { data, error } = await supa.from("quote_consents")

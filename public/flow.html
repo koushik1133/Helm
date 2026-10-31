@@ -463,8 +463,8 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=321"></script>
-<script src="page-tours.js?v=11"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=322"></script>
+<script src="page-tours.js?v=12"></script>
 <script src="tour.js?v=32"></script>
 <script src="payment-schedule.js?v=3"></script>
 <script src="booklet.js?v=31"></script>
@@ -478,7 +478,7 @@
 <script src="flow-dish-editor.js?v=3"></script>
 <script src="venues-core.js?v=11"></script>
 <script src="venue-picker.js?v=8"></script>
-<script src="venue-area.js?v=2"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=1"></script><script src="event-group-picker.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="stage-history.js?v=2"></script><script src="link-views.js?v=4"></script>
+<script src="venue-area.js?v=2"></script><script src="wa-proposal.js?v=5"></script><script src="email-send.js?v=5"></script><script src="trial-test-note.js?v=2"></script><script src="event-group-picker.js?v=5"></script><script src="approval-watch.js?v=2"></script><script src="stage-history.js?v=2"></script><script src="link-views.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   // owner 2026-10 (flow validation): every field rule lives in flow-validate.js. Event dates follow the
@@ -1475,7 +1475,8 @@
   function clientApproved(){ const ap=(ev&&(ev.approvalStatus||ev.approval_status))||""; return sharePaid || PAID_SUM>0 || ap==="approved" || ap==="paid"; }
   function approvedOnText(){ const at=ev&&(ev.confirmedAt||ev.confirmed_at); let d="";
     try{ d=at ? (BPStore.fmtStudioDate ? BPStore.fmtStudioDate(at) : BPStore.fmtDateIN(at)) : ""; }catch(_){ d=""; }
-    return d ? "Approved ✓ on "+d : "Approved ✓"; }
+    const txt=d ? "Approved ✓ on "+d : "Approved ✓", T=(typeof window!=="undefined")?window.HelmTrialTestNote:null;   // R113 (0322): a trial approval is a test
+    return (T && T.approvedLabel) ? T.approvedLabel(txt, T.approvalTestMode===true) : txt; }
   function syncShare(paid){
     if(paid!=null) sharePaid=!!paid;
     const done=clientApproved(), box=$("#csAsk"), ask=!done && !!(box&&box.checked), inPage=!!($("#shareBody")&&$("#shareBody").parentNode===$("#csHome"));
@@ -1500,6 +1501,7 @@
   // the rail card's status line is the source; step 9 shows the same words (text only)
   function mirrorApprState(){ const a=$("#apprState"), b=$("#csApprState"); if(a&&b&&b.textContent!==a.textContent) b.textContent=a.textContent; }
   let shareFrom=null;
+  window.addEventListener("helm:approval-test-mode", ()=>{ try{ syncShare(); }catch(_){} });   // R113: trial -> "Approved (test mode)"
   function placeShare(inDialog){
     const body=$("#shareBody"), to=inDialog?$("#csSlot"):$("#csHome"); if(!body||!to||body.parentNode===to) return;
     to.appendChild(body); const away=$("#csAway"); if(away) away.hidden=!inDialog;

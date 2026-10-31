@@ -23,11 +23,17 @@
 // 0179: a free-trial studio (studio_subscriptions.status 'trial') sends NO code: checked here with the
 // service role (trial_send_blocked) before anything is stored or sent -> 403 { trial: true }; the
 // database wrappers refuse it too (42501 / hint trial_no_send). The portal offers Test mode instead.
-// 0212 (owner decision: e-mail works in the free trial): in an ACTIVE trial the code BY E-MAIL is sent -
+// 0212 (SUPERSEDED by R113 / 0322 below): in an ACTIVE trial the code BY E-MAIL was sent -
 // trial_email_otp_begin (service role) runs the same checks as wa_otp_begin + otp_send_authorize (address on
 // the quote, 30 s cooldown, 4 per 30 min, demo, studio daily cap) and takes one trial e-mail slot (30 a day per
 // studio, 5 a day per address) -> over the cap 429. SMS and WhatsApp codes stay refused in the trial (403
 // { trial: true }); an ended trial / the sample master / a database without 0212: e-mail refused too (403).
+//
+// R113 (0322, owner decision: trial client approval = DUMMY / TEST MODE): a free-trial studio (active OR ended, or the
+// sample master) gets NO approval code on ANY channel - no e-mail, no WhatsApp, no SMS. The 0212 trial e-mail code path
+// (trial_email_otp_begin) is no longer called: 403 { trial: true, test_mode: true } before anything is stored or sent.
+// The client approval page shows "Test mode" and the client uses the test code 000000 (trial_test_approve_code). The
+// database refuses it too (0322: no quote_otps row / no 'otp' e-mail slot for a trial quote). Paid studios: unchanged.
 //
 // R108 (0318): a quote with no price (total missing or <= 0, public_quote_ready) gets no code -> 409 { not_priced: true }
 // with "This quote isn't ready yet - please contact <Studio>."; the database refuses its approval too (0318 trigger).
@@ -39,12 +45,10 @@ import { isLive, otpEmail, otpMessage } from "../wa-proposal/logic.mjs";
 import { brandMode, sendMail } from "../_shared/mailer.ts";
 import { postalAddress } from "../_shared/email-compliance.mjs";
 import { studioReplyTo } from "../_shared/reply-to.mjs";
-import { isMissingFn, isTrialNoSend, trialSendBlocked } from "../_shared/trial-guard.ts";
+import { isTrialNoSend, trialSendBlocked } from "../_shared/trial-guard.ts";
 
-const TRIAL_OTP_MSG = "Approval codes are not sent while your planner's studio is on its free trial - use the Test mode confirm on this page.";
-// 0212: an active trial sends the code by e-mail only
-const TRIAL_CHANNEL_MSG = "In your planner's free trial the code is sent by e-mail only - use \"Send code to my e-mail\" or the Test mode confirm on this page.";
-const TRIAL_CAP_MSG = "Your planner's free trial has reached today's e-mail limit - use the Test mode confirm on this page.";
+// R113 (0322): a free trial never sends a code - the client page offers the test code 000000 instead
+const TRIAL_OTP_MSG = "Test mode: your planner's studio is on a Helm free trial, so no code is sent. Use the test code 000000 on this page.";
 
 // R108 (0318): { priced, studio } for this link, or null (unknown link / database without 0318 / any error)
 // deno-lint-ignore no-explicit-any
@@ -78,33 +82,24 @@ async function sendByChannel(req: Request, json: any, admin: any, token: string,
   let dest: any = null;
   const np = await notPricedMsg(admin, token);
   if (np) return json({ error: np, not_priced: true }, 409);
-  if (await trialSendBlocked(admin, { token })) {   // 0179: the studio is on (or ended) its free trial
-    if (channel !== "email") return json({ error: TRIAL_CHANNEL_MSG, trial: true }, 403);
-    // 0212: an active trial e-mails the code (all checks + one capped slot in the database)
-    const { data: tDest, error: tErr } = await admin.rpc("trial_email_otp_begin", { p_token: token, p_user_agent: ua });
-    if (tErr) {
-      if (isMissingFn(tErr) || isTrialNoSend(tErr)) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
-      if (String(tErr.code || "") === "HL429" && String(tErr.hint || "") === "trial_email_cap") return json({ error: TRIAL_CAP_MSG, trial: true }, 429);
-      const [status, msg] = otpFailure(String(tErr.code || ""), channel);
-      return json({ error: msg }, status);
-    }
-    if (!tDest || !tDest.phone_key || !tDest.email) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
-    dest = tDest;
-  } else {
+  // 0179 / R113 (0322): a free-trial studio (active or ended) gets no code on any channel - test mode instead
+  if (await trialSendBlocked(admin, { token })) return json({ error: TRIAL_OTP_MSG, trial: true, test_mode: true }, 403);
+  {
     const { data: pDest, error: bErr } = await admin.rpc("wa_otp_begin", { p_token: token, p_channel: channel, p_user_agent: ua });
-    if (isTrialNoSend(bErr)) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
+    if (isTrialNoSend(bErr)) return json({ error: TRIAL_OTP_MSG, trial: true, test_mode: true }, 403);
     if (bErr || !pDest || !pDest.phone_key) {
       const [status, msg] = otpFailure(String(bErr?.code || ""), channel);
       return json({ error: msg }, status);
     }
     const { error: aErr } = await admin.rpc("otp_send_authorize", { p_token: token, p_phone: pDest.phone_key });
-    if (isTrialNoSend(aErr)) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
+    if (isTrialNoSend(aErr)) return json({ error: TRIAL_OTP_MSG, trial: true, test_mode: true }, 403);
     if (aErr) { const [status, msg] = otpFailure(String(aErr.code || ""), channel); return json({ error: msg }, status); }
     dest = pDest;
   }
   const code = newCode();
   const storeArgs = { p_token: token, p_phone: dest.phone_key, p_code: code };
   const { error } = await admin.rpc("admin_store_otp", storeArgs);
+  if (isTrialNoSend(error)) return json({ error: TRIAL_OTP_MSG, trial: true, test_mode: true }, 403);   // R113 (0322)
   if (error) { console.error("admin_store_otp failed", errTag(error)); return json({ error: "too many requests — please try again later" }, 429); }
   let live = false;
   if (channel === "whatsapp") {
@@ -180,14 +175,14 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
-    // 0179: no SMS from a free-trial studio (checked before any code is stored; 0212 keeps SMS off in the trial)
-    if (await trialSendBlocked(admin, { token })) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
+    // 0179 / R113 (0322): no SMS from a free-trial studio (checked before any code is stored) - test mode instead
+    if (await trialSendBlocked(admin, { token })) return json({ error: TRIAL_OTP_MSG, trial: true, test_mode: true }, 403);
     const npS = await notPricedMsg(admin, token);   // R108: no code for a quote without a price
     if (npS) return json({ error: npS, not_priced: true }, 409);
 
     // who may receive it + per-studio daily cap (server-side)
     const { data: dest, error: aErr } = await admin.rpc("otp_send_authorize", { p_token: token, p_phone: phone });
-    if (isTrialNoSend(aErr)) return json({ error: TRIAL_OTP_MSG, trial: true }, 403);
+    if (isTrialNoSend(aErr)) return json({ error: TRIAL_OTP_MSG, trial: true, test_mode: true }, 403);
     if (aErr || !dest || !dest.mobile) {
       const [status, msg] = otpFailure(String(aErr?.code || ""));
       return json({ error: msg }, status);
@@ -204,6 +199,7 @@ Deno.serve(async (req) => {
 
     // store the hash (rate-limits + validates the token inside the DB)
     const { error } = await admin.rpc("admin_store_otp", { p_token: token, p_phone: phone, p_code: code });
+    if (isTrialNoSend(error)) return json({ error: TRIAL_OTP_MSG, trial: true, test_mode: true }, 403);   // R113 (0322)
     if (error) {
       console.error("admin_store_otp failed", errTag(error));
       const tooMany = /too many/i.test(String(error.message || ""));

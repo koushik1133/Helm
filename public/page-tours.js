@@ -87,7 +87,7 @@
       { sel: "#sec-proposal", title: "3 · Proposal", desc: "Your pitch to the client — it sits above the floor layout so you sell first, then plan." },
       { sel: "#sec-layout", title: "4 · Floor layout", desc: "Open the builder. The chairs you place here feed straight back into the quotation." },
       { sel: "#sec-quote", title: "5 · Quote", desc: "Final pricing and confirmation. Confirming sets the event live." },
-      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. \"Valid until\" shows how long the quote stays open (dd/mm/yyyy) - Extend it or pick a date, and if you click by mistake, press Undo straight away; every change is kept in History." },
+      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. \"Valid until\" shows how long the quote stays open (dd/mm/yyyy) - Extend it or pick a date; Undo fixes a mistake. Free trial: a test approval, no code is sent (use 000000)." },
       { sel: "#sec-pay", need: "finance", title: "6 · Payment", desc: "Record the advance (amount, method, receipt no.) to confirm the booking, and pick a payment schedule - you see the split (e.g. 30% / 50% / 20%) before you add it." },
     ],
     "logistics.html": [
