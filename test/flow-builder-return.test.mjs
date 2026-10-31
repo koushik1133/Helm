@@ -55,8 +55,8 @@ t("builder: Save & back button, saves then writes pricing un-debounced, then ret
   assert.match(bhtml, /id="backToFlowBtn" hidden/);
   assert.match(bhtml, /flow-layout-sync\.js[\s\S]*builder\.js/);
   assert.match(bjs, /params\.get\('from'\)==='flow'\) bb\.hidden=false/);
-  assert.match(bjs, /async function syncQuotePricingNow\(\)/);
+  assert.match(bjs, /async function syncQuotePricingNow\(opts\)/);   // R112: opts.interactive asks before a sent quote is re-priced
   // r19 L2: saves when the canvas differs from the STORED version (not only when "dirty"), and leaves only once it exists
-  assert.match(bjs, /await saveLayout\(false\);\s*\n\s*if\(!ok\) return;[^\n]*\n\s*if\(need && [^\n]*\n[^\n]*return; \}[^\n]*\n\s*if\(!RO\) await syncQuotePricingNow\(\);[^\n]*\n\s*location\.href = HelmFlowLayout\.returnUrl\(currentQuoteId\);/);
+  assert.match(bjs, /await saveLayout\(false, \{ noReprice:true \}\);\s*\n\s*if\(!ok\) return;[^\n]*\n\s*if\(need && [^\n]*\n[^\n]*return; \}[^\n]*\n\s*\/\/ R112[^\n]*\n\s*if\(!RO\) await syncQuotePricingNow\(\{ interactive:true \}\);[^\n]*\n\s*location\.href = HelmFlowLayout\.returnUrl\(currentQuoteId\);/);
 });
 console.log(`flow-builder-return: ${n} passed`);
