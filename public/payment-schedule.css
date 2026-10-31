@@ -114,3 +114,6 @@
 #pstCard .pst-flag{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px}
 #pstCard .pst-flag b{font-size:13px}
 #pstCard .btn.danger{border-color:var(--danger,#c0392b);color:var(--danger,#c0392b)}
+/* R112 (0321): the schedule no longer adds up to the quote total + re-split button */
+.psch-mismatch{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:10px}
+.psch-resync{font-size:13px}

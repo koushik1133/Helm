@@ -186,6 +186,9 @@
           var s = el("span"); s.appendChild(document.createTextNode(x[0] + ": ")); s.appendChild(moneyEl("b", "", x[1], d.currency)); tot.appendChild(s);
         });
         box.appendChild(tot);
+        // R112 (0321): Outstanding is the closure balance (invoice total - payments). When the quote total changed after
+        // the schedule was made, say so - and Finance edit can re-split the open payments to the new total.
+        if (d.mismatch) box.appendChild(mismatchNote(d));
       }
       var line = reminderLine(d.reminders, d.paused);
       var foot = el("div", "psch-foot");
@@ -207,6 +210,31 @@
         a.href = "logistics.html?quote=" + encodeURIComponent(quoteId) + "#payments"; foot.appendChild(a);
       }
       box.appendChild(foot);
+    }
+    function mismatchNote(d) {
+      var w = el("div", "psch-mismatch"); w.setAttribute("role", "status");
+      var p = el("p", "psch-soft"), t = el("span");
+      t.appendChild(document.createTextNode("The quote total is now "));
+      t.appendChild(moneyEl("b", "", d.total, d.currency));
+      t.appendChild(document.createTextNode(", but these payments add up to "));
+      t.appendChild(moneyEl("b", "", d.scheduled, d.currency));
+      t.appendChild(document.createTextNode(" (the price changed after the schedule was made). Outstanding uses the quote total."));
+      p.appendChild(t); w.appendChild(p);
+      if (d.can_resync && B.paySchedule.resync) {
+        var b = el("button", "btn psch-resync", "Re-split the open payments to the new total"); b.type = "button";
+        b.addEventListener("click", async function () {
+          if (state.busy) return; state.busy = true; b.disabled = true;
+          try {
+            var r = await B.paySchedule.resync(quoteId);
+            toast(r && r.changed ? "Payment schedule updated to the new total." : (r && r.reason === "below_paid"
+              ? "The new total is below what is already paid - record a refund or change the payments in Logistics." : "Nothing to change."), r && r.changed ? "ok" : "info");
+            await load(); if (typeof opts.onChange === "function") opts.onChange();
+          } catch (e) { toast(errText(e), "err"); }
+          finally { state.busy = false; if (b.isConnected) b.disabled = false; }
+        });
+        w.appendChild(b);
+      }
+      return w;
     }
     // r61: template + "Add this schedule" on one aligned line, then the split (bar + one row per payment: percent, name,
     // when it is due, amount - or "-" until the quote is priced) and a soft note instead of the server's red error
