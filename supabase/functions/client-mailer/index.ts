@@ -8,7 +8,8 @@
 // The quote is read AS THE CALLER, so row-level security limits it to the caller's own studio;
 // the approval link must exist and still be live (not expired / paused / cancelled - r56 C-03)
 // and a booklet link must be live (not revoked / expired). The service role is used only to read the studio name /
-// business e-mail and to write the notifications log row (no message body, no token).
+// business e-mail (R107: else the studio owner's e-mail, for Reply-To only - never in the answer) and to
+// write the notifications log row (no message body, no token).
 //
 // Delivery: _shared/mailer.ts (Resend, else SMTP_* e.g. Gmail, else not_configured).
 // Answer: { status: "sent" | "not_configured" | "failed" | "test_mode" | "limit" | "demo", masked, reason?, trial? }.
@@ -31,6 +32,7 @@ import { bearer, errTag, isAllowedOrigin, responders, UUID_RE } from "../_shared
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 import { brandMode, EMAIL_RE, sendMail } from "../_shared/mailer.ts";
 import { postalAddress } from "../_shared/email-compliance.mjs";
+import { studioReplyTo } from "../_shared/reply-to.mjs";
 import { outboundBlocked, TEST_MODE_TEXT } from "../_shared/trial-outbound.ts";
 import { linkEmail, maskEmail } from "./logic.mjs";
 import { TRIAL_DEMO_MSG, TRIAL_EMAIL_CAP_MSG, trialEmailGate, trialSendBlocked } from "../_shared/trial-guard.ts";
@@ -152,7 +154,9 @@ Deno.serve(async (req) => {
 
     const envGet = (k: string) => Deno.env.get(k);
     const m = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link, brand: brandMode(envGet), address: postalAddress(envGet) });
-    const res = await sendMail({ to, subject: m.subject, text: m.text, html: m.html, studio, replyTo: org && org.business_email, txReason: "client_link" });
+    // R107: the client's reply goes to the studio (business e-mail, else the owner's) - never to Helm's sender
+    const replyTo = await studioReplyTo(admin, String(q.org_id || ""), { business: (org && org.business_email) || null, env: envGet });
+    const res = await sendMail({ to, subject: m.subject, text: m.text, html: m.html, studio, replyTo: replyTo || null, txReason: "client_link" });
 
     const { error: logErr } = await admin.from("notifications").insert({
       quote_id: quoteId, channel: "email", recipient: to, kind: logKind,

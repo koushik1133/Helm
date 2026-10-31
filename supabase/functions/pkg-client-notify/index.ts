@@ -1,5 +1,6 @@
 // pkg-client-notify - delivers the messages queued by migration 0069 (pkg_outbox):
-// client e-mail (Resend) / WhatsApp (Meta Cloud API) for an accepted or declined package
+// client e-mail (Resend; R107: Reply-To = the studio's business e-mail, else its owner's - never Helm's sender;
+// sender "<Studio> via Helm Events" when EMAIL_BRAND_MODE=studio) / WhatsApp (Meta Cloud API) for an accepted or declined package
 // choice and the booklet confirmation code, and staff WhatsApp for "client picked a
 // package" / "package payment received". Numbers that replied STOP are skipped (0155: by the
 // claim, and once more right before each WhatsApp send).
@@ -26,6 +27,8 @@ import { errTag } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { render } from "./templates.ts";
 import { postalAddress, txFooter, withFooter } from "../_shared/email-compliance.mjs";
+import { brandMode, cleanName, HELM_BRAND } from "../_shared/mailer.ts";
+import { rowReplyTo } from "../_shared/reply-to.mjs";   // R107: Reply-To = business e-mail, else the studio owner's
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -50,18 +53,23 @@ async function safeFetch(url: string, init: RequestInit): Promise<Response> {
 
 type Res = "sent" | "skipped" | "failed";
 
-async function sendEmail(id: string, to: string, subject: string, html: string, text: string): Promise<Res> {
+// R107: display name "Helm" as before; EMAIL_BRAND_MODE=studio -> "<Studio> via Helm Events" (address unchanged)
+export function pkgFromName(studio: unknown, mode: "helm" | "studio"): string {
+  const s = mode === "studio" ? cleanName(studio) : "";
+  return s ? s + " via " + HELM_BRAND : "Helm";
+}
+async function sendEmail(id: string, to: string, subject: string, html: string, text: string, studio = "", replyTo = ""): Promise<Res> {
   const key = Deno.env.get("RESEND_API_KEY") || "";
   if (!key || !EMAIL.test(to) || !html) return "skipped";
   const conf = Deno.env.get("RESEND_FROM") || "onboarding@resend.dev";
   const m = conf.match(/<([^>]+)>/);
-  const from = `"Helm" <${(m ? m[1] : conf).trim()}>`;
+  const from = `"${pkgFromName(studio, brandMode((k: string) => Deno.env.get(k)))}" <${(m ? m[1] : conf).trim()}>`;
   const _f = withFooter({ text: text, html }, txFooter("package", { app: Deno.env.get("APP_URL"), address: postalAddress((k: string) => Deno.env.get(k)) }));
     try {
     const r = await safeFetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json", "Idempotency-Key": "pkg-" + id },
-      body: JSON.stringify({ from, to: [to], subject, html: _f.html, text: _f.text }),
+      body: JSON.stringify({ from, to: [to], subject, html: _f.html, text: _f.text, ...(replyTo && EMAIL.test(replyTo) ? { reply_to: replyTo } : {}) }),
     });
     await r.text();
     if (!r.ok) console.error("pkg-client-notify: email status", r.status);
@@ -121,13 +129,18 @@ Deno.serve(async (req) => {
     if (error) { console.error("pkg-client-notify: claim failed", errTag(error)); return json({ error: "internal error" }, 500); }
 
     const counts = { sent: 0, skipped: 0, failed: 0, invalid: 0 };
+    const rtCache = new Map<string, string>();
     for (const r of (Array.isArray(rows) ? rows : [])) {
       const id = String(r?.id ?? "");
       if (!UUIDISH.test(id)) { counts.invalid++; continue; }
       const kind = String(r?.kind ?? ""), channel = String(r?.channel ?? ""), to = String(r?.to ?? "");
       const msg = render(kind, (r?.payload && typeof r.payload === "object") ? r.payload : {});
       let res: Res = "skipped";
-      if (msg && channel === "email" && r?.audience === "client") res = await sendEmail(id, to, msg.subject, msg.html, msg.text);
+      if (msg && channel === "email" && r?.audience === "client") {
+        const p = (r?.payload && typeof r.payload === "object") ? r.payload : {};
+        const replyTo = await rowReplyTo(admin, "pkg", id, null, { env: (k: string) => Deno.env.get(k), cache: rtCache });
+        res = await sendEmail(id, to, msg.subject, msg.html, msg.text, String(p.studio ?? ""), replyTo);
+      }
       else if (msg && channel === "whatsapp") res = (await waStopped(admin, to)) ?? await sendWhatsApp(to, msg.text);
       const { error: mErr } = await admin.rpc("pkg_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("pkg-client-notify: mark failed", errTag(mErr)); counts.failed++; continue; }

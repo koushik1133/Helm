@@ -61,18 +61,22 @@ export function otpMessage(to, code, lang = "en") {
 }
 
 // opts.address: postal address for the compliance footer (designed layout carries it)
+// opts.brand: "helm" (default) signs off "Helm Events"; "studio" (R107, EMAIL_BRAND_MODE=studio) signs off with
+// the studio name (falls back to "Helm Events" when the studio is unknown). The footer stays Helm's.
 export function otpEmail(code, studio, opts = {}) {
   const s = clip(studio || "your planner", 60);
+  const own = String(studio ?? "").trim() ? clip(studio, 60) : "";
+  const signoff = opts && opts.brand === "studio" && own && own !== "your planner" ? own : "Helm Events";
   const c = /^[0-9]{4,8}$/.test(String(code)) ? String(code) : escHtml(code);
   return {
     subject: "Your approval code: " + code,
-    text: `Your one-time code to approve your event with ${s} is ${code}.\nIt expires in 10 minutes. Do not share it with anyone.\n\nHelm Events` + TEXT_FOOTER,
+    text: `Your one-time code to approve your event with ${s} is ${code}.\nIt expires in 10 minutes. Do not share it with anyone.\n\n${signoff}` + TEXT_FOOTER,
     html: layout("Your approval code", `${code} is your one-time approval code.`,
       h1("Your approval code") +
       para(`Use this one-time code to approve your event with ${strong(escHtml(s))}. It expires in 10 minutes.`, "0 0 16px") +
       codeBox(c) +
       note("Never share this code with anyone &mdash; your planner will never ask for it. If you didn't request it, you can ignore this e-mail.") +
-      para(strong("Helm Events"), "18px 0 0"), { sub: "", reason: TX_REASONS.otp, address: (opts && opts.address) || DEFAULT_POSTAL_ADDRESS }),
+      para(strong(escHtml(signoff)), "18px 0 0"), { sub: "", reason: TX_REASONS.otp, address: (opts && opts.address) || DEFAULT_POSTAL_ADDRESS }),
   };
 }
 

@@ -1,7 +1,9 @@
 -- r109-otp-verify-org-0319.sql - 0319: the client's "Confirm & approve" works when the approval link is opened in a
 -- browser signed in to ANOTHER studio (production R109: 42501 "quote ... belongs to another studio", shown as
 -- "You don't have permission to verify the OTP.").
--- Proves, for a PAID studio and a FREE-TRIAL studio, quote total 0 and > 0, e-mail and WhatsApp/SMS channels:
+-- Proves, for a PAID studio and a FREE-TRIAL studio, quote total 0 and > 0, e-mail and WhatsApp/SMS channels
+-- (since 0318 / R108 a quote with total 0 is refused with the friendly HL409 "no price" in EVERY viewer context,
+-- nothing saved and the code not consumed; a priced quote approves):
 --   (1) WITHOUT the 0319 trigger (old behaviour) a viewer signed in to another studio gets 42501 from
 --       zz_quote_org_match on the quote_consents insert (the production bug, reproduced);
 --   (2) WITH it the same call approves, the consent row carries the QUOTE's studio, and no row created by the call is
@@ -101,12 +103,22 @@ begin
           r like 'R=err:42501:%belongs to another studio%', r);
         -- (2) NEW: other-studio viewer approves; consent carries the quote's studio; nothing stamped to the viewer's studio
         r := pg_temp.run_case(st, tot, 'a_admin@a.test', ch, '424242', false);
-        perform pg_temp.t('02 NEW ' || lbl || ': other-studio viewer approves, consent org = quote org, no row for viewer studio',
-          r like 'R={"approved": true}%' and r like '%|CORG=' || b || ' |NEW=1 |STAT=approved |LEAKA=0 |OPEN=0', r);
+        if tot > 0 then
+          perform pg_temp.t('02 NEW ' || lbl || ': other-studio viewer approves, consent org = quote org, no row for viewer studio',
+            r like 'R={"approved": true}%' and r like '%|CORG=' || b || ' |NEW=1 |STAT=approved |LEAKA=0 |OPEN=0', r);
+        else   -- 0318 (R108): an unpriced quote is never approved - friendly HL409, nothing saved, code not consumed
+          perform pg_temp.t('02 NEW ' || lbl || ': other-studio viewer gets the 0318 no-price refusal (HL409), nothing saved, code still open',
+            r like 'R=err:HL409:%no price%' and r like '%|CORG=- |NEW=0 |STAT=sent |LEAKA=0 |OPEN=1', r);
+        end if;
         foreach who in array array['anon', 'b_staff@b.test'] loop
           r := pg_temp.run_case(st, tot, who, ch, '424242', false);
-          perform pg_temp.t('03 NEW ' || lbl || ': ' || who || ' approves',
-            r like 'R={"approved": true}%' and r like '%|CORG=' || b || ' |NEW=1 |STAT=approved |LEAKA=0 |OPEN=0', r);
+          if tot > 0 then
+            perform pg_temp.t('03 NEW ' || lbl || ': ' || who || ' approves',
+              r like 'R={"approved": true}%' and r like '%|CORG=' || b || ' |NEW=1 |STAT=approved |LEAKA=0 |OPEN=0', r);
+          else
+            perform pg_temp.t('03 NEW ' || lbl || ': ' || who || ' gets the 0318 no-price refusal (HL409), nothing saved, code still open',
+              r like 'R=err:HL409:%no price%' and r like '%|CORG=- |NEW=0 |STAT=sent |LEAKA=0 |OPEN=1', r);
+          end if;
         end loop;
       end loop;
     end loop;
