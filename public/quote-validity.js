@@ -250,7 +250,7 @@
         var wrap = h("span", { cls: "qv-date" });
         var inp = h("input", { type: "text", id: dmyId, cls: "qv-dmy", inputmode: "numeric", autocomplete: "off", maxlength: "10",
           placeholder: "dd/mm/yyyy", "aria-label": "New valid-until date (dd/mm/yyyy)", spellcheck: "false" });
-        var nat = h("input", { type: "date", cls: "qv-native", tabindex: "-1", "aria-hidden": "true", min: d.today || "", max: d.today ? addDaysISO(d.today, 365) : "" });
+        var nat = h("input", { type: "date", cls: "qv-native", tabindex: "-1", "aria-hidden": "true", "data-native-picker": "", min: d.today || "", max: d.today ? addDaysISO(d.today, 365) : "" });
         var cal = h("button", { type: "button", cls: "qv-cal", "aria-label": "Pick the date from a calendar", title: "Pick from a calendar" });
         cal.appendChild(h("span", { cls: "qv-cal-ic", "aria-hidden": "true" }));
         if (d.valid_until && d.valid_until >= (d.today || "")) { inp.value = fmtDMY(d.valid_until); nat.value = d.valid_until; }

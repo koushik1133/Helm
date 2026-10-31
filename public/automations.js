@@ -171,7 +171,7 @@
     card.appendChild(h("p", { cls: "mnote", text: "Everything Helm can do by itself, in one place. Each one is off until you switch it on here - nothing is sent to your clients, team, vendors or staff before that." }));
     if (!ov) card.appendChild(h("p", { cls: "mnote au-warn", text: "These switches need the latest Helm update. Until it is installed, nothing on this list sends anything." }));
     else if (!state.canEdit) card.appendChild(h("p", { cls: "mnote", text: "Only people who can edit Settings can switch these on or off." }));
-    if (ov && ov.trial_no_send) card.appendChild(h("p", { cls: "mnote", text: "Free trial: e-mails and WhatsApp messages are not sent during the trial, even when switched on." }));
+    if (ov && ov.trial_no_send) card.appendChild(h("p", { cls: "mnote", text: "Free trial: these automatic e-mails and WhatsApp messages are not sent during the trial, even when switched on. The approval and booklet links you e-mail to a client yourself DO go out (up to 30 a day)." }));
     GROUPS.forEach(function (g) {
       var mine = items.filter(function (it) { return it.group === g[0]; });
       if (!mine.length) return;
