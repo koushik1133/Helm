@@ -42,7 +42,7 @@ const rh = read("public/refer.html"), rj = read("public/refer.js");
 assert.match(rh, /id="rfPilot"[^>]*hidden/);
 assert.match(rj, /if \(r\.pilot\)/);
 assert.doesNotMatch(rh.replace(/<style id="bp-auth-gate">[^<]*<\/style>/, ""), /<style|style="|<script>(?!<\/script>)/, "no new inline style / script");
-assert.match(rh, /refer\.js\?v=4/); assert.match(read("public/login.html"), /referral-signup\.js\?v=4/);
+assert.match(rh, /refer\.js\?v=4/); assert.match(read("public/login.html"), /referral-signup\.js\?v=5/);
 // share links only open the user's own app (no auto-send, no Helm-side message)
 assert.match(rj, /"https:\/\/wa\.me\/\?text=" \+ encodeURIComponent\(msg\)/);
 assert.match(rj, /"mailto:\?subject="/);

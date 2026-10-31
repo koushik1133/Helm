@@ -33,6 +33,8 @@
     ".td-safe{font-weight:600}.td-fresh{margin:0 0 14px}",
     ".td-dlg .td-row .danger{background:var(--danger,#b42318);border-color:var(--danger,#b42318);color:#fff}",
     ".td-err{color:var(--danger,#b42318);margin:8px 0 0;font-size:13px}",
+    // r110 (QA B5): ".td-dlg p" painted the dialog's error grey like body text - it reads as an error again
+    ".td-dlg .td-err{color:var(--danger-text,var(--danger,#b42318));font-weight:600}",
     ".td-welcome{max-width:480px}.td-fld{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}.td-fld label{font-size:13px;font-weight:600}",
     ".td-fld input,.td-fld select{min-height:40px;padding:0 10px;border:1px solid var(--line,#e8e3db);border-radius:9px;font:inherit;background:var(--panel,#fff);color:inherit}",
     ".td-hint{font-size:12px;color:var(--ink-3,#6b6577)}.td-inv{display:grid;grid-template-columns:1fr 150px;gap:8px}",
@@ -644,14 +646,22 @@
       body.appendChild(fn.box); body.appendChild(loc); body.appendChild(fk.box); body.appendChild(fp.box);
       // r105 (owner: "ask location ONCE"): the sign-up already saved city / state (brand.billing) - prefill them and,
       // when both are there, skip the location group (one line + "Change"); the values are still sent on Continue
+      // r110 (QA B4): read the SAVED row (fresh), not this tab's cached copy - the welcome's own save (city / state into
+      // brand.billing) must come back when the popup is shown again (tab closed on the invite step)
       try {
-        const O = global.BPStore && BPStore.org && BPStore.org.current ? BPStore.org.current() : null;
+        const O = global.BPStore && BPStore.org && BPStore.org.current ? BPStore.org.current({ fresh: true }) : null;
         if (O && O.then) O.then((o) => {
           const bl = o && o.brand && typeof o.brand === "object" && o.brand.billing && typeof o.brand.billing === "object" ? o.brand.billing : {};
           const cc = String(bl.country || "IN").toUpperCase(), city = typeof bl.city === "string" ? bl.city.trim() : "", stv = typeof bl.state === "string" ? bl.state.trim() : "";
           if (cc !== "IN") return;
           if (city && !fc.input.value) fc.input.value = city;
-          if (stv && !fs.input.value) { fs.input.value = stv; if (fs.input.value !== stv) fs.input.value = ""; }
+          if (stv && !fs.input.value) {
+            fs.input.value = stv;
+            if (fs.input.value !== stv && fs.input.options) {   // the saved spelling may differ in case only
+              const hit = Array.prototype.find.call(fs.input.options, (op) => op.value && op.value.toLowerCase() === stv.toLowerCase());
+              fs.input.value = hit ? hit.value : "";
+            }
+          }
           if (fc.input.value.trim().length >= 2 && fs.input.value) {
             loc.hidden = true; fk.box.hidden = true;
             const line = el("p", "td-hint td-loc-line", "Location: " + fc.input.value.trim() + ", " + fs.input.value + ", India (from your sign-up) ");
@@ -661,6 +671,11 @@
           }
         }, () => {});
       } catch (e) {}
+      // r110 (QA B5): "Enter your city." / "Choose your state." goes away as soon as that field is filled in
+      const clearLocErr = () => { if (!s.err.hidden && fc.input.value.trim().length >= 2 && fs.input.value.trim()) showErr("");
+        else if (!s.err.hidden && /city/i.test(s.err.textContent) && fc.input.value.trim().length >= 2) showErr("");
+        else if (!s.err.hidden && /state/i.test(s.err.textContent) && fs.input.value.trim()) showErr(""); };
+      fc.input.addEventListener("input", clearLocErr); fs.input.addEventListener("change", clearLocErr); fs.input.addEventListener("input", clearLocErr);
       const next = btn("Continue", "btn primary", async () => {
         // r23 (0257): the server refuses any other name - always send the studio's own
         const name = String(t.name || "").trim(), city = fc.input.value.trim(), state = fs.input.value.trim();

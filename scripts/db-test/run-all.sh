@@ -321,6 +321,8 @@ run "r67-definer-searchpath-0304" "R67-DEFINER-SEARCHPATH-0304: ALL PASS \(11/11
 run "r82-referral-pilot-0306" "R82-REFERRAL-PILOT-0306: ALL PASS \(14/14\)" psql -q -f tests/db/r82-referral-pilot-0306.sql
 # r87 (0309): referral_attach in pilot mode answers "unknown" for a real non-pilot / partner code like a missing code (no oracle); pilot code attaches; switch off/on unchanged; re-applies itself twice, rolled back
 run "r87-referral-attach-unknown-0309" "R87-REFERRAL-ATTACH-UNKNOWN-0309: ALL PASS \(8/8\)" psql -q -f tests/db/r87-referral-attach-unknown-0309.sql
+# r110 (0320): trial leads made from a quote are not lead slots; billing currency follows the country until the first payment (+ one-time USD -> INR fix); chat_directory sign-up name; re-applies 0236 / 0238 then itself twice, rolled back
+run "r110-trial-polish-0320" "R110-TRIAL-POLISH-0320: ALL PASS \(24/24\)" psql -q -f tests/db/r110-trial-polish-0320.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

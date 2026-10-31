@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=54"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=55"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -11619,7 +11619,8 @@ window.HelmUrl = HelmUrl;
     ".bpui-toast-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpui-toast-title{font-weight:700;font-size:14px;color:var(--bpui-t-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".bpui-toast-msg{font-size:13px;color:var(--bpui-t-ink2);overflow-wrap:anywhere}",
-    ".bpui-toast.has-title .bpui-toast-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // r110 (QA B6): a titled toast's message wraps (it was cut to one line: "Your free trial includes 2 new quotes and b...")
+    ".bpui-toast.has-title .bpui-toast-msg{white-space:normal;overflow-wrap:anywhere}",
     ".bpui-toast.no-title .bpui-toast-msg{color:var(--bpui-t-ink);font-size:13.5px;padding-top:5px}",
     ".bpui-toast-act{align-self:flex-start;margin-top:4px;background:transparent;border:0;padding:0;color:var(--bpui-t-c);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none}",
     ".bpui-toast-act:hover{text-decoration:underline}",

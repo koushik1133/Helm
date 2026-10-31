@@ -126,7 +126,7 @@
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
 <link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=4">
-<script src="/shell-proto.js?v=54" id="shellProto"></script>
+<script src="/shell-proto.js?v=55" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -463,7 +463,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=321"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=322"></script>
 <script src="page-tours.js?v=11"></script>
 <script src="tour.js?v=32"></script>
 <script src="payment-schedule.js?v=3"></script>
@@ -538,6 +538,8 @@
   // edits (see the delegated input/change listener in wire()). `leaving` is set
   // right before an intentional navigation so beforeunload doesn't double-prompt.
   let dirty=false, loading=true, leaving=false, pendingLeave=null;
+  // r110 (QA B10b): an unsaved edit OUTSIDE the quotation card (Layout / Requirements...) - "Save quotation" doesn't save it
+  let dirtyOther=false;
   // r9 P0: client / discovery / venue / menu / proposal autosave (debounced, serialized, honest badge);
   // `dirty` now only tracks edits that are NOT autosaved (quotation numbers etc.)
   const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client", d_bmin:"client", d_bmax:"client" };   // flow-validation: the budget sits in step 1 and saves WITH step 1 (stored on the discovery row) - typing it never marks Discovery "Saved"
@@ -619,7 +621,8 @@
     const s=b?b.id.slice(3):null; return s&&AS&&AS.has(s)?s:null;
   }
   function unsaved(){ return dirty || !!(AS && (AS.pending() || AS.hasFailed())); }
-  function markDirty(e){ if(loading) return; const s=sectionOf(e&&e.target); if(s){ edited.add(s); AS.schedule(s); draftSoon(); return; } dirty=true; }
+  function markDirty(e){ if(loading) return; const s=sectionOf(e&&e.target); if(s){ edited.add(s); AS.schedule(s); draftSoon(); return; } dirty=true;
+    const t=e&&e.target, card=t&&t.closest?t.closest("section.card"):null; if(!(card && card.querySelector("#sv-quote"))) dirtyOther=true; }
   const draftSoon=debounce(draftSave,400);
   // ---- per-section load failures ----
   // If a section's data didn't load, its form shows placeholders/fallbacks
@@ -1003,7 +1006,7 @@
       catch(e){ ok=false; paintBadge(s,"error"); } };
     await one("client",()=>saveClient()); await one("discovery",()=>saveDiscovery(false)); await one("venue",()=>saveVenue(false));
     await one("menu",()=>saveMenuNotes(false)); await one("proposal",()=>saveProposal(false));
-    if(ok){ dirty=false; if(AS) AS.clearFailed(); draftSave(); }
+    if(ok){ dirty=false; dirtyOther=false; if(AS) AS.clearFailed(); draftSave(); }
     return ok;
   }
   const confirmLeaveAnyway=()=>BPUI.confirm(SAVE_FAIL_MSG,{title:"Some changes weren't saved",okLabel:"Leave anyway",cancelLabel:"Stay",danger:true});
@@ -1074,6 +1077,7 @@
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
       await relock();   // our own write bumped quotes.updated_at - refresh the lock base so the next client save isn't a false conflict
       ev.pricing=pricing; taxSwitched=false; lastSavedSig=sig; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
+      if(!dirtyOther) dirty=false;   // r110 (QA B10b): the quotation is saved - leaving right after no longer asks "Leave page?"
       $("#q_msg") && ($("#q_msg").textContent="Saved "+(r&&r.label||""));
     }catch(e){
       // REL-01: ONLY fall back when the versioning RPC is genuinely ABSENT
@@ -1808,7 +1812,7 @@
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); } }catch{}
     $("#remindAfter").checked = false;
     // prefill complete — genuine user edits from here on may mark the quote dirty
-    loading=false; dirty=false;
+    loading=false; dirty=false; dirtyOther=false;
     // flow-validation: honest start state - empty sections say "Not started", none says "Saved"
     ["client","discovery","venue","menu","proposal"].forEach(s=>{ if(!contentOf(s)) paintBadge(s,"empty"); });
     updateProgress();
@@ -2106,7 +2110,7 @@
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });
     $("#lv_discard").addEventListener("click",()=>{
-      dirty=false; draftClear(); $("#leaveModal").hidden=true;
+      dirtyOther=false; dirty=false; draftClear(); $("#leaveModal").hidden=true;
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });
 
