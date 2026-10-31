@@ -107,3 +107,5 @@ e35fddc139402426899e8c75c7eeca7dda43c330:supabase/setup-complete.sql:helm-seed-a
 f6d0b766b24155e68a79c3b52a90c283e2e2afed:tests/db/auth-hardening.sql:helm-seed-account-credential:104
 f6d0b766b24155e68a79c3b52a90c283e2e2afed:tests/db/r32b-round2-0282.sql:helm-seed-account-credential:300
 f6d0b766b24155e68a79c3b52a90c283e2e2afed:tests/db/r32b-round2-0282.sql:helm-seed-account-credential:305
+# r109: false positive - the trigger name 'ab0_r109_consent_org' in a SQL test array literal (not a credential)
+c75c7878f1b7ac4691916124254e4dd3b3aff953:tests/db/r109-otp-verify-org-0319.sql:generic-api-key:131
