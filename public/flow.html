@@ -125,8 +125,8 @@
 <link rel="stylesheet" href="venues.css?v=8">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=4">
-<script src="/shell-proto.js?v=54" id="shellProto"></script>
+<link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=5">
+<script src="/shell-proto.js?v=55" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -463,13 +463,14 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=321"></script>
-<script src="page-tours.js?v=11"></script>
-<script src="tour.js?v=32"></script>
-<script src="payment-schedule.js?v=3"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=322"></script>
+<script src="page-tours.js?v=12"></script>
+<script src="tour.js?v=33"></script>
+<script src="payment-schedule.js?v=4"></script>
 <script src="booklet.js?v=31"></script>
 <script src="share-checklist.js?v=14"></script>
 <script src="flow-layout-sync.js?v=6"></script>
+<script src="reprice-guard.js?v=1"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=5"></script>
 <script src="flow-validate.js?v=5"></script>
@@ -1404,8 +1405,16 @@
     const amt=Math.round(quoteTotal()*pct/100);
     if(document.activeElement!==$("#pay_amount")) $("#pay_amount").value=amt;
     // Display only: when the total grew after an advance was received, show what is already paid against it
-    const h=$("#pay_adv_note"); if(h){ const rem=Math.max(0,amt-PAID_SUM);
-      h.textContent = PAID_SUM>0 ? `Advance (${pct}%) ${inr(amt)} · Paid ${inr(PAID_SUM)} · Remaining ${inr(rem)}${rem>0.5?" (part paid)":""}` : ""; h.hidden=!(PAID_SUM>0); }
+    // R112: once a payment schedule exists, the hint reads the schedule's first payment (the server's figures) - it said
+    // "Remaining Rs 0" from the live 30% while the schedule row said "Rs 4,693 left"
+    const h=$("#pay_adv_note"); if(h){
+      let sd=null; try{ sd=PSCH&&PSCH.data; }catch(_){ sd=null; }
+      const r0=sd&&Array.isArray(sd.rows)?sd.rows.find(r=>r&&r.state!=="waived"):null;
+      if(r0 && PAID_SUM>0){ const rem=Math.max(0,Number(r0.remaining)||0);
+        h.textContent=`${r0.label||"First payment"} ${inr(r0.amount)} · Paid ${inr(Math.min(Number(r0.amount)||0, Number(r0.paid)||0))} · Remaining ${inr(rem)}${rem>0.5?" (part paid)":""} · Outstanding ${inr(sd.outstanding)}`;
+        h.hidden=false; }
+      else { const rem=Math.max(0,amt-PAID_SUM);
+        h.textContent = PAID_SUM>0 ? `Advance (${pct}%) ${inr(amt)} · Paid ${inr(PAID_SUM)} · Remaining ${inr(rem)}${rem>0.5?" (part paid)":""}` : ""; h.hidden=!(PAID_SUM>0); } }
   }
   let PAID_SUM=0;
   async function recordPayment(){
@@ -1533,7 +1542,7 @@
     $("#egBarNo").onclick=()=>{ bar.hidden=true; };
   }
   let PSCH=null;   // r23 (0264) payment schedule card
-  function renderSchedule(){ try{ if(!id || !window.HelmPaySchedule) return; if(PSCH) PSCH.reload(); else PSCH=HelmPaySchedule.mount($("#paySchedule"), id, { heading:"h3", onChange:()=>renderActivity() }); }catch(e){} }
+  function renderSchedule(){ try{ if(!id || !window.HelmPaySchedule) return; if(PSCH) PSCH.reload(); else PSCH=HelmPaySchedule.mount($("#paySchedule"), id, { heading:"h3", onChange:()=>{ renderActivity(); renderReceipts(); }, onLoad:()=>{ try{ updateAdvance(); }catch(_){ } } }); }catch(e){} }
   async function renderReceipts(){
     renderSchedule();
     let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
@@ -1873,6 +1882,11 @@
       // r19 L2: say so when no layout version with objects exists (it used to read "Layout updated" over an empty plan)
       const noLayout=!layoutItems.length;
       if(!r.changed){ if(fromBuilder) BPUI.toast(noLayout?"Back from the floor builder — no floor layout is saved for this quote yet.":"Back from the floor builder — quotation is up to date.",{type:"info"}); return; }
+      // R112: a quote the client has (sent / approved / confirmed) is never re-priced on the way back from the builder -
+      // the builder already asked "Update quote (new version) / Keep quote"; a kept price stays exactly as it is
+      if(fromBuilder && window.HelmRepriceGuard && HelmRepriceGuard.committed(ev)){
+        BPUI.toast("Back from the floor builder — this quote was sent to the client, so its price is unchanged."+(r.otherChanged&&!r.otherHand?" The layout's objects come to "+inr(r.otherAuto)+" (Décor / setup is "+inr(pr.other||0)+")":"")+". To change it, edit the quotation and Save quotation (a new version).",{type:"info",timeout:12000});
+        return; }
       const before=BPStore.pricing.quoteTotal(currentInputs()).total;
       const wasLoading=loading; loading=true;
       if(r.chairsChanged) $("#q_chairs").value=r.chairs;

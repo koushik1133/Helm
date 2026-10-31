@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 const js = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'public/builder.js'), 'utf8');
 let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; };
-ok(/else if\(currentPricing\.guests!=null\) PRICING\.guests/.test(js), 'guests fall back to Confirm-modal pricing.guests');
+ok(/HelmRepriceGuard\.platesFor\(q\.client, currentPricing\)/.test(js) && /currentPricing\.guests!=null \? \+currentPricing\.guests/.test(js), 'R112: the quote plates (Confirm-modal pricing.guests) win over the client head count');
 ok(/BPStore\.quotes\.get\(currentQuoteId\)/.test(js) && /\{ pricing \}, expectedUpdatedAt\)/.test(js), 'sync refetches and passes expectedUpdatedAt');
 ok(/HelmSizing\.handOther\(currentPricing/.test(js) && /other: hand!=null \? hand : auto/.test(js), 'hand-edited other is preserved');
 ok(/Client approval will go stale/.test(js) && /currentQuoteGuard\.closed/.test(js), 'stale-approval confirm + closed block');
