@@ -72,7 +72,7 @@ await t('store-api (v298): exactly helm.events; password, sign-up and reset refu
   assert.match(SA, /if \(await staffGoogleOnlyFor\(email\)\) throw staffGoogleError\(\);   \/\/ r39 \(0288\): no reset link/);
   assert.match(SA, /if \(STAFF_GOOGLE_RE\.test\(m\)\) return staffGoogleError\(\);/);
   assert.match(SA, /isStaffEmail, STAFF_GOOGLE_MESSAGE, staffGoogleOnlyFor, staffGoogleSessionCheck,/);
-  assert.match(LG, /store-api\.js\?v=322/);
+  assert.match(LG, /store-api\.js\?v=323/);
 });
 
 // ---- login.html behaviour: the r39 block run against a tiny fake DOM ----

@@ -11622,7 +11622,8 @@ window.HelmUrl = HelmUrl;
     ".bpui-toast-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpui-toast-title{font-weight:700;font-size:14px;color:var(--bpui-t-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".bpui-toast-msg{font-size:13px;color:var(--bpui-t-ink2);overflow-wrap:anywhere}",
-    ".bpui-toast.has-title .bpui-toast-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // r110 (QA B6): a titled toast's message wraps (it was cut to one line: "Your free trial includes 2 new quotes and b...")
+    ".bpui-toast.has-title .bpui-toast-msg{white-space:normal;overflow-wrap:anywhere}",
     ".bpui-toast.no-title .bpui-toast-msg{color:var(--bpui-t-ink);font-size:13.5px;padding-top:5px}",
     ".bpui-toast-act{align-self:flex-start;margin-top:4px;background:transparent;border:0;padding:0;color:var(--bpui-t-c);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none}",
     ".bpui-toast-act:hover{text-decoration:underline}",

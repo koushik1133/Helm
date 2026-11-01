@@ -157,7 +157,7 @@
 <script src="/config.js?v=112"></script>
 <script src="/phone-input.js?v=9"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=322"></script><script src="/quote-validity.js?v=4"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=323"></script><script src="/quote-validity.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -169,14 +169,16 @@
   // Terms shown to the client (versioned — the exact text is stored with their consent)
   // R108: v2 - the consent clause is channel-neutral ("the one-time code we sent you": e-mail, WhatsApp or SMS);
   // v1-2026-09 said "the OTP sent to your mobile". Consents already given keep the v1 id they were recorded with.
-  const TERMS_VERSION="v2-2026-10";
+  // R110: v3 - India clause 2 no longer assumes an online "payment link" (a trial / bank-transfer studio has none):
+  // the booking is confirmed once the payment is received. Clause 4 stays channel-neutral. -AE / -US ids follow.
+  const TERMS_VERSION="v3-2026-10";
   const TERMS_HTML=`
     <h4>1. Quotation & pricing</h4><p>The amounts shown are based on the details provided and include applicable GST (SAC 998596). Final billing may adjust for changes in guest count, scope, or statutory taxes.</p>
-    <h4>2. Booking & payment</h4><p>Your booking is confirmed only upon successful payment against the payment link. Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
+    <h4>2. Booking & payment</h4><p>Your booking is confirmed only once your payment is received (paid online, or recorded by your planner). Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
     <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
     <h4>4. Consent</h4><p>By verifying the one-time code we sent you and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
     <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`;
-  // Country terms (India above = v2-2026-10; -AE / -US ids follow it). Picked by the
+  // Country terms (India above = v3-2026-10; -AE / -US ids follow it). Picked by the
   // quote's tax country snapshot (apTax), India when absent. The exact id shown is stored with the consent.
   const TERMS_BY_COUNTRY={
     IN:{v:TERMS_VERSION, html:TERMS_HTML},

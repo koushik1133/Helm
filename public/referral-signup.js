@@ -75,16 +75,24 @@
       return { kind: "pending" };
     });
   }
-  function say(text, tone) { msg.textContent = text; msg.className = "rfs-msg" + (tone ? " " + tone : ""); }
+  // r110 (QA B7): the code is checked on blur - often the blur of a tap on the Terms box below. Shrinking this block
+  // then (message gone / shorter, consent row hidden) moved the Terms box up under the finger and the tap missed it.
+  // The block keeps its height until the person types in the code field again.
+  var heldH = 0;
+  function hold() { if (!row || row.hidden) return; var h = row.offsetHeight; if (h > heldH) heldH = h; }
+  function settle() { if (!row || row.hidden || !heldH) return; if (row.offsetHeight < heldH) row.style.minHeight = heldH + "px"; }
+  function release() { heldH = 0; if (row) row.style.minHeight = ""; }
+  function say(text, tone) { hold(); msg.textContent = text; msg.className = "rfs-msg" + (tone ? " " + tone : ""); settle(); }
   function remember(code) {
     ssSet({ code: code, consent: !!(cBox && cBox.checked && !cRow.hidden), at: Date.now(), via: code === linkCode ? "link" : "typed" });
   }
   function check() {
+    hold();
     var raw = inp.value.trim();
     clr.hidden = !raw;
-    if (!raw) { say(""); cRow.hidden = true; ssSet(null); paintBanner(null, ""); return; }
+    if (!raw) { say(""); cRow.hidden = true; ssSet(null); paintBanner(null, ""); settle(); return; }
     var code = R.normalizeCode(raw);
-    if (!code) { say("Codes use letters, numbers, - and _ (3 to 24 characters).", "bad"); cRow.hidden = true; ssSet(null); paintBanner(null, ""); return; }
+    if (!code) { say("Codes use letters, numbers, - and _ (3 to 24 characters).", "bad"); cRow.hidden = true; ssSet(null); paintBanner(null, ""); settle(); return; }
     var my = ++seq;
     remember(code);
     look(code).then(function (hit) {
@@ -96,16 +104,18 @@
         say(hit.offer ? "Applied: " + hit.offer + "." : "Code saved. Thanks for telling us where you heard about Helm.", "good");
         cRow.hidden = false;
       } else if (hit.kind === "refused") {
-        say(hit.why + " You can still sign up without it.", "bad"); cRow.hidden = true; ssSet(null); paintBanner(null, code); return;
+        say(hit.why + " You can still sign up without it.", "bad"); cRow.hidden = true; ssSet(null); paintBanner(null, code); settle(); return;
       } else if (hit.kind === "unknown") {
-        say("We don't recognise this code. Check the spelling, or sign up without it.", "bad"); cRow.hidden = true; ssSet(null); paintBanner(null, code); return;
+        say("We don't recognise this code. Check the spelling, or sign up without it.", "bad"); cRow.hidden = true; ssSet(null); paintBanner(null, code); settle(); return;
       } else {
         say("Code saved. We check it after you verify your e-mail; if it is valid you get 1 month free after your first payment.", "");
         cRow.hidden = false;
       }
       remember(code);
       paintBanner(hit, code);
+      settle();
     });
+    settle();
   }
   function paintBanner(hit, code) {
     if (!banner) return;
@@ -124,7 +134,7 @@
   }
   inp.value = start;
   if (saved && cBox) cBox.checked = saved.consent === true;
-  inp.addEventListener("input", function () { var p = inp.selectionStart; inp.value = inp.value.toUpperCase(); try { inp.setSelectionRange(p, p); } catch (e) {} });
+  inp.addEventListener("input", function () { release(); var p = inp.selectionStart; inp.value = inp.value.toUpperCase(); try { inp.setSelectionRange(p, p); } catch (e) {} });
   inp.addEventListener("change", check);
   inp.addEventListener("blur", check);
   clr.addEventListener("click", function () { inp.value = ""; linkCode = ""; try { localStorage.removeItem(LINK); } catch (e) {} check(); inp.focus(); });

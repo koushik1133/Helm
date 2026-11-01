@@ -52,6 +52,15 @@
     if (z === "Asia/Kolkata" || z === "Asia/Calcutta") return "INR";
     return /^[A-Za-z]+(\/[A-Za-z0-9_+-]+){1,2}$/.test(z) ? "USD" : "INR";
   }
+  // r110 (QA B3): once the sign-up knows the studio's COUNTRY it decides the currency, not the browser clock - the time
+  //   zone sent to the server is made to agree with it (India -> Asia/Kolkata; elsewhere a non-India zone, the browser's
+  //   own when it is not India time, else Etc/UTC). No / unknown country -> the browser zone unchanged.
+  function zoneForCountry(country, tz) {
+    var c = String(country == null ? "" : country).trim().toUpperCase(), z = String(tz == null ? "" : tz).trim();
+    if (!/^[A-Z]{2}$/.test(c)) return z;
+    if (c === "IN") return "Asia/Kolkata";
+    return currencyFor(z) === "USD" ? z : "Etc/UTC";
+  }
   function browserZone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } }
   function plansOr(list, currency) { var l = normalize(list); return l.length ? l : (CATALOGS[cur(currency)] || CATALOG).slice(); }
   function onRequest(p) { return !!p && p.monthly == null && p.yearly == null; }
@@ -94,7 +103,7 @@
       primary: ask || !on ? "sales" : "pay" };
   }
 
-  var api = { CATALOG: CATALOG, CATALOGS: CATALOGS, currencyFor: currencyFor, browserZone: browserZone, cur: cur, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
+  var api = { CATALOG: CATALOG, CATALOGS: CATALOGS, currencyFor: currencyFor, zoneForCountry: zoneForCountry, browserZone: browserZone, cur: cur, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
     priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor, payNowOn: payNowOn };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (!global || !global.document) return;
@@ -143,6 +152,6 @@
     });
     return list;
   }
-  global.HelmPlanCards = { CATALOG: CATALOG, CATALOGS: CATALOGS, currencyFor: currencyFor, browserZone: browserZone, cur: cur, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
+  global.HelmPlanCards = { CATALOG: CATALOG, CATALOGS: CATALOGS, currencyFor: currencyFor, zoneForCountry: zoneForCountry, browserZone: browserZone, cur: cur, normalize: normalize, plansOr: plansOr, onRequest: onRequest, offered: offered, money: money,
     priceText: priceText, recommended: recommended, pickPlan: pickPlan, interval: interval, actionsFor: actionsFor, payNowOn: payNowOn, actions: actions, render: render };
 })(typeof window !== "undefined" ? window : globalThis);

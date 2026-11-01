@@ -479,11 +479,16 @@
 
   /* ---------- one-time hint chip beside the eye button (first time amounts are hidden) ---------- */
   var HINT_K = "helm.priv.hintSeen";
+  // r110 (QA B9): never over an open dialog (the trial welcome, a confirm): wait until it closes, then show once
+  function dialogOpen() { try { return !!document.querySelector("dialog[open], .bpui-dialog, [role=dialog][aria-modal=true]:not([hidden])"); } catch (e) { return false; } }
+  var hintWait = 0;
   function hint() {
     if (!btn || !btn.isConnected || !hidden() || ls(HINT_K) === "1") return;
+    if (dialogOpen()) { if (hintWait++ < 120) setTimeout(hint, 1500); return; }
     ls(HINT_K, "1");
     var chip = el("button", "hbp-hint", "Amounts hidden \u2014 tap \u{1F441} to show"); chip.type = "button"; chip.setAttribute("role", "status");
     function place() { try { var r = btn.getBoundingClientRect(); chip.style.top = Math.round(r.bottom + 8) + "px"; chip.style.left = Math.max(8, Math.round(r.right - chip.offsetWidth)) + "px"; } catch (e) {} }
+    var watchDlg = setInterval(function () { if (!chip.parentNode) { clearInterval(watchDlg); return; } if (dialogOpen()) gone(); }, 500);   // r110: a dialog opening hides it
     function gone() { if (chip.parentNode) chip.parentNode.removeChild(chip); btn.removeEventListener("click", gone); window.removeEventListener("resize", place); }
     chip.addEventListener("click", function () { gone(); toggle(); });
     btn.addEventListener("click", gone); window.addEventListener("resize", place);
