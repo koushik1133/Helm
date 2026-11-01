@@ -108,7 +108,7 @@ Deno.test("send-otp: paid studio still sends the SMS", async () => {
   } finally { rF(); rEnv(); }
 });
 
-Deno.test("client-mailer: trial studio -> not sent (status not_configured, trial), logged as simulated", async () => {
+Deno.test("client-mailer: trial studio -> not sent (R114: status test_mode, simulated, trial), logged as simulated", async () => {
   resetSupaMock(); db(true);
   const rEnv = setEnv(ENV); const rF = providers();
   try {
@@ -116,7 +116,7 @@ Deno.test("client-mailer: trial studio -> not sent (status not_configured, trial
     const res = await h(post({ quote_id: QUOTE, kind: "approval" }, AUTH));
     assertEquals(res.status, 200);
     const j = await res.json();
-    assertEquals(j.status, "not_configured"); assertEquals(j.trial, true);
+    assertEquals(j.status, "test_mode"); assertEquals(j.trial, true); assertEquals(j.simulated, true);
     assertEquals(providerCalls(), 0);
     const log = supaLog().find((e) => e.table === "notifications");
     assert(log && JSON.stringify(log.calls).includes("simulated"), "log row says simulated");

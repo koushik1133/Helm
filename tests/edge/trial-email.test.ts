@@ -57,7 +57,9 @@ Deno.test("trialEmailGate: clear answers pass through; error / odd reply -> null
   assertEquals(await trialEmailGate({ rpc: () => Promise.reject(new Error("down")) }, { org: ORG }, "a@b.co", "otp"), null, "throws");
 });
 
-Deno.test("client-mailer: ACTIVE trial + gate allows -> the e-mail really goes out (trial: true), logged sent", async () => {
+// R114 (0323, owner decision): a free trial is a SIMULATION - even an older gate that says "allowed" for a trial no
+// longer sends: the studio gets the preview of what the client would receive, logged "simulated".
+Deno.test("client-mailer: R114 trial + gate allows (old 0212 answer) -> NOT sent: test_mode simulated + preview, logged simulated", async () => {
   resetSupaMock(); db({ allowed: true, trial: true });
   const rEnv = setEnv(ENV); const rF = providers();
   try {
@@ -65,22 +67,26 @@ Deno.test("client-mailer: ACTIVE trial + gate allows -> the e-mail really goes o
     const res = await h(post({ quote_id: QUOTE, kind: "approval" }, AUTH));
     assertEquals(res.status, 200);
     const j = await res.json();
-    assertEquals(j.status, "sent"); assertEquals(j.trial, true);
-    assertEquals(calls(/resend/), 1); assertEquals(calls(/msg91|graph\.facebook/), 0);
+    assertEquals(j.status, "test_mode"); assertEquals(j.trial, true); assertEquals(j.simulated, true);
+    assert(j.preview && /proposal from Sparkle/.test(j.preview.subject), "preview subject");
+    assert(/Hi Asha/.test(j.preview.text) && /portal\.html\?token=/.test(j.preview.text), "preview text");
+    assert(/nothing was sent/i.test(j.reason));
+    assertEquals(calls(/resend|msg91|graph\.facebook/), 0);
     const gate = supaLog().find((e) => e.rpc === "trial_email_gate");
     assert(gate && gate.key === "service-role-secret", "gate asked with the service role");
     assertEquals(gate.args.p_kind, "approval_link"); assertEquals(gate.args.p_recipient, "asha@client.test");
-    assert(supaLog().some((e) => e.table === "notifications" && JSON.stringify(e.calls).includes('"sent"')));
+    assert(supaLog().some((e) => e.table === "notifications" && JSON.stringify(e.calls).includes('"simulated"')));
+    assert(!supaLog().some((e) => e.table === "notifications" && JSON.stringify(e.calls).includes('"sent"')));
   } finally { rF(); rEnv(); }
 });
 
-Deno.test("client-mailer: trial over the cap -> 429 limit; demo -> demo; ended trial -> test_mode; nothing sent", async () => {
+Deno.test("client-mailer: trial over the cap -> simulation (R114); demo -> demo; ended trial -> test_mode; nothing sent", async () => {
   const rEnv = setEnv(ENV); const rF = providers();
   try {
     resetSupaMock(); db({ allowed: false, trial: true, reason: "cap_recipient" });
     let h = await loadHandler(MAILER);
     let res = await h(post({ quote_id: QUOTE, kind: "approval" }, AUTH));
-    assertEquals(res.status, 429); let j = await res.json(); assertEquals(j.status, "limit"); assert(/limit/i.test(j.reason));
+    let j = await res.json(); assertEquals(j.status, "test_mode"); assertEquals(j.simulated, true);   // R114: a trial cap -> the simulation
     resetSupaMock(); db({ allowed: false, trial: true, reason: "demo" });
     h = await loadHandler(MAILER);
     res = await h(post({ quote_id: QUOTE, kind: "approval" }, AUTH));

@@ -58,6 +58,7 @@
 <link rel="stylesheet" href="/theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="/public-pages-v2.css?v=6">
 <link rel="stylesheet" href="/quote-validity.css?v=3">
+<link rel="stylesheet" href="/trial-sim.css?v=1">
 <script src="/public-theme.js?v=4"></script>
 </head>
 <body>
@@ -136,6 +137,14 @@
         </div>
         <button class="btn primary s-56f4356" id="payBtn" type="button">Proceed to payment</button>
         <p class="muted s-1294536" id="payManual" hidden>Your planner will share payment details.</p>
+        <!-- R114 (0323): free trial = simulation - the payment step is simulated (a TEST row, never real money) -->
+        <div class="trial-sim-pay" id="simPay" hidden>
+          <h3>Next step (simulated): payment</h3>
+          <p class="muted" id="simPayNext"></p>
+          <div class="trial-sim-amt" id="simPayAmt"></div>
+          <button class="btn primary" id="simPayBtn" type="button">Simulate payment</button>
+          <p class="trial-sim-res" id="simPayRes" role="status" aria-live="polite"></p>
+        </div>
       </div>
 
       <div id="step4" hidden>
@@ -163,7 +172,7 @@
 <script src="/config.js?v=112"></script>
 <script src="/phone-input.js?v=9"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=325"></script><script src="/quote-validity.js?v=5"></script><script src="/approve-test-mode.js?v=1"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=325"></script><script src="/trial-sim.js?v=1" data-trial-sim="quote"></script><script src="/quote-validity.js?v=5"></script><script src="/approve-test-mode.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -338,7 +347,9 @@
       HelmApproveTestMode.apply(tm);
       if(quote.approval_status==="approved"||quote.approval_status==="paid") $("#approvedTitle").textContent="Approved (test mode)";   // an approval in a trial is a test
       $("#payBtn").hidden=true; $("#payBtn").style.display="none";
-      $("#payManual").textContent="Trial preview: no payment is taken here. In a real studio your client pays by UPI/card through the payment link; in this trial the studio records a test payment itself (Payments / Record payment)."; }).catch(()=>{}); }
+      $("#payManual").textContent="Trial simulation: no real payment is taken here and no payment link is sent. In a real studio your client pays by UPI/card through the payment link - below you can simulate that step.";
+      // R114 (0323): the simulated payment step (the server re-checks the trial; a TEST row only, never real money)
+      if(quote.approval_status==="approved"||quote.approval_status==="paid") showSimPay(); }).catch(()=>{}); }
     // R108: no price -> "Quote not priced yet - please contact <Studio>" instead of the approval steps (0318 refuses it too)
     const apOpen=quote.approval_status!=="approved" && quote.approval_status!=="paid";
     if(apOpen && !isPriced(quote.pricing)) showNotPriced();
@@ -438,9 +449,27 @@
     if(bad){ setMsg("err",bad); $("#t_code").focus(); return; }
     if(!$("#t_agree").checked){ setMsg("err","Please tick the box to accept the terms."); $("#t_agree").focus(); return; }
     try{ const r=await BPStore.approval.trialTestApproveCode(token, code, $("#c_phone").value.trim(), name, shownTerms.v, consentText(shownTerms.v)+" [trial test mode - code 000000, nothing sent]", navigator.userAgent);
-      if(r && r.approved === true){ showStep('step3'); $("#approvedTitle").textContent="Approved (test mode)"; $("#approvedNote").textContent=HelmApproveTestMode.APPROVED; $("#payManual").hidden=false; setMsg(); }
+      if(r && r.approved === true){ showStep('step3'); $("#approvedTitle").textContent="Approved (test mode)"; $("#approvedNote").textContent=HelmApproveTestMode.APPROVED; $("#payManual").hidden=false; setMsg(); showSimPay(); }
       else setMsg("err",(r&&r.message)||"Could not approve in test mode.");
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"approve in test mode"})); if(e && e.hint==="quote_not_priced") showNotPriced(); }
+  }));
+
+  // R114 (0323) free trial = SIMULATION: after the test approval the client would pay - shown as a simulated step.
+  // "Simulate payment" records a TEST row on the server (trial_simulate_payment) - no payment link, no real money.
+  async function showSimPay(){
+    if(!window.HelmTrialSim || !BPStore.approval.trialPaymentSim) return;
+    let s=null; try{ s=HelmTrialSim.payStep(await BPStore.approval.trialPaymentSim(token)); }catch(e){ s=null; }
+    if(!s || !s.approved) return;
+    $("#simPay").hidden=false;
+    $("#simPayNext").textContent=s.ended ? s.endedText : (s.paid && !s.canPay ? s.done : s.next);
+    $("#simPayAmt").textContent=s.canPay && s.amountText ? (s.label+": "+s.amountText) : (s.paid && s.receipt ? "Test receipt "+s.receipt : "");
+    const b=$("#simPayBtn"); b.hidden=!s.canPay; b.style.display=s.canPay?"":"none";
+  }
+  $("#simPayBtn").addEventListener("click", ()=>BPUI.guard($("#simPayBtn"), async ()=>{
+    const res=$("#simPayRes"); res.textContent=""; res.className="trial-sim-res";
+    try{ const out=HelmTrialSim.payResult(await BPStore.approval.trialSimulatePayment(token, $("#c_name").value.trim(), navigator.userAgent));
+      res.textContent=out.text; res.classList.add(out.ok?"ok":"err"); if(out.ok) await showSimPay(); }
+    catch(e){ res.textContent=BPUI.friendlyError(e,{action:"simulate the payment"}); res.classList.add("err"); }
   }));
 
   // No online pay on a production host until Razorpay is live (sim checkout is 404 there)

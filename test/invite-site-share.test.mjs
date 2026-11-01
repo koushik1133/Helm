@@ -82,11 +82,13 @@ tests.push(["box: WhatsApp - quote mobile as E.164, opt-in tick sent, edited add
   assert.deepEqual(calls[0].slice(0, 4), ["s1", "whatsapp", "+919000011111", true]);
   assert.match(by("ishMsg").textContent, /^Queued .* on WhatsApp/);
 }]);
-tests.push(["box: free trial - test-mode note + skipped answer explained", async () => {
-  const { by } = await mountBox({ trial: true, sendImpl: () => Promise.resolve({ status: "skipped", reason: "free_trial" }) });
-  assert.equal(by("ishTrial").hidden, false); assert.match(by("ishSend").textContent, /\(test mode\)$/);
+tests.push(["box: free trial (R114) - simulation note, Preview button, the server is never asked to send", async () => {
+  const { by, calls } = await mountBox({ trial: true, sendImpl: () => Promise.resolve({ status: "skipped", reason: "free_trial" }) });
+  assert.equal(by("ishTrial").hidden, false); assert.match(by("ishTrial").textContent, /^Trial simulation/);
+  assert.equal(by("ishSend").textContent, "Preview (trial \u2014 not sent)");
   by("ishSend").fire("click"); await new Promise((r) => setTimeout(r, 0));
-  assert.equal(by("ishMsg").textContent, "Test mode: nothing was sent (free trial). Use Copy link to share it yourself.");
+  assert.equal(calls.length, 0, "nothing sent in a trial");
+  assert.match(by("ishMsg").textContent, /^Preview only .*nothing was sent to your client \(trial simulation\)/);
 }]);
 tests.push(["box: server refusal wording shown as-is (opt-in / caps)", async () => {
   const err = Object.assign(new Error("This invitation was sent 10 times today - try again tomorrow."), { code: "HL429" });

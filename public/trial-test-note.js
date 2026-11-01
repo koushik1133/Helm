@@ -8,6 +8,9 @@
    nothing is shown. The server still gates every write; this is guidance only.
    R113 (0322): flow.html step 9 also says "Trial: your client sees a test-mode
    approval page (no code is sent)" and shows "Approved (test mode)" in a trial.
+   R114 (0323): a free trial is a full SIMULATION - flow.html step 10 gets the red
+   "SIMULATION - no real payment" banner and the client's simulated payments (TEST
+   receipts from the approval page's "Simulate payment"; never the money ledger).
    CSP: createElement/textContent only, no inline styles.
    ========================================================================= */
 (function (global) {
@@ -37,7 +40,23 @@
     return test && /^Approved\b/.test(s) && !/test mode/i.test(s) ? s.replace(/^Approved/, "Approved (test mode)") : s;
   }
 
-  var api = { noteSpec: noteSpec, TEXT: TEXT, shareSpec: shareSpec, approvedLabel: approvedLabel, SHARE_NOTE: SHARE_NOTE, ASK_TEXT: ASK_TEXT,
+  // R114 (0323): the studio's payment step in a trial is a simulation. Pure (unit-tested): my_trial_org() -> text or null
+  var PAY_SIM = "SIMULATION - no real payment. Your client is never sent a payment link in the free trial; on their page they can press Simulate payment (a TEST receipt, no money moves).";
+  function paySimSpec(t) {
+    if (!t || typeof t !== "object" || t.is_trial_org !== true) return null;
+    return { text: PAY_SIM };
+  }
+  // Pure: trial_sim_payments_for_quote rows -> display lines (amount + label + TEST receipt only)
+  function simLines(rows) {
+    if (!Array.isArray(rows)) return [];
+    return rows.slice(0, 20).map(function (r) {
+      var amt = Number(r && r.amount) || 0, cur = String((r && r.currency) || "INR").toUpperCase().slice(0, 3);
+      return "Simulated by the client: " + String((r && r.label) || "Payment").slice(0, 80) + " - " + cur + " " +
+        amt.toLocaleString("en-IN") + " (receipt " + String((r && r.receipt) || "TEST").slice(0, 40) + ", TEST - no real money)";
+    });
+  }
+
+  var api = { noteSpec: noteSpec, paySimSpec: paySimSpec, simLines: simLines, PAY_SIM: PAY_SIM, TEXT: TEXT, shareSpec: shareSpec, approvedLabel: approvedLabel, SHARE_NOTE: SHARE_NOTE, ASK_TEXT: ASK_TEXT,
     approvalTestMode: false };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
@@ -74,6 +93,26 @@
     try { global.dispatchEvent(new global.CustomEvent("helm:approval-test-mode")); } catch (e) {}
   }
 
+  // R114: the red banner on step 10 + the client's simulated payments (flow.html only)
+  function renderPaySim(spec) {
+    if (!spec) return;
+    var sec = doc.getElementById("sec-pay"); if (!sec || doc.getElementById("paySimNote")) return;
+    var TS = global.HelmTrialSim, h2 = sec.querySelector("h2");
+    var box = doc.createElement("div"); box.id = "paySimNote";
+    if (TS && TS.banner) { sec.insertBefore(box, h2 ? h2.nextSibling : sec.firstChild); TS.banner(box, spec.text); }
+    else { box.className = "hint"; box.setAttribute("role", "note"); box.textContent = spec.text; sec.insertBefore(box, h2 ? h2.nextSibling : sec.firstChild); }
+    var id = "";
+    try { var sp = new URLSearchParams(global.location.search); id = sp.get("quote") || sp.get("id") || ""; } catch (e) { id = ""; }
+    var st = global.BPStore;
+    if (!/^[0-9a-f-]{36}$/i.test(id) || !st || !st.approval || !st.approval.trialSimPayments) return;
+    st.approval.trialSimPayments(id).then(function (rows) {
+      var lines = simLines(rows); if (!lines.length) return;
+      var ul = doc.createElement("ul"); ul.id = "paySimList"; ul.className = "hint";
+      lines.forEach(function (l) { var li = doc.createElement("li"); li.textContent = l; ul.appendChild(li); });
+      box.appendChild(ul);
+    }).catch(function () {});
+  }
+
   var tries = 0;
   function run() {
     var st = global.BPStore, pg = page();
@@ -82,7 +121,7 @@
       if (++tries < 20) setTimeout(run, 500); // wait for the session to restore
       return;
     }
-    st.trialOrg.status().then(function (t) { render(noteSpec(t, pg)); if (pg === "flow") renderShare(shareSpec(t)); }).catch(function () {});
+    st.trialOrg.status().then(function (t) { render(noteSpec(t, pg)); if (pg === "flow") { renderShare(shareSpec(t)); renderPaySim(paySimSpec(t)); } }).catch(function () {});
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", function () { setTimeout(run, 0); });
   else setTimeout(run, 0);
