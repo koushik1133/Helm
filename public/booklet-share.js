@@ -53,7 +53,7 @@
   const BOOKLET_SUB = "A private, read-only page for your client: event details, floor plan, 3D view, menu, quotation, payments and terms. Internal costs and notes are never shown.";
   // R113 (0322): free-trial approval = test mode (same words as trial-test-note.js on the quote page)
   const TRIAL_NOTE = "Trial: your client sees a test-mode approval page (no code is sent).";
-  const TRIAL_ASK = "Their page gets an Approve button - in the free trial it is a test approval (code 000000, nothing is sent). Untick to share the booklet only.";
+  const TRIAL_ASK = "Their page gets an Approve button - they confirm with the test code 000000 (trial simulation - nothing is sent). Untick to share the booklet only.";   // R116 wording (= trial-test-note.js ASK_TEXT)
   const SHARE_SUB = "One private link for your client: the event booklet, the quotation and an Approve button. Internal costs and notes are never shown.";
 
   /* ---- r21: "Share with client" = booklet + approval link in ONE dialog ([data-approval] buttons) ----

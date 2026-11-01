@@ -29,7 +29,8 @@
   // R113 (0322): in a free-trial studio (active or ended) the client approval is a TEST - no code is sent, the client
   // uses the test code 000000. Pure (unit-tested): my_trial_org() answer -> share-panel spec, or null (paid studio).
   var SHARE_NOTE = "Trial: your client sees a test-mode approval page (no code is sent).";
-  var ASK_TEXT = "Their page gets an Approve button - in the free trial it is a test approval (code 000000, nothing is sent). Untick to share the booklet only.";
+  // R116: same shape as the paid line ("they confirm with ...") so a trial never reads as a real one-time code
+  var ASK_TEXT = "Their page gets an Approve button - they confirm with the test code 000000 (trial simulation - nothing is sent). Untick to share the booklet only.";
   function shareSpec(t) {
     if (!t || typeof t !== "object" || t.is_trial_org !== true) return null;
     return { note: SHARE_NOTE, ask: ASK_TEXT };

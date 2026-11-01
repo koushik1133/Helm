@@ -29,6 +29,11 @@
   .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  /* R116: the shell's card rise animation (transform, fill both) makes every .card its own stacking context, so the
+     dish-search results list (absolute, z-index 20) painted UNDER the next card ("Client approval") and the 4th+ results
+     were cut off; on phones .card{overflow-x:auto} also clipped it. While the list is open, lift its card above later
+     cards and let it overflow. */
+  .card:has(#dishResults:not(:empty)){position:relative;z-index:30;overflow:visible}
   .card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 14px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:620px){.grid{grid-template-columns:1fr}}
   .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px} .fld.full{grid-column:1/-1}
@@ -160,8 +165,8 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=324"></script><script src="save-back.js?v=2"></script><script src="venue-suggest.js?v=3"></script>
-<script src="page-tours.js?v=14"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script><script src="save-back.js?v=2"></script><script src="venue-suggest.js?v=3"></script>
+<script src="page-tours.js?v=15"></script>
 <script src="tour.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);

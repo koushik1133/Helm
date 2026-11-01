@@ -127,7 +127,7 @@
 <script src="/telemetry.js?v=9"></script>
 <script src="/config.js?v=112"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=324"></script><script src="/trial-sim.js?v=1" data-trial-sim="quote"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=325"></script><script src="/trial-sim.js?v=1" data-trial-sim="quote"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -160,7 +160,7 @@
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your event"}); return; }
     $("#loading").hidden=true;
     if(!d){ $("#bad").hidden=false; return; }
-    $("#app").hidden=false; render(d); ledgerPaid().finally(paySchedule); extras(d);
+    $("#app").hidden=false; render(d); ledgerPaid().finally(paySchedule).finally(trialSched); extras(d);
   }
   function render(d){
     const e=d.event||{};
@@ -243,6 +243,16 @@
       how.hidden=false; }
     else how.hidden=true;
   }
+  // R116: a free-trial studio's portal is a SIMULATION (trial-sim.js asks public_trial_simulation and puts the red banner
+  // on top): the payment schedule is labelled "Simulated schedule (trial) - no real payment", the balance line says it is
+  // simulated and no "How to pay" box is shown. Paid studios: the server answers simulation:false and nothing changes.
+  function trialSched(){
+    const TS=window.HelmTrialSim; if(!TS||!TS.active||!TS.markSchedule) return;
+    TS.markSchedule($("#payCard"));
+    const o=$("#outstanding"); if(o&&o.textContent.trim()&&!o.querySelector(".trial-sim-tag")){ const t=document.createElement("b"); t.className="trial-sim-tag"; t.textContent="Simulated (trial) \u00b7 "; o.insertBefore(t,o.firstChild); }
+    const how=$("#payHow"); if(how) how.hidden=true;
+  }
+  window.addEventListener("helm:trial-simulation",trialSched);
   // E11: booklet, invitation, quotation & terms, floor plan, receipts, planner contact - only what exists
   function lnk(href,label,ext){ const a=document.createElement("a"); a.className="lnk"; a.href=href; a.textContent=label;
     if(ext){ a.target="_blank"; a.rel="noopener noreferrer"; } return a; }

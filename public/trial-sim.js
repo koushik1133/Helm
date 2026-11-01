@@ -25,6 +25,15 @@
   var PAY_NEXT = "Next step (simulated): your client would now pay the booking amount through a secure payment link. In this trial no link is created and no money moves.";
   var PAY_DONE = "Payment simulated - no real money moved. In a paid studio the client would get a receipt and you would see the payment in Payments.";
   var PAY_ENDED = "This studio's free trial has ended, so the payment simulation is closed.";
+  // R116: the client portal's payment schedule in a trial studio (portal.html) - never reads like a real bill
+  var SCHEDULE_LABEL = "Simulated schedule (trial) \u2014 no real payment";
+  var SCHEDULE_NOTE = "This is a preview of the payment plan only. In the free trial your client is never sent a payment link and no money moves.";
+  // R116: the free-trial e-mail preview never promises a real one-time code (a client-mailer deployed before R116
+  // still says "you will get a one-time code to confirm"; the preview is only ever shown in a trial)
+  var TRIAL_CONFIRM = "(trial simulation: they confirm with the test code 000000 - nothing is sent)";
+  function previewText(s) {
+    return String(s == null ? "" : s).replace(/\(you will get a one-time code to confirm\)/g, TRIAL_CONFIRM);
+  }
   var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   function money(n, cur) {
@@ -88,7 +97,8 @@
   }
 
   var api = { TITLE: TITLE, BANNER: BANNER, PREVIEW_TITLE: PREVIEW_TITLE, PAY_NEXT: PAY_NEXT, PAY_DONE: PAY_DONE,
-    payStep: payStep, payResult: payResult, refFrom: refFrom, money: money };
+    payStep: payStep, payResult: payResult, refFrom: refFrom, money: money,
+    SCHEDULE_LABEL: SCHEDULE_LABEL, SCHEDULE_NOTE: SCHEDULE_NOTE, TRIAL_CONFIRM: TRIAL_CONFIRM, previewText: previewText, active: false };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
   var doc = global.document;
@@ -111,9 +121,20 @@
     var box = el("div", "trial-sim-preview"); box.setAttribute("role", "region"); box.setAttribute("aria-label", PREVIEW_TITLE);
     box.appendChild(el("div", "trial-sim-preview-h", PREVIEW_TITLE));
     if (p && p.subject) box.appendChild(el("div", "trial-sim-preview-subj", "Subject: " + String(p.subject).slice(0, 200)));
-    box.appendChild(el("pre", "trial-sim-preview-body", String((p && p.text) || "").slice(0, 4000)));
+    box.appendChild(el("pre", "trial-sim-preview-body", previewText((p && p.text) || "").slice(0, 4000)));
     host.appendChild(box);
     return box;
+  };
+
+  // R116: label a payment-schedule card as a simulation (portal.html #payCard); idempotent
+  api.markSchedule = function (card) {
+    if (!card || card.getAttribute("data-trial-sim-sched") === "1") return null;
+    card.setAttribute("data-trial-sim-sched", "1");
+    var h = card.querySelector("h2"); if (h) h.textContent = SCHEDULE_LABEL;
+    var n = el("div", "trial-sim-banner"); n.setAttribute("role", "note"); n.setAttribute("data-trial-sim", "1");
+    n.appendChild(el("strong", null, TITLE)); n.appendChild(el("span", null, " \u2014 " + SCHEDULE_NOTE));
+    if (h && h.parentNode === card) card.insertBefore(n, h.nextSibling); else card.insertBefore(n, card.firstChild);
+    return n;
   };
 
   // auto banner on a client page: <script src="/trial-sim.js" data-trial-sim="quote|booklet|site">
@@ -127,7 +148,7 @@
     Promise.resolve(st.init ? st.init() : null).catch(function () {}).then(function () { return st.approval.trialSimPage(kind, ref); }).then(function (r) {
       if (!r || r.simulation !== true) return;
       var host = doc.getElementById("main") || doc.body;
-      api.banner(host);
+      api.banner(host); api.active = true;
       try { global.dispatchEvent(new global.CustomEvent("helm:trial-simulation")); } catch (e) {}
     }).catch(function () {});
   }

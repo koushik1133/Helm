@@ -45,6 +45,16 @@ jobs:
         run: node scripts/check-deferred-integrations.mjs
       - name: Environment-separation guard (no silent prod from localhost)
         run: node scripts/check-env-safety.mjs
+      # R116: PR #357 changed store-api.js but kept every ?v=324, so browsers kept a year-cached (immutable)
+      # old file. Fail any PR whose changed public/ js|css still has a ?v= (or loader constant / SHELL_V)
+      # no higher than the PR base had. PR-only: on main itself there is no base diff to judge.
+      - name: Cache-bust guard (changed assets must bump their ?v=)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"   # checkout already uses fetch-depth: 0
+          node scripts/bump-changed-assets.mjs --check --base "origin/${BASE_REF}"
       - name: CSP inline-script hashes current (no 'unsafe-inline')
         run: node scripts/gen-csp.mjs --check
       - name: Regression tests (source characterization, no DB)

@@ -85,7 +85,7 @@
             msg.textContent = (r.preview ? String(r.reason || "Trial simulation \u2014 nothing was sent to your client.") : SIM_NO_PREVIEW);
             var TS = window.HelmTrialSim;
             if (r.preview && TS && TS.preview) TS.preview(box, r.preview);
-            else if (r.preview) { var pv = el("pre", "ems-preview", "Subject: " + String(r.preview.subject || "") + "\n\n" + String(r.preview.text || "")); box.appendChild(pv); }
+            else if (r.preview) { var pv = el("pre", "ems-preview", "Subject: " + String(r.preview.subject || "") + "\n\n" + String(r.preview.text || "").replace(/\(you will get a one-time code to confirm\)/g, "(trial simulation: they confirm with the test code 000000 - nothing is sent)")); box.appendChild(pv); }
           }
           if (r && r.status === "sent" && U && U.toast) U.toast(msg.textContent, { type: "ok" });
         }).catch(function (err) { msg.textContent = "Not sent: " + friendlyReason((err && err.message) || ""); });

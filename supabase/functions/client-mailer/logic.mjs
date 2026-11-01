@@ -12,6 +12,9 @@ export function maskEmail(e) {
 // kind: "approval" | "booklet"; link is built server-side from an allow-listed origin.
 // o.brand: "helm" (default) signs off "Helm Events"; "studio" signs off with the studio name.
 // o.address: postal address for the compliance footer (email-compliance.mjs postalAddress()).
+// o.trial (R116): the free-trial PREVIEW (index.ts simulated(); never sent) - the approval line says the client confirms
+// with the test code 000000 instead of promising a real one-time code. Paid studios (no o.trial): wording unchanged.
+export const TRIAL_APPROVAL_CONFIRM = "(trial simulation: they confirm with the test code 000000 - nothing is sent)";
 export function linkEmail(kind, o) {
   const studio = clip(o && o.studio, 60) || "your event planner";
   const name = clip(o && o.client, 60) || "there";
@@ -21,7 +24,8 @@ export function linkEmail(kind, o) {
   const signoff = o && o.brand === "studio" ? studio : "Helm Events";
   const subject = isAppr ? "Your event proposal from " + studio : "Your event booklet from " + studio;
   const lead = isAppr
-    ? "Here is your event proposal and quote from " + studio + ". Open the link to review it and approve when you are ready (you will get a one-time code to confirm)."
+    ? "Here is your event proposal and quote from " + studio + ". Open the link to review it and approve when you are ready " +
+      (o && o.trial === true ? TRIAL_APPROVAL_CONFIRM + "." : "(you will get a one-time code to confirm).")
     : "Here is your event booklet from " + studio + " with the plan, layout and details prepared for you.";
   const cta = isAppr ? "Review & approve" : "Open booklet";
   const title = isAppr ? "Your event proposal" : "Your event booklet";
