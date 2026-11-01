@@ -26,8 +26,9 @@ select[aria-expanded="true"] { border-color: var(--accent, #107a57); box-shadow:
 .uip-date-wrap { position: relative; display: inline-block; max-width: 100%; vertical-align: middle; }
 label > .uip-date-wrap, .field .uip-date-wrap, div > .uip-date-wrap { display: block; }
 .uip-date-wrap:not(.uip-native) > input.uip-date {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  opacity: 0; pointer-events: none;
+  /* R106: !important - page / form CSS must never bring the enhanced native box back next to the face (date shown twice) */
+  position: absolute !important; inset: 0; width: 100% !important; height: 100% !important;
+  opacity: 0 !important; pointer-events: none !important;
 }
 .uip-date-wrap.uip-native > .uip-date-face { display: none; }
 .uip-date-face {

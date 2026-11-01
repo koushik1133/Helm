@@ -27,7 +27,18 @@
     if (st === "limit") return "Not sent: " + ((r && r.reason) || "the free trial e-mail limit for today is reached");
     if (st === "demo") return "Not sent: this is a sample (demo) event \u2014 e-mails go only to the clients of your own events.";
     if (st === "not_configured") return "Not sent: " + ((r && r.reason) || "e-mail sending is not set up yet") + ". Use Copy link meanwhile.";
-    return "Not sent: " + ((r && (r.reason || r.error)) || "the e-mail could not be sent");
+    return "Not sent: " + friendlyReason((r && (r.reason || r.error)) || "");
+  }
+  // R106: never show a raw transport error ("HTTP 404", "Failed to fetch") - say what happened and what to do
+  function friendlyReason(raw) {
+    var m = String(raw || "").trim(), code = /HTTP (\d{3})/.exec(m);
+    var c = code ? Number(code[1]) : 0;
+    if (c === 404) return "the e-mail service isn't switched on yet. Use Copy link and send it yourself meanwhile.";
+    if (c === 401 || c === 403) return "your sign-in has expired or you can't send e-mails for this event. Sign in again, or use Copy link.";
+    if (c === 429) return "too many e-mails just now. Wait a minute and try again.";
+    if (c >= 500 || /HTTP \d{3}/.test(m)) return "the e-mail service had a problem. Try again in a minute, or use Copy link.";
+    if (/failed to fetch|network|load failed/i.test(m)) return "couldn't reach Helm. Check your connection and try again, or use Copy link.";
+    return m || "the e-mail could not be sent. Try again, or use Copy link.";
   }
   // opts: { quoteId, kind: "approval"|"booklet", getEmail: () => string, label? }
   function mount(host, opts) {
@@ -58,7 +69,7 @@
           msg.textContent = resultText(r, e);
           if (r && r.status === "test_mode") { trial = true; refresh(); }
           if (r && r.status === "sent" && U && U.toast) U.toast(msg.textContent, { type: "ok" });
-        }).catch(function (err) { msg.textContent = "Not sent: " + String((err && err.message) || "the e-mail could not be sent"); });
+        }).catch(function (err) { msg.textContent = "Not sent: " + friendlyReason((err && err.message) || ""); });
       };
       return U && U.guard ? U.guard(btn, run) : run();
     });
@@ -82,5 +93,5 @@
     if (m.email === true) return { testMode: false, note: trialEmailText(Number(m.email_per_day) || 30) };
     return { testMode: true, note: "" };
   }
-  window.HelmEmailSend = { mount: mount, resultText: resultText, mask: mask, trialState: trialState, TEST_MODE: TEST_MODE, TRIAL_EMAIL: TRIAL_EMAIL };
+  window.HelmEmailSend = { mount: mount, resultText: resultText, friendlyReason: friendlyReason, mask: mask, trialState: trialState, TEST_MODE: TEST_MODE, TRIAL_EMAIL: TRIAL_EMAIL };
 })();

@@ -393,8 +393,8 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
     const f = read('public/flow.html');
     // r22: the booklet card is back in the page flow (step 9, before the advance); the rail dialog borrows it while open
     assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="sec-approve"') && f.indexOf('id="sec-share"') < f.indexOf('id="sec-pay"'));
-    assert.match(f, /share-checklist\.js\?v=14/); assert.match(f, /share-checklist\.css\?v=4/);
-    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=14[\s\S]*booklet-share\.js/, p);
+    assert.match(f, /share-checklist\.js\?v=15/); assert.match(f, /share-checklist\.css\?v=5/);
+    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=15[\s\S]*booklet-share\.js/, p);
     assert.match(read('public/booklet-share.js'), /HelmShareChecklist\.mount\(form/);
     assert.doesNotMatch(read('public/share-checklist.js'), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/);
   });

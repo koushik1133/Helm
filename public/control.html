@@ -274,7 +274,7 @@
 <link rel="stylesheet" href="studio-templates.css?v=5"><link rel="stylesheet" href="asset-price-grid.css?v=3">
 <link rel="stylesheet" href="menu-pkg-editor.css?v=6"><link rel="stylesheet" href="layout-rules.css?v=1">
 <link rel="stylesheet" href="team-safety.css?v=2">
-<link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=2"><script src="/ui-pickers.js?v=3" defer></script>
+<link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="event-reminders.css?v=2">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
 <link rel="stylesheet" href="control-split.css?v=16">
@@ -933,7 +933,7 @@
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=6"></script>
 <script src="hq-invoice.js?v=2"></script>
-<script src="page-tours.js?v=12"></script>
+<script src="page-tours.js?v=13"></script>
 <script src="tour.js?v=33"></script>
 <script src="pkg-review.js?v=9"></script>
 <script src="onboarding-core.js?v=8"></script>
@@ -943,7 +943,7 @@
 <script src="delivery-settings.js?v=3"></script>
 <script src="inbox-settings.js?v=4"></script><script src="crew-shifts.js?v=6"></script>
 <script src="link-views.js?v=4"></script>
-<script src="automations.js?v=3"></script>
+<script src="automations.js?v=4"></script>
 <script src="photo-render-settings.js?v=3"></script>
 <script src="form-validate.js?v=3"></script>
 <script src="cc-inputs.js?v=5"></script>
@@ -953,8 +953,8 @@
 <script src="studio-templates-core.js?v=6"></script>
 <script src="studio-templates.js?v=15"></script>
 <script src="team-safety.js?v=3"></script>
-<script src="item-pricing.js?v=2"></script><script src="target-margin-settings.js?v=2"></script><script src="quote-validity.js?v=4"></script><script src="stage-machine-settings.js?v=2"></script><script src="payment-schedule.js?v=4"></script><script src="payment-schedule-settings.js?v=4"></script>
-<script src="asset-price-grid.js?v=5"></script><script src="pricing-form-core.js?v=4"></script><script src="menu-pkg-editor.js?v=5"></script><script src="layout-rules.js?v=1"></script>
+<script src="item-pricing.js?v=2"></script><script src="target-margin-settings.js?v=2"></script><script src="quote-validity.js?v=5"></script><script src="stage-machine-settings.js?v=2"></script><script src="payment-schedule.js?v=4"></script><script src="payment-schedule-settings.js?v=4"></script>
+<script src="asset-price-grid.js?v=5"></script><script src="pricing-form-core.js?v=4"></script><script src="menu-pkg-editor.js?v=5"></script><script src="layout-rules.js?v=2"></script>
 <script src="trial-demo.js?v=21"></script>
 <script src="trial-upgrade.js?v=3"></script>
 <script src="settings-search-core.js?v=2"></script>
@@ -2058,21 +2058,31 @@
     if(!ccRoleOk("#inv_role")) return;
     const email=((T&&T.invite&&T.invite.value())||$("#inv_email").value.trim()).toLowerCase(), role=$("#inv_role").value;
     { const r=BPStore.validate.email(email); if(!r.ok){ setUMsg("err",r.error); $("#inv_email").focus(); return; } }
+    // R106: the button is busy ("Creating…") only while the invite is CREATED - the e-mail flush below can take a
+    // while (or hang on a slow mail service) and used to keep the label stuck after the link was already shown.
+    let made=null;
     await BPUI.guard($("#inv_submit"), async()=>{
     try{
       const r=await BPStore.invitations.create(email, role);
       const link=location.origin+"/login?invite="+encodeURIComponent(r.token);
       $("#inv_link").value=link; $("#inv_out").hidden=false;
-      setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
-      $("#inv_email").value=""; if(T&&T.invite) T.invite.reset(); renderInvites();
+      setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+". Sending the invitation email…");
+      $("#inv_email").value=""; if(T&&T.invite) T.invite.reset();
+      made=r;
+    }catch(err){ setUMsg("err",errMsg(err,"create the invite")); }
+    }, {busyLabel:"Creating…"}).catch(()=>{});
+    // the guard has put the label back and re-enabled the button: the seat counter decides again (all seats in use -> locked)
+    try{ await renderInvites(); }catch(_){ }
+    if(!made) return;
+    const r=made;
+    try{
       // 0131: a NEW invite row queues its e-mail by trigger; a reused one does not, so re-queue it first.
       if(r.reused){ try{ const rows=await BPStore.invitations.list();
         const inv=(rows||[]).find(i=>i.status==="pending"&&String(i.email||"").toLowerCase()===email.toLowerCase());
         if(inv) await BPStore.invitations.resendEmail(inv.id); }catch(_){ /* rate-limited / old DB: flush anyway */ } }
       const sent=await BPStore.invitations.sendNow();
       setUMsg(...inviteMailMsg(sent,email));
-    }catch(err){ setUMsg("err",errMsg(err,"create the invite")); }
-    }, {busyLabel:"Creating…"});
+    }catch(err){ setUMsg("info",`The invite link for ${email} is ready, but the email couldn't be sent just now — copy the link below and send it yourself, or press Resend email later.`); }
   });
   $("#inv_link").addEventListener("click",(e)=>e.target.select());
   // ---- pending invites (existing invitations.list / .revoke; "Copy link" re-uses create(), which returns the same live token) ----

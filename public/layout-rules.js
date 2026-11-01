@@ -74,8 +74,10 @@
     if (!/^\d+(\.\d+)?$/.test(s)) return { ok: false, error: f.label + " must be a number." };
     var n = Number(s);
     var whole = !f.dp;
+    // R106: decimals are checked on the typed text ("1.1" * 100 is 110.00000000000001 in floating point, which made the
+    // + stepper go 1 -> 1.1 -> 0.1 and the save fail "2 decimals at most")
     if (whole && n !== Math.floor(n)) return { ok: false, error: f.label + " must be a whole number (no decimals)." };
-    if (f.dp && Math.round(n * 100) !== n * 100) return { ok: false, error: f.label + " can have 2 decimals at most." };
+    if (f.dp && !/^\d+(\.\d{1,2})?$/.test(s)) return { ok: false, error: f.label + " can have 2 decimals at most." };
     if ((f.gt ? n <= f.min : n < f.min) || n > f.max)
       return { ok: false, error: f.gt ? f.label + " must be more than " + f.min + " and up to " + f.max + "."
                                       : f.label + " must be from " + f.min + " to " + f.max + "." };

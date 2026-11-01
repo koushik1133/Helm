@@ -176,6 +176,20 @@
     return "builder.html?quote=" + encodeURIComponent(quoteId);
   }
 
+  /* ---- R106: client images (2D / 3D) are off in the free trial (owner rule r20; the database refuses them too, 0316) ---- */
+  const TRIAL_PICS_MSG = "Client images (2D floor plan and 3D view) unlock on a paid plan.";
+  function trialNow() {
+    try { if (global.HelmTrialLock && global.HelmTrialLock.isTrial && global.HelmTrialLock.isTrial()) return true; } catch (e) {}
+    try { return !!(doc && doc.documentElement && doc.documentElement.classList.contains("helm-trial")); } catch (e) { return false; }
+  }
+  // the server's answer (trial-lock.js); falls back to the early html.helm-trial mark
+  function trialKnown() {
+    try { if (global.HelmTrialLock && global.HelmTrialLock.whenKnown) return global.HelmTrialLock.whenKnown().then((t) => !!t || trialNow(), () => trialNow()); } catch (e) {}
+    return Promise.resolve(trialNow());
+  }
+  // in the trial the 2D / 3D sections are always off
+  function trialSections(sections, trial) { const s = normalize(sections); if (trial) { s.layout2d = false; s.layout3d = false; } return s; }
+
   /* mount(host, { quoteId, cur, embedded }) → { sections(), variants(), uploadSnapshots(), attachSnapshots() }
      embedded = inside the Share booklet dialog (the dialog owns note / days / submit). */
   function mount(host, o) {
@@ -193,14 +207,30 @@
     const pv = el("div", "sc-preview"); pv.appendChild(el("p", "sc-lab", "Client will see"));
     const pvl = el("ul", "sc-pvl"); pvl.setAttribute("aria-live", "polite"); pv.appendChild(pvl);
     const sfx = o.embedded ? "_d" : "";
+    const picCbs = [];   // R106: the 2D / 3D section switches + their labels
     SECTIONS.forEach((x) => {
       const id = "sc_" + x[0] + sfx;
       const lab = el("label", "sc-item"); lab.setAttribute("for", id);
       const cb = el("input"); cb.type = "checkbox"; cb.id = id; cb.setAttribute("role", "switch"); cb.checked = state.sections[x[0]]; cb.setAttribute("data-sec", x[0]);
       cb.addEventListener("change", () => { state.sections[x[0]] = cb.checked; refresh(); });
       lab.appendChild(cb); lab.appendChild(el("span", "", x[1].replace(/ screenshot$/, ""))); list.appendChild(lab);
+      if (x[0] === "layout2d" || x[0] === "layout3d") picCbs.push([cb, lab]);
       if (x[0] === "menu") list.appendChild(rule);
     });
+    // R106: free trial -> 2D / 3D unticked + disabled with a friendly note
+    const trialNote = el("p", "sc-meta sc-trial-note", TRIAL_PICS_MSG); trialNote.hidden = true; list.appendChild(trialNote);
+    function applyTrial(on) {
+      state.trial = !!on; trialNote.hidden = !state.trial;
+      picCbs.forEach(([cb, lab]) => {
+        const k = cb.getAttribute("data-sec");
+        if (state.trial) { if (!cb.disabled) cb.__scWas = !!cb.checked; cb.checked = false; cb.disabled = true; state.sections[k] = false; cb.setAttribute("aria-describedby", trialNote.id); }
+        else if (cb.__scWas != null) { cb.disabled = false; cb.checked = cb.__scWas; state.sections[k] = cb.checked; cb.__scWas = null; if (cb.removeAttribute) cb.removeAttribute("aria-describedby"); }
+        lab.className = state.trial ? "sc-item sc-off" : "sc-item";
+      });
+    }
+    trialNote.id = "sc_trial_note" + sfx;
+    applyTrial(trialNow());
+    trialKnown().then((t) => { if (!!t !== state.trial) { applyTrial(t); refresh(); } });
     const prog = el("p", "sc-meta sc-prog"); prog.setAttribute("aria-live", "polite"); prog.hidden = true;
     wrap.appendChild(thumbs); wrap.appendChild(prog); wrap.appendChild(pv);
 
@@ -260,10 +290,12 @@
 
     return {
       // R8b: an empty layout has no pictures — the 2D / 3D sections are skipped (with a note) instead of blocking
-      sections: () => { const s = normalize(state.sections); if (state.skipPics) { s.layout2d = false; s.layout3d = false; } return s; },
+      sections: () => { const s = trialSections(state.sections, state.trial); if (state.skipPics) { s.layout2d = false; s.layout3d = false; } return s; },
       variants: () => variantFlags(state.variants),
       // before the share: every ticked 2D / 3D section needs its stored builder pictures (never publish nothing)
       async uploadSnapshots() {
+        // R106: never render / save client pictures in the free trial (wait for the server's trial answer first)
+        if (await trialKnown()) { applyTrial(true); refresh(); return; }
         const sec = normalize(state.sections);
         // R8: always re-check — the pictures are usually captured in another tab (builder) after this page loaded
         await loadInfo();
@@ -302,7 +334,7 @@
       },
       // after the link exists: which picture styles it shows
       async attachSnapshots() {
-        const B = global.BPStore.booklet; if (!B || !B.setImageVariants) return;
+        const B = global.BPStore.booklet; if (!B || !B.setImageVariants || state.trial) return;
         await B.setImageVariants(quoteId, variantFlags(state.variants));
       },
     };
@@ -376,7 +408,7 @@
     cards.forEach((c) => { if (!can) { c.hidden = true; return; } if (c.dataset.scWired) return; c.dataset.scWired = "1"; c.hidden = false; renderCard(c).catch(() => {}); });
   }
 
-  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, freshEnough, missingImages, normInfo, imageStatus, variantFlags, builderUrl, captureUrl, acceptCaptureMessage, needsCapture, autoCapture, CAPTURE_TIMEOUT_MS, STYLES, SECTIONS };
+  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, freshEnough, missingImages, normInfo, imageStatus, variantFlags, builderUrl, captureUrl, acceptCaptureMessage, needsCapture, autoCapture, trialSections, TRIAL_PICS_MSG, CAPTURE_TIMEOUT_MS, STYLES, SECTIONS };
   if (doc && doc.querySelector("[data-share-checklist]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }
