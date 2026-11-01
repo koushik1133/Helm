@@ -420,7 +420,8 @@
       tr.appendChild(td);
       tr.appendChild(el("td", "amt", money(m.amount)));
       tr.appendChild(el("td", "amt", a.paid > 0 ? money(a.paid) : "—"));
-      tr.appendChild(el("td", "amt", a.remaining != null ? money(a.remaining) : "—")); tb.appendChild(tr);
+      // R117 (display only): a TEST-paid row never shows the full amount still to pay - "— (test)"
+      tr.appendChild(el("td", "amt", marks[i] && TS ? "\u2014 (test)" : a.remaining != null ? money(a.remaining) : "—")); tb.appendChild(tr);
     });
   }
   // r23 (0264, display only): an open payment past its due date (the studio's day) reads "overdue"

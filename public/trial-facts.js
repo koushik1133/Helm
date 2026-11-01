@@ -15,11 +15,15 @@
    New wording -> new VERSION (= _trial_terms_version() in 0212): trial owners are asked once more.
    0238 (trial-2026-10-20, owner r20): quotes / events are capped at CREATE_CAP new ones again, like the other
    lists (sample events never count) - the wording changed back, so the version did too.
+   0325 (trial-2026-11-01, owner R117): a free trial is a full SIMULATION (0322 / 0323 / 0324) - nothing is sent to
+   clients (previews instead), the client approves with the test code 000000, payments are simulated TEST receipts;
+   the studio's OWN account e-mails still work. The 0212 "e-mail really reaches clients" wording is gone, so the
+   version changed: trial owners agree once more (the same one-time "Agree and continue" window; nobody is locked out).
    CSP: DOM built with createElement / textContent only; styles in trial-terms.css.
    ========================================================================= */
 (function (global) {
   "use strict";
-  var VERSION = "trial-2026-10-20";
+  var VERSION = "trial-2026-11-01";
   var DAYS = 8, KEEP_DAYS = 60, TEAM_EXTRA = 2, CREATE_CAP = 2, EXTENSION_DAYS = 7;
   var DELETE_WARN_DAYS = [30, 7, 1];
   var EMAIL_PER_DAY = 30, EMAIL_PER_RECIPIENT = 5;   // 0212 trial client e-mail caps (trial_email_settings)
@@ -64,7 +68,8 @@
         { t: "Edit the sample data", s: "Open, change and re-price any sample record to try your own way of working." },
         { t: "Change menu prices", s: "Price per plate, chair and plate prices. Dishes and menu packages cannot be added, renamed or removed in the trial." },
         { t: "Invite up to " + TEAM_EXTRA + " teammates", s: "You + " + TEAM_EXTRA + " people. Open invitations count toward the " + TEAM_EXTRA + "." },
-        { t: "E-mail your clients", s: "Approval (quote) links, booklet and invitation links and the approval code by e-mail really reach your client: up to " + EMAIL_PER_DAY + " e-mails a day, " + EMAIL_PER_RECIPIENT + " a day to one address. Sample (demo) events are never e-mailed." },
+        // R117 (0325): the trial is a simulation - nothing reaches a client (EMAIL_PER_DAY / EMAIL_PER_RECIPIENT kept for older callers)
+        { t: "Try sending to clients (simulation)", s: "Approval, booklet and invitation links show a preview of what your client would get - nothing is sent to clients in the trial. The client approves with the test code 000000 and payments are simulated (TEST receipts, no real money). Your own account e-mails (welcome, security, login codes, billing, teammate invites) still arrive." },
         { t: "Plan layouts in 2D and 3D", s: "Start from the " + count("layouts") + " layout templates, a blank floor or a past event." },
         { t: "Set pricing, coupons and rules", s: "Pricing & coupons, layout rules, and roles & access are all editable." }
       ] },
@@ -76,7 +81,7 @@
         { t: "Photo renders", s: null },
         { t: "Notification settings and client link auto-expire", s: null },
         { t: "Your own templates and the activity log", s: "Saving layout or checklist templates, the Templates page and the audit (activity) log." },
-        { t: "WhatsApp, SMS and online payment links", s: "They unlock on a paid plan. Approval codes go by e-mail only, and your client can also confirm with Test mode - confirm. Payments are recorded by hand." }
+        { t: "WhatsApp, SMS and online payment links", s: "They unlock on a paid plan. In the trial no approval code is sent - the client confirms with the test code 000000 - and payments are simulated." }
       ] },
     { id: "after", icon: "clock", title: "After the trial",
       items: [
@@ -108,7 +113,7 @@
   var SIGNUP_KEY = [
     { t: DAYS + " days free, no card", s: "An India studio: prices in " + REGION.symbol + ", times in " + REGION.tz + "." },
     { t: "Ready-made sample data", s: SAMPLE_SHORT + ", all marked “Demo”." },
-    { t: "You + up to " + TEAM_EXTRA + " teammates", s: "E-mail to your clients works (up to " + EMAIL_PER_DAY + " a day); WhatsApp and SMS unlock on a plan." },
+    { t: "You + up to " + TEAM_EXTRA + " teammates", s: "Sending to clients is a simulation (previews, test code 000000); real e-mail, WhatsApp and SMS unlock on a plan." },
     { t: "After " + DAYS + " days: read-only", s: "Your data is kept " + KEEP_DAYS + " days, then deleted (we remind you first). Choose a plan anytime to keep everything." }
   ];
   var SIGNUP_ALL = [
@@ -118,7 +123,7 @@
     "You plus up to " + TEAM_EXTRA + " teammates can use the trial studio (open invitations count).",
     "You can create up to " + CREATE_CAP + " new quotes (events), and add up to " + CREATE_CAP + " new records of each other kind (" + joinList(OTHER_LISTS) + "). Sample records (the " + count("events") + " sample events too) do not count, and deleting a record does not free a slot.",
     "Menu prices are editable. New dishes, menu packages, chair or plate types cannot be added during the trial.",
-    "E-mail to your clients works during the trial: approval (quote) links, booklet and invitation links and approval codes by e-mail are really sent, up to " + EMAIL_PER_DAY + " e-mails a day per studio and " + EMAIL_PER_RECIPIENT + " a day to one address. Sample (demo) events are never e-mailed.",
+    "During the trial nothing is sent to your clients: approval, booklet and invitation links show a preview, the client approves with the test code 000000 and payments are simulated (TEST receipts, no real money). Your own account e-mails (welcome, security, login codes, billing, teammate invites) still work.",
     "WhatsApp messages, SMS approval codes and online payment links are not sent during the trial; they unlock on a paid plan.",
     "Downloads (PDF, CSV, prints), imports and photo renders unlock on a paid plan.",
     "After " + DAYS + " days the studio becomes read-only: you and your teammates can still look, but nobody can add or change anything until you choose a plan.",

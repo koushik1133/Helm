@@ -41,8 +41,9 @@ await t('0211 SQL: my_trial_limits keeps the 5 capped lists + says quotes are un
   const ver = M.match(/select '(trial-\d{4}-\d{2}-\d{2})'::text;/)[1];
   assert.equal(ver, 'trial-2026-10-19');
   // r20: 0238 superseded this version (quotes capped again): trial-facts.js now carries the 0238 version
-  const v238 = read('supabase/migrations/0238_trial_quotes_cap_two.sql').match(/select '(trial-\d{4}-\d{2}-\d{2})'::text;/)[1];
-  assert.ok(!TF || TF.VERSION === v238, 'trial-facts VERSION = the latest server version (0238)');
+  // R117: 0325 superseded 0238 (trial = simulation wording): trial-facts.js carries the 0325 version
+  const v238 = read('supabase/migrations/0325_r117_trial_terms_proposal.sql').match(/select '(trial-\d{4}-\d{2}-\d{2})'::text;/)[1];
+  assert.ok(!TF || TF.VERSION === v238, 'trial-facts VERSION = the latest server version (0325)');
   assert.match(read('public/trial-facts.js'), new RegExp('var VERSION = "' + v238 + '";'));
 });
 

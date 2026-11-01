@@ -62,7 +62,7 @@ await t('0238 SQL: my_trial_limits lists quotes under used (no uncapped); versio
   assert.match(fn, /return jsonb_build_object\('trial', true, 'cap', 2, 'used', v_used\);/);
   assert.doesNotMatch(fn, /uncapped/);
   assert.match(fn, /if not public\._tl173_trial_locked\(v_org\) then return jsonb_build_object\('trial', false\); end if;/, 'paid: unchanged');
-  assert.match(M, new RegExp("select '" + F.VERSION + "'::text;")); assert.equal(F.VERSION, 'trial-2026-10-20');
+  assert.match(M, /select 'trial-2026-10-20'::text;/); assert.equal(F.VERSION, 'trial-2026-11-01');   // R117: 0325 moved the site version on
   assert.match(M, /grant execute on function public\.my_trial_limits\(\) to authenticated/);
   assert.match(M, /revoke all on function public\._trial_terms_version\(\) from authenticated/);
 });
