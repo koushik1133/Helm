@@ -87,7 +87,7 @@
       { sel: "#sec-proposal", title: "3 · Proposal", desc: "Your pitch to the client — it sits above the floor layout so you sell first, then plan." },
       { sel: "#sec-layout", title: "4 · Floor layout", desc: "Open the builder. The chairs you place here feed straight back into the quotation." },
       { sel: "#sec-quote", title: "5 · Quote", desc: "Final pricing and confirmation. Confirming sets the event live." },
-      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. \"Valid until\" shows how long the quote stays open (dd/mm/yyyy) - Extend it or pick a date; Undo fixes a mistake. Free trial: a test approval, no code is sent (use 000000)." },
+      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. \"Valid until\" shows how long the quote stays open (dd/mm/yyyy) - Extend it or pick a date; Undo fixes a mistake. Free trial: a full simulation - a test approval (use 000000), a simulated payment, and Preview instead of Send; nothing reaches your client." },
       { sel: "#sec-pay", need: "finance", title: "6 · Payment", desc: "Record the advance (amount, method, receipt no.) to confirm the booking, and pick a payment schedule - you see the split (e.g. 30% / 50% / 20%) before you add it." },
     ],
     "logistics.html": [
@@ -482,7 +482,7 @@
       { sel: "#rsvpModeGroup", title: "How guests reply", desc: "Phone & WhatsApp buttons (the default), an RSVP form where guests say Yes / Maybe / No and how many are coming, or both. With the form only, your number stays private." },
       { sel: "#addrGroup", title: "Address privacy", desc: "Show the full address and map to everyone with the link (the default), or only the venue name and city until a guest replies Yes or Maybe. This needs the RSVP form. Below it you choose whether the footer says “Made with Helm Studios”." },
       { sel: "#photos", title: "Photos, music & schedule", desc: "Add photos and choose how the background looks. Further down: a song for the site and the day's programme (ceremony, dinner, dancing)." },
-      { sel: "#shareCard", title: "Send to client", desc: "Share the site link with the client." },
+      { sel: "#shareCard", title: "Send to client", desc: "Share the site link with the client. Free trial: Preview shows what they would get - nothing is sent." },
       { sel: "#repliesCard", title: "Guest replies", desc: "With the RSVP form on, every reply lands here: who is coming, how many, and a CSV download. Shown once the site is published." },
       { sel: ["#pvToggle", "#pubBtn"], title: "Preview & publish", desc: "Check the live preview, then publish and copy the link for the client. Turn off link takes the site down again." },
     ],

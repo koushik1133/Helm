@@ -183,7 +183,7 @@ Deno.test("client-mailer r56 (C-03): an expired / not-live approval link is neve
   } finally { rF(); rEnv(); }
 });
 
-Deno.test("client-mailer: FREE TRIAL studio -> test_mode, NOTHING sent, row logged suppressed", async () => {
+Deno.test("client-mailer: FREE TRIAL studio -> test_mode simulation + preview (R114), NOTHING sent, row logged simulated", async () => {
   resetSupaMock(); db(Q, { token: TOKEN, expires_at: new Date(Date.now() + 864e5).toISOString(), revoked_at: null });
   g.__supaRpc = (name: string) => name === "client_mailer_check" ? CHK : name === "_sample_outbound_blocked" ? { data: true, error: null } : { data: null, error: null };
   const rEnv = setEnv(RESEND); const rF = installFetch((url) => { throw new Error("must not send: " + url); });
@@ -192,11 +192,12 @@ Deno.test("client-mailer: FREE TRIAL studio -> test_mode, NOTHING sent, row logg
     for (const kind of ["booklet", "approval"]) {
       const r = await h(post({ quote_id: QUOTE, kind }, auth));
       assertEquals(r.status, 200); const j = await r.json();
-      assertEquals(j.status, "test_mode"); assert(String(j.reason).startsWith("Test mode"));
+      assertEquals(j.status, "test_mode"); assertEquals(j.simulated, true); assert(String(j.reason).startsWith("Trial simulation"));
+      assert(j.preview && typeof j.preview.subject === "string" && typeof j.preview.text === "string", "preview of what the client would get");
     }
     assertEquals(fetchLog().length, 0);
     const rows = supaLog().filter((x) => x.table === "notifications");
-    assert(rows.length === 2 && rows.every((x) => JSON.stringify(x.calls).includes('"suppressed"')), "suppressed rows");
+    assert(rows.length === 2 && rows.every((x) => JSON.stringify(x.calls).includes('"simulated"')), "simulated rows");
   } finally { rF(); rEnv(); }
 });
 

@@ -1,0 +1,15 @@
+/* R114 (0323): free trial = full SIMULATION - the red banner + the "what your client would receive" preview
+   (trial-sim.js). Same look on client pages (approve / portal / booklet / invitation) and studio send boxes. */
+.trial-sim-banner{display:block;margin:0 0 14px;padding:10px 14px;border-radius:10px;border:1px solid #e3a3a3;
+  background:#fdecec;color:#9b1c1c;font-size:14px;line-height:1.5;font-weight:500;text-align:left}
+.trial-sim-banner strong{font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+.trial-sim-preview{margin:10px 0 0;padding:10px 12px;border-radius:10px;border:1px dashed #e3a3a3;background:#fff8f8;color:#3b1111;text-align:left}
+.trial-sim-preview-h{font-weight:700;font-size:13px;color:#9b1c1c;margin:0 0 6px}
+.trial-sim-preview-subj{font-weight:600;font-size:13px;margin:0 0 6px;overflow-wrap:anywhere}
+.trial-sim-preview-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:13px;line-height:1.5;max-height:260px;overflow:auto}
+.trial-sim-pay{margin:14px 0 0;padding:12px 14px;border-radius:12px;border:1px solid #e3a3a3;background:#fff8f8;text-align:left}
+.trial-sim-pay h3{margin:0 0 6px;font-size:15px;color:#9b1c1c}
+.trial-sim-pay .trial-sim-amt{font-size:22px;font-weight:700;margin:6px 0;overflow-wrap:anywhere}
+.trial-sim-pay .trial-sim-res{margin:8px 0 0;font-size:13px}
+.trial-sim-pay .trial-sim-res.ok{color:#0f7a43}
+.trial-sim-pay .trial-sim-res.err{color:#b42318}

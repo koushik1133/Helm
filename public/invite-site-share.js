@@ -3,7 +3,10 @@
  * BPStore.sites.send (event_site_send -> comms_outbox -> comms-dispatch, the same outbox as payment
  * reminders). The address is pre-filled from the quote and editable; the message is fixed text,
  * shown as a preview. WhatsApp needs the client's opt-in (stored with who / when); STOP is respected.
- * FREE TRIAL (0212): e-mail WORKS in an ACTIVE trial - the link really reaches the client (capped by the server:
+ * R114 (0323, owner decision): a FREE TRIAL is a full SIMULATION - the button becomes "Preview (trial - not sent)":
+ * it shows the message the client would get and opens the client page for the studio; the server is never asked to
+ * send (and refuses anyway: 0323 stores a trial send as 'skipped'). The red trial banner sits on top of the box.
+ * (Before R114) FREE TRIAL (0212): e-mail WORKS in an ACTIVE trial - the link really reaches the client (capped by the server:
  * 30 a day per studio, 5 a day to one address); the WhatsApp option is HIDDEN (WhatsApp and SMS unlock on a paid
  * plan). An ended trial / owner switch off / a database without 0212 (BPStore.subscription.messaging() says
  * email false or null): test mode as before - the server stores the send as skipped and the box says so.
@@ -15,6 +18,9 @@
   "use strict";
   var OPT_TEXT = "Client agreed to receive WhatsApp messages about this event from Helm Events on behalf of the studio.";
   var TRIAL_NOTE = "Test mode — in the free trial we don't send real messages; copy the link instead.";
+  // R114 (0323): the trial preview
+  var SIM_NOTE = "Trial simulation — nothing is sent to your client. Preview shows the message they would get and opens their page for you.";
+  var SIM_DONE = "Preview only — nothing was sent to your client (trial simulation). Their page opened in a new tab.";
   // 0212: an ACTIVE free trial - e-mail is real, WhatsApp is not offered
   var TRIAL_EMAIL_NOTE = "Free trial: the e-mail really goes to your client (up to 30 a day). WhatsApp and SMS unlock on a paid plan.";
   var TRIAL_CAP = "Not sent: the free trial e-mail limit for today is reached (30 a day, 5 to one address). Use Copy link to share it yourself.";
@@ -159,10 +165,11 @@
       pv.textContent = pub ? (opts.message || message)(q0, opts.getLink())
         : (opts.pendingPreview || ("Hi " + clientName(q0) + ", here is your invitation website: (link appears after you publish)"));
       trial.hidden = !(isTrial || trialEmail);
-      trial.textContent = trialEmail && !isTrial ? TRIAL_EMAIL_NOTE : TRIAL_NOTE;
+      trial.textContent = isTrial ? SIM_NOTE : trialEmail ? TRIAL_EMAIL_NOTE : TRIAL_NOTE;
       dirtyNote.hidden = !(pub && opts.isDirty && opts.isDirty());
-      send.textContent = (ch === "whatsapp" ? "Send on WhatsApp" : "Send by email") + (isTrial ? " (test mode)" : "");
-      var ok = pub && valid(ch, String(to.value || "").trim());
+      send.textContent = isTrial ? "Preview (trial \u2014 not sent)" : (ch === "whatsapp" ? "Send on WhatsApp" : "Send by email");
+      if (isTrial) { try { if (window.HelmTrialSim && window.HelmTrialSim.banner) window.HelmTrialSim.banner(box); } catch (x) {} }
+      var ok = pub && (isTrial || valid(ch, String(to.value || "").trim()));
       send.disabled = !ok; if (!ok) send.setAttribute("aria-disabled", "true"); else send.removeAttribute("aria-disabled");
       var k = logKey();
       if (pub && k && loadedFor !== k) { loadedFor = k; loadLog(); }
@@ -196,6 +203,14 @@
       msg.textContent = "";
       var ch = channel(), v = String(to.value || "").trim(), s = opts.getSite ? opts.getSite() : null;
       if (!published() || (!opts.send && !s)) { msg.textContent = GATE; return; }
+      // R114 (0323): a trial previews - the message the client would get + their page for the studio; NOTHING is sent
+      if (isTrial) {
+        var TS = window.HelmTrialSim, link = opts.getLink ? String(opts.getLink() || "") : "";
+        if (TS && TS.preview) TS.preview(body, { subject: "", text: pv.textContent });
+        if (/^https?:\/\//i.test(link)) { try { window.open(link.split("#")[0] + "#preview", "_blank", "noopener,noreferrer"); } catch (x) {} }
+        msg.textContent = SIM_DONE;
+        return;
+      }
       if (!valid(ch, v)) { msg.textContent = ch === "email" ? "Enter a valid email address." : "Enter a valid mobile number with the country code."; to.focus(); return; }
       var addr = ch === "whatsapp" ? e164(v, opts.country ? opts.country() : "IN") : v;
       var run = function () {
@@ -219,8 +234,9 @@
                  Promise.resolve(sub.messaging ? sub.messaging() : null).catch(function () { return null; })]).then(function (a) {
       var m = a[1];
       if (m && typeof m === "object" && typeof m.trial === "boolean") {
-        trialEmail = m.trial === true && m.email === true;
-        isTrial = m.trial === true && m.email !== true;
+        // R114 (0323): any free trial is a simulation (an older database may still say email:true - never sent)
+        trialEmail = false;
+        isTrial = m.trial === true;
       } else { isTrial = a[0] === true; trialEmail = false; }
       paint();
     }, function () {});
@@ -229,6 +245,6 @@
   }
 
   window.HelmInviteShare = { mount: mount, message: message, clientName: clientName, resultText: resultText, OPT_TEXT: OPT_TEXT, TRIAL_NOTE: TRIAL_NOTE,
-    TRIAL_EMAIL_NOTE: TRIAL_EMAIL_NOTE, TRIAL_CAP: TRIAL_CAP, staleQueued: staleQueued, STALE_NOTE: STALE_NOTE };
+    TRIAL_EMAIL_NOTE: TRIAL_EMAIL_NOTE, TRIAL_CAP: TRIAL_CAP, SIM_NOTE: SIM_NOTE, SIM_DONE: SIM_DONE, staleQueued: staleQueued, STALE_NOTE: STALE_NOTE };
   window.HelmSendToClient = window.HelmInviteShare;   // shared name (booklet dialog, 0200)
 })();

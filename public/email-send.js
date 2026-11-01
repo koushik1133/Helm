@@ -8,10 +8,17 @@
  * The line under the button says so (TRIAL_EMAIL). WhatsApp and SMS unlock on a paid plan. An ended trial, the
  * owner switch off or a database without 0212 (BPStore.subscription.messaging() -> email false / null): nothing
  * is sent - the button is off with the test-mode line (the server answers status "test_mode" too).
+ * R114 (0323, owner decision: a free trial is a full SIMULATION): in a trial the button is "Preview e-mail (trial)":
+ * nothing is sent - the server (client-mailer) answers { status: "test_mode", simulated: true, preview } and the box
+ * shows "This is what your client would receive - not sent (trial simulation)" under the red trial banner.
  * CSP-safe: DOM via createElement / textContent, no inline styles or handlers. */
 (function () {
   "use strict";
   var TEST_MODE = "Test mode \u2014 in the free trial we don't send real messages; copy the link instead.";
+  // R114 (0323): the free trial is a simulation - preview instead of send
+  var SIM_LINE = "Trial simulation \u2014 nothing is sent to your client. Press Preview to see the e-mail they would receive.";
+  var SIM_LABEL = "Preview e-mail (trial)";
+  var SIM_NO_PREVIEW = "Trial simulation \u2014 nothing was sent. (The e-mail preview appears once the latest Helm update is live.)";
   // 0212: an ACTIVE free trial e-mails the client for real (n = the studio's daily cap from the server)
   function trialEmailText(n) {
     return "Free trial: this e-mail really goes to your client (up to " + (n > 0 ? n : 30) + " e-mails a day). WhatsApp and SMS unlock on a paid plan.";
@@ -42,9 +49,14 @@
     var trial = false;          // free trial and e-mail does NOT reach clients (test mode)
     var trialEmail = "";        // 0212: active free trial, e-mail works - the note under the address
     function email() { return String((opts.getEmail && opts.getEmail()) || "").trim(); }
+    var label = opts.label || "Send by email";
     function refresh() {
       var e = email();
-      if (trial) { btn.disabled = true; to.textContent = TEST_MODE; return; }
+      // R114: a trial previews - the button stays on, nothing is ever sent (the server refuses too)
+      if (trial) { btn.disabled = false; btn.textContent = SIM_LABEL; to.textContent = SIM_LINE;
+        try { if (window.HelmTrialSim && window.HelmTrialSim.banner) window.HelmTrialSim.banner(box); } catch (x) {}
+        return; }
+      btn.textContent = label;
       var note = trialEmail ? " " + trialEmail : "";
       if (!e && opts.allowUnknown) { btn.disabled = false; to.textContent = "To the client e-mail saved on the quote." + note; return; }
       btn.disabled = !OK.test(e);
@@ -56,7 +68,14 @@
       var run = function () {
         return S.approval.emailLink(opts.quoteId, opts.kind).then(function (r) {
           msg.textContent = resultText(r, e);
-          if (r && r.status === "test_mode") { trial = true; refresh(); }
+          if (r && r.status === "test_mode") {
+            trial = true; refresh();
+            // R114: show what the client would receive (the server's preview) - never sent
+            msg.textContent = (r.preview ? String(r.reason || "Trial simulation \u2014 nothing was sent to your client.") : SIM_NO_PREVIEW);
+            var TS = window.HelmTrialSim;
+            if (r.preview && TS && TS.preview) TS.preview(box, r.preview);
+            else if (r.preview) { var pv = el("pre", "ems-preview", "Subject: " + String(r.preview.subject || "") + "\n\n" + String(r.preview.text || "")); box.appendChild(pv); }
+          }
           if (r && r.status === "sent" && U && U.toast) U.toast(msg.textContent, { type: "ok" });
         }).catch(function (err) { msg.textContent = "Not sent: " + String((err && err.message) || "the e-mail could not be sent"); });
       };
@@ -79,8 +98,9 @@
   function trialState(m) {
     if (!m || typeof m !== "object" || typeof m.trial !== "boolean") return null;
     if (m.trial !== true) return { testMode: false, note: "" };
-    if (m.email === true) return { testMode: false, note: trialEmailText(Number(m.email_per_day) || 30) };
+    // R114 (0323): ANY free trial is a simulation - even an older database that still says email:true (0212)
     return { testMode: true, note: "" };
   }
-  window.HelmEmailSend = { mount: mount, resultText: resultText, mask: mask, trialState: trialState, TEST_MODE: TEST_MODE, TRIAL_EMAIL: TRIAL_EMAIL };
+  window.HelmEmailSend = { mount: mount, resultText: resultText, mask: mask, trialState: trialState, TEST_MODE: TEST_MODE, TRIAL_EMAIL: TRIAL_EMAIL,
+    SIM_LINE: SIM_LINE, SIM_LABEL: SIM_LABEL };
 })();
