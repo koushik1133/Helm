@@ -102,8 +102,13 @@
   }
   function makeMask(e) {
     if (e.namespaceURI === SVG_NS) { var tn = document.createTextNode(MASK); maskTxt.set(tn, e); return tn; }
+    var sp = hiddenChip(), tx = sp.firstChild; maskTxt.set(tx, e); spanOwner.set(sp, e); return sp;
+  }
+  /* R115: the ONE hidden-amount chip (styled by .hbp-mask in shell-b-privacy.css: lock + "Hidden"). Text stays "••••" for
+     copy/paste; screen readers hear "Amount hidden". Exposed as HelmPrivacy.hiddenChip() for pages that draw one themselves. */
+  function hiddenChip() {
     var sp = document.createElement("span"); sp.className = "hbp-mask"; sp.setAttribute("role", "img"); sp.setAttribute("aria-label", "Amount hidden"); sp.title = "Amount hidden. Tap the eye icon to show";
-    var tx = document.createTextNode(MASK); sp.appendChild(tx); maskTxt.set(tx, e); spanOwner.set(sp, e); return sp;
+    sp.appendChild(document.createTextNode(MASK)); return sp;
   }
   /* move e's children into memory and leave only the mask; again after the page re-renders e while hidden */
   function maskEl(e) {
@@ -523,7 +528,7 @@
     touch();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
-  window.HelmPrivacy = { hide: function () { setHidden(true); }, show: requestShow, toggle: toggle, changePin: changePin, isHidden: hidden, rescan: fullScan, realText: realText,
+  window.HelmPrivacy = { hide: function () { setHidden(true); }, show: requestShow, toggle: toggle, changePin: changePin, isHidden: hidden, rescan: fullScan, realText: realText, hiddenChip: hiddenChip,
     /* r20 planner: for text a page shows in a box the scanner skips (lead Notes textarea) */
     hasMoney: hasMoney, maskText: function (s) { RE.lastIndex = 0; return String(s == null ? "" : s).replace(RE, "••••"); } };
 })();

@@ -28,17 +28,8 @@ h3.sec .sec-note { font-size: 12px; font-weight: 500; letter-spacing: 0; text-tr
 .kpi .n { line-height: 1.2; min-height: 1.2em; overflow-wrap: anywhere; }
 .kpi .l { margin-top: 4px; }
 
-/* ---- r21: masked amounts ("Hide amounts") line up with the numbers they replace ----
-   The shared mask (shell-b-privacy.css) paints a grey pill sized to the element, so a block value (KPI number, a table
-   cell, a legend <b>) became a full-width grey bar. Here the "••••" text the mask already puts in the element is shown in
-   the muted ink at the SAME font size / baseline as the number, with no box. Only the mask span is made visible, never
-   the element's own text. */
-html.hb-priv-on #main .hbp-m:not(svg *), html.hb-priv-on #main [data-money]:not(svg):not(svg *) {
-  background: none !important; border-radius: 0; letter-spacing: .06em; }
-html.hb-priv-on #main .hbp-m:not(svg *):has(> .hbp-mask)::after, html.hb-priv-on #main [data-money]:not(svg):not(svg *):has(> .hbp-mask)::after { content: none; }
-html.hb-priv-on #main .hbp-m > .hbp-mask, html.hb-priv-on #main [data-money] > .hbp-mask {
-  color: var(--ink-3) !important; -webkit-text-fill-color: var(--ink-3) !important; font: inherit; letter-spacing: .08em; }
-html.hb-priv-on #main .kpi .n.hbp-m { color: var(--ink-3); }
+/* ---- masked amounts ("Hide amounts"): R115 moved the look to ONE shared chip in shell-b-privacy.css (lock + "Hidden").
+   Only the column alignment stays here: a masked money cell keeps the right alignment of the numbers around it. */
 html.hb-priv-on #main td.hbp-m { text-align: right; }
 
 /* ---- r21: event costs & profit + benchmarks (insights-costs.js) ---- */

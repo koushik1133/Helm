@@ -71,7 +71,7 @@
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="payment-schedule.css?v=5">
-<script src="/shell-proto.js?v=56" id="shellProto"></script>
+<script src="/shell-proto.js?v=57" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -122,7 +122,7 @@
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script>
-<script src="page-tours.js?v=15"></script>
+<script src="page-tours.js?v=14"></script>
 <script src="tour.js?v=34"></script>
 <script src="payment-schedule.js?v=5"></script>
 <script>
@@ -166,7 +166,7 @@
     const done = items.filter(i=>i.status==="done").length;
     $("#pane").innerHTML = `<h2>${esc(TAB_NAME[tab]||tab)}</h2><p class="sub">${CHK_HELP[tab]}</p>
       ${canEdit?`<div class="addrow chk">
-        <div class="fld"><label for="a_title">Item *</label><input id="a_title" maxlength="200" required placeholder="what needs doing"></div>
+        <div class="fld"><label for="a_title">Item *</label><input id="a_title" maxlength="200" required placeholder="e.g. Confirm generator backup"></div>
         <div class="fld"><label for="a_owner">Owner</label>${peopleSelectHTML("a_owner","")}</div>
         <div class="fld"><label for="a_due">Due</label><input id="a_due" type="date" data-date-window="recent"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="a_add">＋ Add item</button></div></div>`:""}

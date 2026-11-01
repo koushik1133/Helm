@@ -26,8 +26,8 @@ t('assign vendor: Agreed amount has a placeholder (an empty box never shows dots
   assert.match(dialog, /id="vr_amt" type="number" min="0" step="1" inputmode="numeric" placeholder="e\.g\. 25000"/);
   assert.match(dialog, /class="rp-privnote"[^>]*>Amounts are hidden right now - tap a box to see or type the amount\./);
   assert.match(RCSS, /html\.hb-priv-on \.rp-privnote\{display:block\}/);
-  assert.match(dialog, /id="bk_cost" type="number" min="0" placeholder="optional"/);
-  assert.match(dialog, /id="bk_adv" type="number" min="0" placeholder="optional"/);
+  assert.match(dialog, /id="bk_cost" type="number" min="0" placeholder="Optional"/);
+  assert.match(dialog, /id="bk_adv" type="number" min="0" placeholder="Optional"/);
 });
 t('privacy: a masked money box with no placeholder gets a blank one, so an EMPTY box reads empty (value untouched)', () => {
   assert.match(PRIV, /if \(!i\.hasAttribute\("placeholder"\)\) i\.setAttribute\("placeholder", " "\);/);

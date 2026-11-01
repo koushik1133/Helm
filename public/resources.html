@@ -67,7 +67,7 @@
 </style>
 <link rel="stylesheet" href="resources-polish.css?v=5">
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
-<script src="/shell-proto.js?v=56" id="shellProto"></script>
+<script src="/shell-proto.js?v=57" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -143,10 +143,10 @@
 <div id="bookModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="bm_title">
   <div class="sheet rp-sheet">
     <h3 class="s-015a5e7"><span id="bm_title">Assign vendor</span><button type="button" class="close s-af04dd5" id="bm_close" aria-label="Close" data-close>×</button></h3>
-    <div class="fld"><label for="bk_label">For</label><input id="bk_label" placeholder="what this vendor brings"></div>
+    <div class="fld"><label for="bk_label">For</label><input id="bk_label" placeholder="e.g. Sound &amp; lighting"></div>
     <div class="rp-row2 rp-vq">
       <div class="fld"><label for="bk_vendor">Vendor</label><select id="bk_vendor"></select></div>
-      <div class="fld"><label for="vr_qty">Qty</label><input id="vr_qty" type="number" min="0" step="1" inputmode="numeric" placeholder="optional"></div>
+      <div class="fld"><label for="vr_qty">Qty</label><input id="vr_qty" type="number" min="0" step="1" inputmode="numeric" placeholder="Optional"></div>
     </div>
     <fieldset class="rp-mode" id="bk_modeWrap">
       <legend class="sr-only">How to assign</legend>
@@ -168,14 +168,14 @@
     </div>
     <div id="bk_noteBox" hidden>
       <div class="rp-row2">
-        <div class="fld"><label for="bk_cost">Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
-        <div class="fld"><label for="bk_adv">Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
+        <div class="fld"><label for="bk_cost">Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="Optional"></div>
+        <div class="fld"><label for="bk_adv">Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="Optional"></div>
       </div>
       <div class="rp-row2">
         <div class="fld"><label for="bk_status">Status</label><select id="bk_status"><option value="enquiry">Asked</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
         <div class="fld"><label class="s-e648473"><input class="s-e210402" type="checkbox" id="bk_contract"> Contract signed</label></div>
       </div>
-      <div class="fld s-fe7b497"><label for="bk_note">Note</label><input id="bk_note" placeholder="optional"></div>
+      <div class="fld s-fe7b497"><label for="bk_note">Note</label><input id="bk_note" placeholder="Optional"></div>
     </div>
     <div id="bm_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button type="button" class="btn" id="bm_cancel">Cancel</button><button class="btn primary" id="bm_save">Send request</button></div>

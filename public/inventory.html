@@ -101,7 +101,7 @@
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="stock-flow.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=56" id="shellProto"></script>
+<script src="/shell-proto.js?v=57" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -127,7 +127,7 @@
       <div class="reserve-row">
         <div class="fld"><label for="rv_item">Item</label><select id="rv_item"></select></div>
         <div class="fld"><label for="rv_qty">Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
-        <div class="fld"><label for="rv_note">Note</label><input id="rv_note" placeholder="optional"></div>
+        <div class="fld"><label for="rv_note">Note</label><input id="rv_note" placeholder="Optional"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="rv_add">Reserve</button></div>
       </div>
       <div id="rvShort" class="rvs" role="region" aria-label="Not enough stock free" hidden></div>
@@ -174,7 +174,7 @@
           <div class="fld"><label for="co_item">Item</label><select id="co_item"></select></div>
           <div class="fld"><label for="co_qty">How many</label><input id="co_qty" type="number" min="1" value="1"></div>
           <div class="fld"><label for="co_to">Given to</label><select id="co_to"><option value="">Select person…</option></select></div>
-          <div class="fld"><label for="co_note">Note</label><input id="co_note" placeholder="optional"></div>
+          <div class="fld"><label for="co_note">Note</label><input id="co_note" placeholder="Optional"></div>
           <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="co_add">Give out</button></div>
         </div>
         <div id="coShort" class="coshort" role="alert" aria-live="assertive" hidden></div>
@@ -217,7 +217,7 @@
         <option value="B">B — mid value</option>
         <option value="C" selected>C — low value (e.g. plastic chairs)</option></select></div>
       <div class="fld"><label for="i_cost">Unit cost (₹)</label><input id="i_cost" type="number" min="0" step="1" value="0"></div>
-      <div class="fld s-068a8dd"><label for="i_notes">Notes</label><input id="i_notes" placeholder="optional"></div>
+      <div class="fld s-068a8dd"><label for="i_notes">Notes</label><input id="i_notes" placeholder="Optional"></div>
     </div>
     <details id="i_attrs_box" class="attrbox"><summary>Custom fields</summary><div id="i_attrs"></div></details>
     <datalist id="catList"></datalist>
@@ -250,7 +250,7 @@
       <div class="fld"><label for="ci_out">Went out</label><input id="ci_out" readonly></div>
       <div class="fld"><label for="ci_in">Came back OK</label><input id="ci_in" type="number" min="0" step="1"></div>
       <div class="fld"><label for="ci_dmg">Damaged</label><input id="ci_dmg" type="number" min="0" step="1" value="0"></div>
-      <div class="fld"><label for="ci_by">Your name</label><input id="ci_by" placeholder="who checked it"></div>
+      <div class="fld"><label for="ci_by">Your name</label><input id="ci_by" placeholder="e.g. Ravi"></div>
     </div>
     <div id="ci_warn" class="err s-e3b81b7" hidden role="status" aria-live="polite"></div>
     <div id="ci_err" class="err" hidden role="alert" aria-live="assertive"></div>
