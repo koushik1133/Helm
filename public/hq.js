@@ -1167,7 +1167,10 @@
       go.disabled = true;
       call("hq_activate_plan", a).then(function (r) {
         var inv = r && r.payment && r.payment.invoice_no;
-        okMsg((r && r.result === "replay" ? "Already activated with this payment" : "Plan activated") + (inv ? " — invoice " + inv : "") + ".");
+        // r120 (0328): the studio's owner + admins get a bell notice and an e-mail (once per plan period)
+        var told = r && r.studio_notice && r.studio_notice.queued === true;
+        okMsg((r && r.result === "replay" ? "Already activated with this payment" : "Plan activated") + (inv ? " — invoice " + inv : "") + "."
+          + (told ? " The studio's admins got a bell notice and an e-mail." : ""));
         amt.value = ""; ref.value = ""; refreshAfterWrite(org);
       }).catch(showErr).then(function () { go.disabled = false; });
     });
