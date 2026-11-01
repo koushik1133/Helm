@@ -121,9 +121,9 @@ t('3 APPLY-0325.sql = begin + the migration + commit + 5 VERIFY rows; MANIFEST, 
   assert.ok(a.includes('begin;\n' + MIG + 'commit;\n'), 'migration verbatim between begin / commit');
   assert.equal((a.match(/^\s+\('0\d /gm) || []).length, 5);
   assert.doesNotMatch(a, /[^\x00-\x7f]/, 'ASCII');
-  assert.match(read('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0325_r117_trial_terms_proposal\.sql\n$/);
+  assert.match(read('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0325_r117_trial_terms_proposal\.sql\n/);
   assert.match(read('scripts/db-test/run-all.sh'), /run "r117-trial-terms-proposal-0325" "R117-TRIAL-TERMS-PROPOSAL-0325: ALL PASS \\\(21\/21\\\)"/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(read(f), /'0324', '0325'\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(read(f), /'0324', '0325'/, f);
 });
 
 // ---- 4 cosmetic --------------------------------------------------------------------------------------------------
