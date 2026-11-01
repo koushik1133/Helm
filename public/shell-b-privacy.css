@@ -17,6 +17,30 @@ html.hb-priv-on [data-money]:not(svg):not(svg *)::after {
 }
 /* children of a masked block must not leak their own colour */
 html.hb-priv-on .hbp-m:not(svg *) *, html.hb-priv-on [data-money]:not(svg):not(svg *) * { color: transparent !important; -webkit-text-fill-color: transparent; }
+/* ---- R115: ONE look for every hidden amount: a small "Hidden" chip with a lock ----
+   shell-b-privacy.js puts a span.hbp-mask (role=img, aria-label "Amount hidden", text "••••") inside each masked
+   element. The owner found the bare "••••" cramped and clashing with the background, so the span itself is drawn as a
+   quiet rounded chip: lock icon + "Hidden", muted ink on a faint tint with a hairline border (readable on white cards
+   and on the tinted page background). The masked element loses its own grey box / overlay dots, so the chip is the only
+   thing drawn; it keeps the element's text-align (right-aligned money columns stay right-aligned) and line height
+   (no row jumps). Fixed px sizes: the chip is the same in a table cell, a KPI tile and the builder price panel.
+   HelmPrivacy.hiddenChip() returns the same span for code that renders a hidden amount itself. */
+html.hb-priv-on :is(.hbp-m, [data-money]):not(svg):not(svg *):has(> .hbp-mask) { background: none !important; border-radius: 0; letter-spacing: normal; }
+html.hb-priv-on :is(.hbp-m, [data-money]):not(svg):not(svg *):has(> .hbp-mask)::after { content: none !important; }
+.hbp-mask, html.hb-priv-on :is(.hbp-m, [data-money]) > .hbp-mask {
+  display: inline-flex !important; align-items: center; justify-content: center; gap: 4px; box-sizing: border-box;
+  height: 20px; min-width: 64px; padding: 0 8px; margin: 0; border-radius: 999px; vertical-align: middle;
+  font-size: 0 !important; line-height: 1; letter-spacing: 0; white-space: nowrap; cursor: help;
+  color: var(--hb-ink2, var(--ink-2, #3b4a45)) !important; -webkit-text-fill-color: var(--hb-ink2, var(--ink-2, #3b4a45)) !important;
+  background: color-mix(in srgb, var(--hb-ink, #111) 6%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--hb-ink, #111) 13%, transparent); text-shadow: none !important; }
+.hbp-mask::before {
+  content: ""; flex: none; width: 10px; height: 10px; background: currentColor; opacity: .8;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 7V5a3 3 0 0 1 6 0v2' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/%3E%3Crect x='3' y='7' width='10' height='8' rx='2'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 7V5a3 3 0 0 1 6 0v2' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/%3E%3Crect x='3' y='7' width='10' height='8' rx='2'/%3E%3C/svg%3E") center / contain no-repeat; }
+.hbp-mask::after { content: "Hidden"; font: 600 11.5px/1 var(--font, system-ui, -apple-system, "Segoe UI", sans-serif); letter-spacing: .01em; }
+/* a total row (builder Total, event header total) gets the same chip, just a touch firmer */
+html.hb-priv-on :is(.total, .tot) :is(.hbp-m, [data-money]) > .hbp-mask { border-color: color-mix(in srgb, var(--hb-ink, #111) 20%, transparent); }
 /* SVG: chart labels vanish, whole money charts blur */
 html.hb-priv-on svg .hbp-m, html.hb-priv-on svg [data-money] { fill: transparent !important; }
 html.hb-priv-on svg[data-money] { filter: blur(7px); -webkit-user-select: none; user-select: none; }

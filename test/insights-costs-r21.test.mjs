@@ -17,9 +17,11 @@ t('page: one title (top bar) - no H2 "Insights", breadcrumb hidden, intro kept',
   assert.match(CSS, /html\[data-shell\] #helmTrail \{ display: none !important; \}/);
   assert.match(INS, /class="sub ins-intro"/);
 });
-t('page: masked amounts have no grey box, show the mask text at the number size (mask span only)', () => {
-  assert.match(CSS, /html\.hb-priv-on #main \.hbp-m:not\(svg \*\), html\.hb-priv-on #main \[data-money\]:not\(svg\):not\(svg \*\) \{\s*background: none !important;/);
-  assert.match(CSS, /html\.hb-priv-on #main \.hbp-m > \.hbp-mask/);
+t('page: masked amounts have no grey box (R115: the shared lock + "Hidden" chip; the page only keeps the right alignment)', () => {
+  const P = read('public/shell-b-privacy.css');
+  assert.match(P, /:has\(> \.hbp-mask\) \{ background: none !important;/);
+  assert.match(P, /\.hbp-mask::after \{ content: "Hidden";/);
+  assert.match(CSS, /html\.hb-priv-on #main td\.hbp-m \{ text-align: right; \}/);
   assert.doesNotMatch(CSS, /#main \.hbp-m:not\(svg \*\) \{[^}]*color: var\(--ink/);   // never reveals the element's own text
 });
 t('page: cost cards wired (finance only), loaded with the 12-month benchmark window, CSP-safe', () => {

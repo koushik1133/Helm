@@ -11,8 +11,9 @@ t('1 CRM budget falls back to the live lead, then the quote / Discovery budget',
   assert.match(api, /try \{ await leads\._fillArchiveBudgets\(r\.rows\); \} catch \(e\) \{\}/);
   assert.match(api, /from\("quotes"\)\.select\("id,client"\)\.in\("id", qids\)/);
   assert.match(api, /from\("event_discovery"\)\.select\("quote_id,budget_max"\)/);
-  const css = read('public/crm-polish.css');
-  assert.match(css, /html\.hb-priv-on #rows td\.hbp-m > \.hbp-mask::after \{ content: "Hidden"/);
+  const css = read('public/crm-polish.css');   // R115: the lock + "Hidden" chip moved to the shared privacy CSS
+  assert.match(css, /html\.hb-priv-on #rows td\.hbp-m:not\(svg \*\) \{ text-align: right; \}/);
+  assert.match(read('public/shell-b-privacy.css'), /\.hbp-mask::after \{ content: "Hidden";/);
   assert.match(read('public/shell-b-privacy.js'), /sp\.title = "Amount hidden\. Tap the eye icon to show"/);
 });
 
