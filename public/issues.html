@@ -70,7 +70,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=55" id="shellProto"></script>
+<script src="/shell-proto.js?v=56" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -102,9 +102,9 @@
 
     <div class="card" id="addCard" hidden>
       <div class="add">
-        <div class="fld"><label id="titleLbl" for="i_title">Issue</label><input id="i_title" maxlength="500" placeholder="what's happening"></div>
+        <div class="fld"><label id="titleLbl" for="i_title">Issue</label><input id="i_title" maxlength="500" placeholder="e.g. Generator not delivered"></div>
         <div class="fld"><label for="i_sev">Severity</label><select id="i_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
-        <div class="fld"><label for="i_owner">Owner</label><input id="i_owner" placeholder="who's on it"></div>
+        <div class="fld"><label for="i_owner">Owner</label><input id="i_owner" placeholder="Who is handling it"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="i_add">＋ Log</button></div>
       </div>
     </div>
@@ -130,7 +130,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=324"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

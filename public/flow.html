@@ -126,7 +126,7 @@
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
 <link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=5">
-<script src="/shell-proto.js?v=55" id="shellProto"></script>
+<script src="/shell-proto.js?v=56" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -290,7 +290,7 @@
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (<span class="cur-sym">₹</span>)</label><input id="q_other" type="number" min="0"><p class="hint" id="q_otherLayout" role="status" hidden><span id="q_otherLayoutTxt"></span> <button type="button" class="btn ghost" id="q_otherUseLayout">Use it</button></p></div>
             <div class="fld"><label for="q_discount">Discount (<span class="cur-sym">₹</span>)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span><span class="hint" id="q_discountPctHint" hidden></span></div>
             <div class="fld"><label for="q_discountPct">Discount (%)</label><input id="q_discountPct" type="number" min="0" max="100" step="0.5" aria-describedby="q_discount_err"></div>
-            <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
+            <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="Optional"><datalist id="couponList"></datalist>
               <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
             <div class="fld"><label for="q_taxExempt"><input type="checkbox" id="q_taxExempt"> Tax-exempt client (no tax charged)</label></div>
           </div>
@@ -352,7 +352,7 @@
             <div class="fld pay-f-pct"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
             <div class="fld pay-f-amt"><label for="pay_amount">Advance amount (<span class="cur-sym">₹</span>)</label><input id="pay_amount" type="number" min="0"></div>
             <div class="fld pay-f-method"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
-            <div class="fld pay-f-rcpt" id="pay_receiptWrap"><label for="pay_receipt">Receipt no.</label><input id="pay_receipt" placeholder="Blank = automatic" title="Offline payments: your receipt / cash memo no. (e.g. RCP-001). Leave blank to number it automatically."></div>
+            <div class="fld pay-f-rcpt" id="pay_receiptWrap"><label for="pay_receipt">Receipt no.</label><input id="pay_receipt" placeholder="Leave blank to auto-number" title="Offline payments: your receipt / cash memo no. (e.g. RCP-001). Leave blank to number it automatically."></div>
             <div class="pay-f-go"><button type="button" class="btn primary" id="pay_record">Record advance payment</button></div>
           </div>
           <p class="hint" id="pay_terms" hidden></p>
@@ -463,7 +463,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=324"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script>
 <script src="page-tours.js?v=14"></script>
 <script src="tour.js?v=33"></script>
 <script src="payment-schedule.js?v=4"></script>

@@ -1803,7 +1803,7 @@ function renderInspector(){
       <div class="modelrow">
         <label for="f_model">3D model (.glb / .gltf URL)</label>
         <div class="modelin">
-          <input type="text" id="f_model" placeholder="paste a GLB from Sloyd / Meshy / Tripo…" value="${escapeHtml(it.properties&&it.properties.model?it.properties.model:'')}">
+          <input type="text" id="f_model" placeholder="Paste a .glb link (Sloyd, Meshy, Tripo…)" value="${escapeHtml(it.properties&&it.properties.model?it.properties.model:'')}">
           <button type="button" id="b_model_clear" title="Remove custom model" aria-label="Remove custom model">✕</button>
         </div>
         <small>Renders in 3D View. Any glTF/GLB works — export from Sloyd, Meshy, Tripo3D, or a HF space.</small>

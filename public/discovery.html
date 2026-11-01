@@ -64,7 +64,7 @@
 </style>
 <link rel="stylesheet" href="discovery-polish.css?v=1">
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
-<script src="/shell-proto.js?v=55" id="shellProto"></script>
+<script src="/shell-proto.js?v=56" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -108,8 +108,8 @@
         <div class="fld"><label for="r_service">Service</label><input id="r_service" placeholder="e.g. Catering (veg), Stage décor"></div>
         <div class="fld"><label for="r_priority">Priority</label>
           <select id="r_priority"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select></div>
-        <div class="fld"><label for="r_qty">Qty</label><input type="number" min="0" id="r_qty" placeholder="#"></div>
-        <div class="fld"><label for="r_note">Note</label><input id="r_note" placeholder="detail (optional)"></div>
+        <div class="fld"><label for="r_qty">Qty</label><input type="number" min="0" id="r_qty" placeholder="e.g. 2"></div>
+        <div class="fld"><label for="r_note">Note</label><input id="r_note" placeholder="Detail (optional)"></div>
         <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add</button></div>
       </div>
       <div class="table-scroll"><table>
@@ -137,7 +137,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=324"></script><script src="save-back.js?v=2"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script><script src="save-back.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

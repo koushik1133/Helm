@@ -63,7 +63,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
-<script src="/shell-proto.js?v=55" id="shellProto"></script>
+<script src="/shell-proto.js?v=56" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -160,7 +160,7 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=324"></script><script src="save-back.js?v=2"></script><script src="venue-suggest.js?v=3"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script><script src="save-back.js?v=2"></script><script src="venue-suggest.js?v=3"></script>
 <script src="page-tours.js?v=14"></script>
 <script src="tour.js?v=33"></script>
 <script>
@@ -273,7 +273,7 @@
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:10px 0 4px">${esc(cat)}</div>
       ${items.map(m=>`<div class="seldish" data-id="${esc(m.id)}" style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line-2);font-size:13px">
         <span style="flex:1">${esc(m.dish_name)} <span style="font-size:12px">${KIND_BADGE[m.kind]||""}</span></span>
-        <input class="qtyin" type="number" min="0" step="1" placeholder="qty" aria-label="Quantity for ${esc(m.dish_name)}" value="${m.qty!=null?esc(m.qty):""}" ${editable?"":"disabled"} style="width:74px;height:32px">
+        <input class="qtyin" type="number" min="0" step="1" placeholder="Qty" aria-label="Quantity for ${esc(m.dish_name)}" value="${m.qty!=null?esc(m.qty):""}" ${editable?"":"disabled"} style="width:74px;height:32px">
         ${editable?`<button type="button" class="rmdish" title="Remove" aria-label="Remove ${esc(m.dish_name)}" style="border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:16px;min-width:32px;min-height:32px;padding:2px 6px">×</button>`:""}
       </div>`).join("")}`).join("");
     host.querySelectorAll(".seldish").forEach(row=>{

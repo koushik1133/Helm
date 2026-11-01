@@ -108,7 +108,7 @@
 </style>
 <link rel="stylesheet" href="leads-polish.css?v=5">
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
-<script src="/shell-proto.js?v=55" id="shellProto"></script>
+<script src="/shell-proto.js?v=56" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -199,7 +199,7 @@
       <div class="fld"><label for="f_type">Event type</label><input id="f_type" list="leadTypeList" placeholder="Pick or type a new one…"><datalist id="leadTypeList"></datalist></div>
       <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date" data-min-today></div>
       <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" max="100000" placeholder="e.g. 300"></div>
-      <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" max="10000000000" step="any" placeholder="e.g. 500000" class="hbp-mi"></div>
+      <div class="fld"><label for="f_budget">Budget (<span class="cur-sym">₹</span>)</label><input id="f_budget" type="number" min="0" max="10000000000" step="any" placeholder="e.g. 500000" class="hbp-mi"></div>
       <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date" min="1900-01-01"></div>
       <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date" min="1900-01-01"></div>
       <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" maxlength="2000" placeholder="Anything the planner should know…" aria-describedby="f_notesHint"></textarea><p id="f_notesHint" class="nhint" hidden>Amounts in this note are hidden. <button type="button" id="f_notesShow">Show amounts to edit notes</button></p></div>
@@ -231,7 +231,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script><script src="form-validate.js?v=3"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=324"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script>
 <script src="page-tours.js?v=14"></script>
 <script src="tour.js?v=33"></script>
 <script>
@@ -611,6 +611,8 @@
   try{ new MutationObserver(()=>{ if(!$("#leadModal").hidden) paintNotes(); }).observe(document.documentElement,{attributes:true,attributeFilter:["class"]}); }catch(_){}
   $("#f_notesShow").addEventListener("click",()=>{ try{ if(window.HelmPrivacy&&HelmPrivacy.show) HelmPrivacy.show(); }catch(_){} });
   function openForm(lead){
+    // R115: the Budget label names the studio's currency (₹ for India, AED / $ … otherwise), never a hard-coded ₹
+    try{ const r=BPStore.studioTax(), sym=r.country==="IN"?"₹":(String(r.symbol||r.currency||"").trim()||"₹"); document.querySelectorAll("#leadModal .cur-sym").forEach(n=>{ if(n.textContent!==sym) n.textContent=sym; }); }catch(_){}
     editingId = lead ? lead.id : null;
     $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
     $("#f_name").value=lead?lead.name||"":""; $("#f_phone").value=lead?lead.phone||"":"";
