@@ -101,7 +101,7 @@
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="stock-flow.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<script src="/shell-proto.js?v=57" id="shellProto"></script>
+<script src="/shell-proto.js?v=58" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -277,12 +277,12 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=326"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=6"></script>
-<script src="page-tours.js?v=14"></script>
-<script src="tour.js?v=34"></script>
+<script src="page-tours.js?v=15"></script>
+<script src="tour.js?v=35"></script>
 <script src="checkout-shortage.js?v=6"></script>
 <script src="stock-flow.js?v=1"></script>
 <script src="capacity-shortage.js?v=9"></script>
@@ -369,7 +369,7 @@
     if(!shown.length){
       // first run (nothing in stock at all) vs. "nothing matches these filters"
       if(!items.length){
-        $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty"><b>No stock items yet.</b><br>${canEdit?(inTrial()?'Add your first item to get going.<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button></div>':'Add your first item, or add a ready-made list of common event items (you see the list first).<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button><button type="button" class="btn" id="firstSeed">Add common event items (starter list)</button></div>'):"Nothing has been added to inventory yet."}</td></tr>`;
+        $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty"><b>No stock items yet — add your first item.</b><br>${canEdit?(inTrial()?'Start with the things you lend out most (chairs, linen, lights).<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button></div>':'Add your first item, or add a ready-made list of common event items (you see the list first).<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button><button type="button" class="btn" id="firstSeed">Add common event items (starter list)</button></div>'):"Nothing has been added to inventory yet. Ask a manager to add the first item."}</td></tr>`;
         const fa=$("#firstAdd"), fs=$("#firstSeed");
         if(fa) fa.addEventListener("click",()=>openItem(null));
         if(fs) fs.addEventListener("click",()=>loadStarterItems(fs));
@@ -865,7 +865,7 @@
       return;
     }
     if(canEdit) ["#rv_add","#co_add"].forEach(s=>{ $(s).disabled=false; });
-    items=itemsR.value; avail=availR.value; stockLoaded=true;
+    items=Array.isArray(itemsR.value)?itemsR.value:[]; avail=(availR.value&&typeof availR.value==="object")?availR.value:{}; stockLoaded=true;
     renderStock();
     if(coR.status==="fulfilled"){ checkouts=coR.value; quotesById = qlR.status==="fulfilled" ? Object.fromEntries((qlR.value||[]).map(q=>[q.id,q])) : {}; renderCheckouts(); }
     else { checkouts=[]; renderCheckouts(); BPUI.loadError($("#loanRows"), coR.reason, load, {what:"check-outs"}); $("#lossRows").innerHTML='<tr><td colspan="9" class="empty">—</td></tr>'; $("#lossTotal").innerHTML=""; $("#co_add").disabled=true; }
@@ -897,7 +897,9 @@
       try{ const ev=await BPStore.quotes.get(quoteId); evDateText=ev.eventDate?fmtDate(ev.eventDate):""; evDate=ev.eventDate||""; $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
       if(!canEdit) $("#eventPanel").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     }
-    await fillPeople();
+    // R116: the people list (staff + vendors for "Issued to") never holds up the stock list - a failed read used to
+    // stop boot before load(), so the table stayed blank with no empty state
+    try{ await fillPeople(); }catch(_){}
     // r24: reservations that are done (never taken out after the event day, or everything back) are released first
     if(quoteId && canEdit && BPStore.inventory.releaseUnused){ try{ await BPStore.inventory.releaseUnused(quoteId,false); }catch(_){} }
     await load();

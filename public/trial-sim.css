@@ -13,3 +13,7 @@
 .trial-sim-pay .trial-sim-res{margin:8px 0 0;font-size:13px}
 .trial-sim-pay .trial-sim-res.ok{color:#0f7a43}
 .trial-sim-pay .trial-sim-res.err{color:#b42318}
+/* R116: simulated (TEST) payments on a client schedule */
+.trial-sim-received{margin:6px 0 0;color:#9b1c1c;font-weight:600}
+.trial-sim-tag{color:#9b1c1c}
+.st.paid-test{background:#fdecec;color:#9b1c1c}

@@ -60,7 +60,7 @@ await t('payment schedule: due words, percent text, soft note, Add disabled unti
   assert.equal(PS.pctText(30), '30%');
   assert.equal(PS.pctText(12.345), '12.3%');
   assert.match(PSJS, /"psch-soft"/);
-  assert.match(PSJS, /Price the quote first \(step 8\)/);
+  assert.match(PSJS, /Price the quote first " \+ \(onFlowPage\(\) \? "\(step 8\)"/);   // R116: "(step 8)" in the flow only
   assert.match(PSJS, /go\.disabled = true; return;/);
   assert.doesNotMatch(PSJS, /prev\.appendChild\(el\("p", "psch-err"/);   // the raw red error line is gone
 });

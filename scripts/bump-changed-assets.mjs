@@ -5,6 +5,10 @@
  *   node scripts/bump-changed-assets.mjs --apply    rewrite references in place
  *   node scripts/bump-changed-assets.mjs --verify   exit 1 if any changed asset still has a reference
  *                                                   whose version equals what git HEAD had
+ *   node scripts/bump-changed-assets.mjs --check    R116 CI guard (read-only): exit 1 if any changed asset has a
+ *                                                   reference (static ?v=, loader constant, SHELL_V) that is NOT
+ *                                                   higher than the version <base> had. Never writes files.
+ *                                                   CI: --check --base origin/<github.base_ref>
  *   --base <ref>                                    compare against <ref> instead of HEAD
  *
  * Changed assets = public/**\/*.js|css that differ from <base> (git diff) + untracked ones.
@@ -15,7 +19,7 @@
  *   4. new static <script src>/<link href> with no ?v= at all  -> ?v=1
  * Idempotent: target version = max(current, baseVersion + 1), so re-running never double-bumps.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +28,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUB = join(ROOT, 'public');
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
-const VERIFY = args.includes('--verify');
+const CHECK = args.includes('--check');          // R116: read-only CI guard (implies verify, never writes)
+const VERIFY = args.includes('--verify') || CHECK;
+if (CHECK && APPLY) { console.error('--check is read-only; do not combine with --apply'); process.exit(2); }
 const BASE = args.includes('--base') ? args[args.indexOf('--base') + 1] : 'HEAD';
 
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] });
@@ -111,6 +117,8 @@ for (const abs of scan) {
 }
 
 /* ---- rewrite ---- */
+const cascade = [];   // R116: assets that changed only because a ?v= inside them was bumped (e.g. store-api.js -> shell-proto.js)
+const origTexts = new Map(texts);   // R116: snapshot of the on-disk text, so a dry-run verify/--check judges the real files
 for (const abs of scan) {
   let t = texts.get(abs); const orig = t; const rel = relative(ROOT, abs);
   t = t.replace(STATIC_RE, (m, ref, v) => {
@@ -142,7 +150,7 @@ for (const abs of scan) {
       return `${pre}${ref}?v=1${post}`;
     });
   }
-  if (APPLY && t !== orig) writeFileSync(abs, t);
+  if (APPLY && t !== orig) { writeFileSync(abs, t); if (abs.startsWith(PUB) && /\.(js|css)$/.test(abs) && !changedSet.has(relative(PUB, abs))) cascade.push(relative(PUB, abs)); }
   texts.set(abs, t);
 }
 
@@ -151,17 +159,20 @@ const fails = [];
 for (const a of changed) {
   const constCover = constTargets.filter((c) => c.assets.includes(a));
   const hasStatic = cur.has(a) || plan.some((p) => p.to === 1 && resolveRef(PUB, p.what) === a);
-  const effective = APPLY ? texts : null;
+  /* R116: judge the files as they are on disk (dry run) or as rewritten (--apply); before this, a dry-run
+     --verify looked at the planned rewrite, so it could report "every reference differs" for untouched files */
+  const effective = APPLY ? texts : origTexts;
   if (cur.has(a)) {
     const bv = base.get(a);
-    for (const abs of scan) for (const r of staticRefs(abs, (effective || texts).get(abs))) {
-      if (r.asset === a && bv !== undefined && r.v === bv && (APPLY || VERIFY)) fails.push(`${a}: ${relative(ROOT, abs)} still ?v=${r.v}`);
+    for (const abs of scan) for (const r of staticRefs(abs, effective.get(abs))) {
+      if (r.asset === a && bv !== undefined && r.v <= bv && (APPLY || VERIFY)) fails.push(`${a}: ${relative(ROOT, abs)} still ?v=${r.v} (base had ?v=${bv})`);
     }
   }
   for (const ct of constCover) {
     const bv = declValues(baseTexts.get(ct.abs) || '', ct.id);
-    const now = declValues(texts.get(ct.abs), ct.id);
-    if ((APPLY || VERIFY) && now.some((v) => bv.includes(v))) fails.push(`${a}: ${ct.id} in ${relative(ROOT, ct.abs)} still ${now}`);
+    const now = declValues(effective.get(ct.abs), ct.id);
+    const bmax = bv.length ? Math.max(...bv) : -Infinity;
+    if ((APPLY || VERIFY) && now.some((v) => v <= bmax)) fails.push(`${a}: ${ct.id} in ${relative(ROOT, ct.abs)} still ${now} (base had ${bv})`);
   }
   if (!hasStatic && !constCover.length) problems.push(`${a}: no versioned reference found (unreferenced, or loaded some other way — check by hand)`);
 }
@@ -173,4 +184,20 @@ if (VERIFY || APPLY) {
   if (fails.length) { console.log('\nFAIL (reference version unchanged from base):'); for (const f of fails) console.log('  ' + f); }
   else console.log('\nverify: every reference of every changed asset differs from ' + BASE);
 }
+/* R116: bumping a reference INSIDE an asset changes that asset too (shell-proto.js bump -> store-api.js changes -> its
+   own ?v= must move). Re-run once more until nothing new changes (bounded). */
+if (APPLY && cascade.length) {
+  const depth = +(process.env.BUMP_CASCADE_DEPTH || 0);
+  if (depth < 5) {
+    console.log('\ncascade: ' + cascade.join(', ') + ' changed by this bump - bumping their references too');
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args], { cwd: ROOT, stdio: 'inherit', env: { ...process.env, BUMP_CASCADE_DEPTH: String(depth + 1) } });
+    process.exit(r.status == null ? 1 : r.status);
+  }
+}
+if (CHECK && (fails.length || plan.length)) {
+  console.log('\nCHECK FAILED: assets changed vs ' + BASE + ' without a cache-bust. Browsers keep the old file for a year');
+  console.log('(assets are served immutable). Fix: node scripts/bump-changed-assets.mjs --apply --base ' + BASE + ' and commit.');
+  process.exit(1);
+}
+if (CHECK) console.log('check: OK');
 if (VERIFY && (fails.length || (!APPLY && plan.length))) process.exit(1);

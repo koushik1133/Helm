@@ -89,7 +89,7 @@
 </style>
 <link rel="stylesheet" href="nurture-polish.css?v=4">
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
-<script src="/shell-proto.js?v=57" id="shellProto"></script>
+<script src="/shell-proto.js?v=58" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -216,9 +216,9 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=325"></script>
-<script src="page-tours.js?v=14"></script>
-<script src="tour.js?v=34"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=326"></script>
+<script src="page-tours.js?v=15"></script>
+<script src="tour.js?v=35"></script>
 <script src="nurture-templates.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -546,12 +546,20 @@
       libMsg("ok","Saved as your automatic "+t.label.toLowerCase()+" greeting."); await renderTemplates(); }
     catch(e){ libMsg("err",BPUI.friendlyError(e,{action:"save the template"})); } }));
   BPUI.boot(async ()=>{
-    await BPStore.init(); await renderAccount();
+    await BPStore.init();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
-    if(!(await BPStore.auth.requireView("nurture"))) return;
-    [canEdit, canLead]=await Promise.all([BPStore.auth.canEditArea("nurture"), BPStore.auth.canEditArea("leads").catch(()=>false)]);
+    // R116: the page used to stay blank (#app hidden) for ~3s while the account chip, the view check and two edit
+    // checks ran one after another. Now the list shell (its "Loading…" rows; no data yet) paints as soon as the
+    // session is confirmed; the checks run together, and the edit-only cards appear once canEdit is known.
+    // No data is read before requireView says yes; a role without the area gets the page hidden again.
+    $("#app").hidden=false;
+    const pAcct=Promise.resolve().then(renderAccount).catch(()=>{});
+    const pView=BPStore.auth.requireView("nurture");
+    const pEdit=Promise.all([BPStore.auth.canEditArea("nurture").catch(()=>false), BPStore.auth.canEditArea("leads").catch(()=>false)]);
+    if(!(await pView)){ $("#app").hidden=true; return; }
+    [canEdit, canLead]=await pEdit;
     loadStudio();
-    $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#autoCard").hidden=!canEdit; $("#tplCard").hidden=!canEdit;
+    pAcct.catch(()=>{}); $("#addCard").hidden=!canEdit; $("#autoCard").hidden=!canEdit; $("#tplCard").hidden=!canEdit;
     // perf 1017: only the client list holds the loading overlay; the client picker, automation,
     // templates and greeting library fill in alongside it (they used to load one after another).
     const pClients=Promise.resolve(canEdit?loadClientOptions():null).catch(()=>{});

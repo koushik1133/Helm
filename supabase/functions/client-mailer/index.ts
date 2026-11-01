@@ -128,7 +128,8 @@ Deno.serve(async (req) => {
     const simulated = async (extra: Record<string, unknown> = {}) => {
       let preview: { subject: string; text: string } | null = null;
       try {
-        const pm = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link, brand: brandMode(envGet), address: postalAddress(envGet) });
+        // R116: trial: true -> the approval line names the test code 000000 (this preview is never sent)
+        const pm = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link, brand: brandMode(envGet), address: postalAddress(envGet), trial: true });
         preview = { subject: pm.subject, text: pm.text };
       } catch (_) { preview = null; }
       const { error: sErr } = await admin.from("notifications").insert({

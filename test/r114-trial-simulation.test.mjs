@@ -128,7 +128,7 @@ t('MANIFEST / db test runner / release lists know 0323 (after 0322)', () => {
   const a = man.indexOf('forward  supabase/migrations/0322_'), b = man.indexOf('forward  supabase/migrations/0323_r114_trial_simulation.sql');
   assert.ok(a > 0 && b > a, 'MANIFEST: 0323 after 0322');
   assert.match(read('scripts/db-test/run-all.sh'), /run "r114-trial-sim-0323" "R114-TRIAL-SIM-0323: ALL PASS \\\(35\/35\\\)" psql -q -f tests\/db\/r114-trial-sim-0323\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(read(f), /'0322', '0323'\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(read(f), /'0322', '0323'[\],]/, f);   // R116: 0324 follows
   assert.ok(existsSync(new URL('../tests/db/r114-trial-sim-0323.sql', import.meta.url)));
 });
 t('audit document exists with the action table', () => {

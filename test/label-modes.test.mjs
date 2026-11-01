@@ -155,7 +155,7 @@ t('booklet: render wiring, versions bumped, print hides toggle, CSP allows data:
   const j = read('public/booklet.js');
   assert.match(j, /dbFigure\(fig, d, "2d", dbImages\(d, "layout2d"\)/); assert.match(j, /dbFigure\(fig, d, "3d", dbImages\(d, "layout3d"\)/);
   assert.ok(!/innerHTML/.test(j.slice(j.indexOf("function dbImages"), j.indexOf("function openLightbox"))));
-  for (const p of ['public/booklet.html', 'public/event.html', 'public/client.html', 'public/flow.html']) assert.match(read(p), /booklet\.js\?v=31/, p);
+  for (const p of ['public/booklet.html', 'public/event.html', 'public/client.html', 'public/flow.html']) assert.match(read(p), /booklet\.js\?v=32/, p);
   assert.match(read('public/booklet.html'), /booklet\.css\?v=5/);
   assert.match(read('public/booklet.css'), /\.snap-labels\{display:none\}/); assert.match(read('public/booklet.css'), /\.snap-zoom\[hidden\]\{display:none\}/);
   const v = JSON.parse(read('vercel.json'));

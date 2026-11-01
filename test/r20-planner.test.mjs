@@ -50,7 +50,9 @@ t('2 New lead = leads edit; Convert -> quote = create switch + leads edit', () =
 });
 
 t('3 nurture -> Lead needs leads edit too (and says the trial cap)', () => {
-  assert.match(NUR, /\[canEdit, canLead\]=await Promise\.all\(\[BPStore\.auth\.canEditArea\("nurture"\), BPStore\.auth\.canEditArea\("leads"\)/);
+  // R116: the two edit checks start together with the view check (pEdit), then [canEdit, canLead]=await pEdit
+  assert.match(NUR, /const pEdit=Promise\.all\(\[BPStore\.auth\.canEditArea\("nurture"\)\.catch\(\(\)=>false\), BPStore\.auth\.canEditArea\("leads"\)/);
+  assert.match(NUR, /\[canEdit, canLead\]=await pEdit;/);
   assert.match(NUR, /\$\{canLead\?`<button type="button" class="lnk" data-conv=/);
   assert.match(NUR, /BPUI\.capToast\(e,"leads",/);
 });

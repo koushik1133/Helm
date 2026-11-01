@@ -29,7 +29,8 @@
   // R113 (0322): in a free-trial studio (active or ended) the client approval is a TEST - no code is sent, the client
   // uses the test code 000000. Pure (unit-tested): my_trial_org() answer -> share-panel spec, or null (paid studio).
   var SHARE_NOTE = "Trial: your client sees a test-mode approval page (no code is sent).";
-  var ASK_TEXT = "Their page gets an Approve button - in the free trial it is a test approval (code 000000, nothing is sent). Untick to share the booklet only.";
+  // R116: same shape as the paid line ("they confirm with ...") so a trial never reads as a real one-time code
+  var ASK_TEXT = "Their page gets an Approve button - they confirm with the test code 000000 (trial simulation - nothing is sent). Untick to share the booklet only.";
   function shareSpec(t) {
     if (!t || typeof t !== "object" || t.is_trial_org !== true) return null;
     return { note: SHARE_NOTE, ask: ASK_TEXT };
@@ -56,14 +57,26 @@
     });
   }
 
-  var api = { noteSpec: noteSpec, paySimSpec: paySimSpec, simLines: simLines, PAY_SIM: PAY_SIM, TEXT: TEXT, shareSpec: shareSpec, approvedLabel: approvedLabel, SHARE_NOTE: SHARE_NOTE, ASK_TEXT: ASK_TEXT,
+  // R116: the page name from a path - production uses clean URLs (/flow, /settlement, /<studio>/flow,
+  // /<studio>/settlement) as well as /flow.html. The old /([a-z0-9_-]+)\.html/ test only matched *.html, so on live
+  // (cleanUrls) page() was "" and nothing on this page ran. Pure (unit-tested).
+  function pageFrom(pathname) {
+    var seg = String(pathname || "").split(/[?#]/)[0].replace(/\/+$/, "").split("/").pop() || "";
+    seg = seg.toLowerCase().replace(/\.html$/, "");
+    return /^[a-z0-9_-]{1,40}$/.test(seg) ? seg : "";
+  }
+
+  var api = { noteSpec: noteSpec, pageFrom: pageFrom, paySimSpec: paySimSpec, simLines: simLines, PAY_SIM: PAY_SIM, TEXT: TEXT, shareSpec: shareSpec, approvedLabel: approvedLabel, SHARE_NOTE: SHARE_NOTE, ASK_TEXT: ASK_TEXT,
     approvalTestMode: false };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
   global.HelmTrialTestNote = api;
   var doc = global.document;
 
-  function page() { var m = /([a-z0-9_-]+)\.html/i.exec(global.location.pathname || ""); return m ? m[1].toLowerCase() : ""; }
+  function page() {
+    try { var U = global.HelmUrl, r = U && U.page && U.page(); if (r === "flow" || r === "settlement") return r; } catch (e) {}
+    return pageFrom(global.location.pathname || "");
+  }
 
   function render(spec) {
     if (!spec || doc.getElementById("trialTestNote")) return;

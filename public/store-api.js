@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=57"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=58"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1544,7 +1544,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "19";
+  const TRIAL_BANNER_VERSION = "20";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -3749,6 +3749,15 @@ window.HelmUrl = HelmUrl;
     trialPaymentSim: (token) => mode === "supabase" && token ? rpc("public_trial_payment_sim", { p_token: token }).catch(() => null) : Promise.resolve(null),
     // "Simulate payment": a TEST row only (never real money, never the money ledger); the server re-checks the trial
     trialSimulatePayment: (token, clientName, ua) => rpc("trial_simulate_payment", { p_token: token, p_client_name: clientName || null, p_user_agent: ua || null }),
+    // R116 (0324): a client page's simulated (TEST) payments - kind "quote" (approval token) / "booklet" (booklet token):
+    // { simulation, total, currency, rows:[{milestone_id, amount, label, receipt}] }; null = unknown link / before 0324 / error
+    trialSimList: (kind, ref) => mode === "supabase" && ref ? rpc("public_trial_sim_payments", { p_kind: String(kind || ""), p_ref: String(ref).slice(0, 200) }).catch(() => null) : Promise.resolve(null),
+    // R116: the studio's own simulated payments WITH the milestone id (0323 RLS: own studio select; [] on any error)
+    trialSimRows: async (quoteId) => {
+      if (mode !== "supabase" || !quoteId) return [];
+      try { const { data, error } = await supa.from("trial_sim_payments").select("id, milestone_id, amount, currency, label, created_at").eq("quote_id", quoteId).order("created_at").limit(50);
+        return error || !Array.isArray(data) ? [] : data; } catch (e) { return []; }
+    },
     // the studio: the simulated client payments of a quote ([] before 0323 / on any error)
     trialSimPayments: (quoteId) => mode === "supabase" && quoteId ? rpc("trial_sim_payments_for_quote", { p_quote: quoteId }).catch(() => []) : Promise.resolve([]),
     // the server checks the trial + the test code; before 0322 (function missing) the 0176 trial confirm is used
@@ -12970,6 +12979,11 @@ window.HelmUrl = HelmUrl;
   // "Confirmed" only once the client approved (or paid, or the event already moved past the
   // Confirmed stage); a locked quote the client has not approved is "Sent · awaiting client approval".
   var QS_STAGES = ["lead", "discovery", "proposal", "quote", "confirmed", "planning", "resources", "ready", "event_day", "settlement", "closed"];
+  function qsTrial(opts) {
+    if (opts && typeof opts.trial === "boolean") return opts.trial;
+    try { if (global.HelmTrialLock && typeof global.HelmTrialLock.isTrial === "function") return global.HelmTrialLock.isTrial() === true; } catch (e) {}
+    try { return !!(global.document && global.document.documentElement.classList.contains("helm-trial")); } catch (e) { return false; }
+  }
   BPStore.quoteStatus = function (q, opts) {
     q = q && typeof q === "object" ? q : {}; opts = opts || {};
     var st = String(q.status || "quote"), ap = String(q.approvalStatus || q.approval_status || "none");
@@ -12979,6 +12993,9 @@ window.HelmUrl = HelmUrl;
     if (st === "cancelled") return mk("cancelled", "Cancelled", "cancelled", "This event was cancelled.");
     if (closed) return mk("closed", "Closed", "closed", "The event is settled and closed.", true);
     if (ap === "paid" || opts.advance) return mk("booked", "Confirmed · advance paid", "paid", "The client's advance is in - the date is booked.", true);
+    // R116 (R113 owner decision 2: show it everywhere): in a free-trial studio every client approval is a TEST approval
+    // (0322: code 000000, nothing sent) - the label says so. opts.trial overrides; else the page's trial mark. Display only.
+    if (ap === "approved" && qsTrial(opts)) return mk("approved", "Confirmed (test) · Approved (test mode)", "confirmed", "Free trial: the client approved in test mode (code 000000, nothing was sent).", true);
     if (ap === "approved") return mk("approved", "Confirmed · client approved", "confirmed", "The client approved this quote.", true);
     // lifecycle at/after Confirmed: the client's consent moved it there (0052), or an admin override
     if (si >= QS_STAGES.indexOf("confirmed"))
