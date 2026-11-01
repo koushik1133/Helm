@@ -57,6 +57,12 @@ begin
         execute 'alter table public.trial_email_sends disable trigger ab2_r322_trial_otp_slot';
         execute 'alter table public.quote_consents disable trigger ab2_r322_trial_consent';
       end if;
+      -- R114 (0323): a trial sends no client e-mail at all; switch the 0323 gate + slot trigger back off (rolled back)
+      if to_regprocedure('public._tr212_email_ok__pre0323(uuid)') is not null then
+        execute 'alter table public.trial_email_sends disable trigger ab2_r323_trial_email_slot';
+        execute $f$create or replace function public._tr212_email_ok(p_org uuid) returns boolean language sql stable security definer
+          set search_path = '' as $b$ select public._tr212_email_ok__pre0323(p_org) $b$ $f$;
+      end if;
     end if;
     insert into public.studio_subscriptions(org_id, status, trial_ends_at) values (b_org, p_status, current_date + 10)
       on conflict (org_id) do update set status = excluded.status, trial_ends_at = excluded.trial_ends_at;

@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=55"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=56"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -3741,6 +3741,16 @@ window.HelmUrl = HelmUrl;
     // ---- R113 (0322): free-trial approval = TEST MODE (no code is ever sent; the test code is 000000) ----
     // { test_mode, can_approve, ended } for this link; null = unknown link / database without 0322 / any error
     trialMode: (token) => mode === "supabase" && token ? rpc("public_trial_approval_mode", { p_token: token }).catch(() => null) : Promise.resolve(null),
+    // ---- R114 (0323): a free trial is a full SIMULATION (nothing is sent to the client, no real payment) ----
+    // client pages: { simulation } for an approval token ("quote"), booklet token ("booklet") or invitation slug ("site");
+    // null = unknown link / database without 0323 / any error (no banner)
+    trialSimPage: (kind, ref) => mode === "supabase" && ref ? rpc("public_trial_simulation", { p_kind: String(kind || ""), p_ref: String(ref).slice(0, 200) }).catch(() => null) : Promise.resolve(null),
+    // the approval page's simulated payment step: { simulation, approved, ended, can_pay, amount, currency, label, paid, receipt }
+    trialPaymentSim: (token) => mode === "supabase" && token ? rpc("public_trial_payment_sim", { p_token: token }).catch(() => null) : Promise.resolve(null),
+    // "Simulate payment": a TEST row only (never real money, never the money ledger); the server re-checks the trial
+    trialSimulatePayment: (token, clientName, ua) => rpc("trial_simulate_payment", { p_token: token, p_client_name: clientName || null, p_user_agent: ua || null }),
+    // the studio: the simulated client payments of a quote ([] before 0323 / on any error)
+    trialSimPayments: (quoteId) => mode === "supabase" && quoteId ? rpc("trial_sim_payments_for_quote", { p_quote: quoteId }).catch(() => []) : Promise.resolve([]),
     // the server checks the trial + the test code; before 0322 (function missing) the 0176 trial confirm is used
     trialTestApproveCode: (token, code, phone, clientName, termsVersion, consentText, ua) => lvApprove(token,
       rpc("trial_test_approve_code", { p_token: token, p_code: code, p_phone: phone || null, p_client_name: clientName,

@@ -25,6 +25,10 @@
 // the sample master or the owner switch off -> { status: "test_mode" } as before. A database without 0212 keeps
 // the two pre-0212 gates below (a trial sends nothing; an unreadable plan -> 503) - also used whenever the 0212 gate
 // gives no clear answer, so a broken gate never becomes a trial e-mail.
+// R114 (0323, owner decision: a free trial is a full SIMULATION): a trial studio's client e-mail is NEVER sent - not even
+// when an older gate would allow it. The answer is { status: "test_mode", trial: true, simulated: true, preview:
+// { subject, text } } (what the client WOULD receive) and the log row says "simulated". 0323 also turns the database
+// gate off for trials (trial_email_gate -> allowed false). Paid studios: unchanged.
 // WhatsApp / SMS are not sent from here at all.
 // (The "Share booklet" dialog's Send to client goes through booklet_send / comms_outbox, 0200 / 0212.)
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
@@ -38,6 +42,8 @@ import { linkEmail, maskEmail } from "./logic.mjs";
 import { TRIAL_DEMO_MSG, TRIAL_EMAIL_CAP_MSG, trialEmailGate, trialSendBlocked } from "../_shared/trial-guard.ts";
 
 export const KINDS = ["approval", "booklet"];
+// R114 (0323): the line the studio sees next to the preview in a free trial
+export const TRIAL_SIM_TEXT = "Trial simulation - nothing was sent to your client. This is what they would receive.";
 
 function appOrigin(req: Request): string {
   const o = req.headers.get("origin");
@@ -117,8 +123,24 @@ Deno.serve(async (req) => {
     const logKind = kind === "approval" ? "approval_link" : "booklet_link";
     const masked = maskEmail(to);
 
-    // 0212: one gate for paid studios and the free trial (an active trial e-mails its client, capped)
+    const envGet = (k: string) => Deno.env.get(k);
+    // R114 (0323): what the client WOULD receive - shown to the studio in a trial, never sent
+    const simulated = async (extra: Record<string, unknown> = {}) => {
+      let preview: { subject: string; text: string } | null = null;
+      try {
+        const pm = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link, brand: brandMode(envGet), address: postalAddress(envGet) });
+        preview = { subject: pm.subject, text: pm.text };
+      } catch (_) { preview = null; }
+      const { error: sErr } = await admin.from("notifications").insert({
+        quote_id: quoteId, channel: "email", recipient: to, kind: logKind, status: "simulated", detail: { suppressed_by: "trial_simulation" },
+      });
+      if (sErr) console.error("client-mailer: log insert failed", errTag(sErr));
+      return json({ status: "test_mode", trial: true, simulated: true, masked, reason: TRIAL_SIM_TEXT, preview, ...extra });
+    };
+
+    // 0212 gate (0323: a trial is never allowed). R114: ANY trial answer -> simulation, nothing sent
     const g = await trialEmailGate(admin, { org: String(q.org_id || "") || null, quote: quoteId }, to, logKind);
+    if (g && g.trial && g.reason !== "demo") return await simulated();
     if (g && !g.allowed) {
       const why = g.reason === "cap_studio" || g.reason === "cap_recipient" ? "trial_cap" : g.reason === "demo" ? "demo" : "trial";
       const { error: sErr } = await admin.from("notifications").insert({
@@ -129,30 +151,24 @@ Deno.serve(async (req) => {
       if (why === "demo") return json({ status: "demo", trial: true, masked, reason: TRIAL_DEMO_MSG });
       return json({ status: "test_mode", trial: true, masked, reason: TEST_MODE_TEXT });
     }
-    const trialEmail = !!(g && g.allowed && g.trial);
 
     // no 0212 answer: the pre-0212 rule - a trial / sample studio sends nothing real (0166 rule)
     const gate = g ? { blocked: false, unknown: false } : await outboundBlocked(admin, String(q.org_id || ""), to);
+    if (gate.blocked && !gate.unknown) return await simulated();   // R114: a trial -> the preview, nothing sent
     if (gate.blocked) {
       const { error: sErr } = await admin.from("notifications").insert({
         quote_id: quoteId, channel: "email", recipient: to, kind: logKind, status: "suppressed",
-        detail: { suppressed_by: gate.unknown ? "plan_unknown" : "trial" },
+        detail: { suppressed_by: "plan_unknown" },
       });
       if (sErr) console.error("client-mailer: log insert failed", errTag(sErr));
-      if (gate.unknown) return json({ status: "failed", masked, error: "could not check the studio plan - nothing was sent, try again", reason: "could not check the studio plan - nothing was sent, try again" }, 503);
-      return json({ status: "test_mode", masked, reason: TEST_MODE_TEXT });
+      return json({ status: "failed", masked, error: "could not check the studio plan - nothing was sent, try again", reason: "could not check the studio plan - nothing was sent, try again" }, 503);
     }
 
     // 0179 (second gate, no 0212 answer): no e-mail to a client from a free-trial studio (fails closed)
     if (!g && await trialSendBlocked(admin, { org: String(q.org_id || "") || null, quote: quoteId })) {
-      const { error: tErr } = await admin.from("notifications").insert({
-        quote_id: quoteId, channel: "email", recipient: to, kind: kind === "approval" ? "approval_link" : "booklet_link", status: "simulated",
-      });
-      if (tErr) console.error("client-mailer: log insert failed", errTag(tErr));
-      return json({ status: "not_configured", trial: true, masked: maskEmail(to), reason: "e-mails to clients are not sent during the free trial" });
+      return await simulated();   // R114: a trial -> the preview, nothing sent
     }
 
-    const envGet = (k: string) => Deno.env.get(k);
     const m = linkEmail(kind, { client: (q.client && q.client.name) || "", studio, link, brand: brandMode(envGet), address: postalAddress(envGet) });
     // R107: the client's reply goes to the studio (business e-mail, else the owner's) - never to Helm's sender
     const replyTo = await studioReplyTo(admin, String(q.org_id || ""), { business: (org && org.business_email) || null, env: envGet });
@@ -163,7 +179,7 @@ Deno.serve(async (req) => {
       status: res.status === "sent" ? "sent" : res.status === "not_configured" ? "simulated" : "failed",
     });
     if (logErr) console.error("client-mailer: log insert failed", errTag(logErr));
-    if (res.status === "sent") return json({ status: "sent", masked, provider: res.provider, ...(trialEmail ? { trial: true } : {}) });
+    if (res.status === "sent") return json({ status: "sent", masked, provider: res.provider });
     return json({ status: res.status, masked, reason: res.reason, ...(res.status === "failed" ? { error: res.reason } : {}) }, res.status === "failed" ? 502 : 200);
   } catch (e) {
     if (e instanceof BodyTooLarge) return json({ error: "payload too large" }, 413);

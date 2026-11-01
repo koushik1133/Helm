@@ -99,6 +99,7 @@
   }
   function builtin(key) { for (var i = 0; i < BUILTINS.length; i++) if (BUILTINS[i].key === key) return BUILTINS[i]; return null; }
   // "Automatic reminders: 3 days before, on the due day, 3 days after" | "... off" | "... paused for this event"
+  var TRIAL_SIM_REMIND = "Trial simulation - reminders are not sent to your client in the free trial.";
   function reminderLine(rem, paused) {
     if (!rem) return "";
     if (!rem.enabled) return "Automatic client reminders are off (Settings > Reminders & client messages).";
@@ -191,6 +192,8 @@
         if (d.mismatch) box.appendChild(mismatchNote(d));
       }
       var line = reminderLine(d.reminders, d.paused);
+      // R114 (0323): a free trial is a simulation - reminders are recorded as skipped, never sent to the client
+      try { if (line && window.HelmTrialLock && window.HelmTrialLock.isTrial && window.HelmTrialLock.isTrial()) line += " " + TRIAL_SIM_REMIND; } catch (e) {}
       var foot = el("div", "psch-foot");
       if (line) foot.appendChild(el("p", "psch-note", line));
       if (d.can_pause && rows.length && d.reminders && d.reminders.enabled) {
