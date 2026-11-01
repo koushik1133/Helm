@@ -61,7 +61,7 @@
       { sel: "#projName", title: "Name this layout", desc: "The event or quote name. Saved with every version of the floor." },
       { sel: "#verSel", title: "Versions", desc: "Every Save keeps a numbered version. Pick an older one to look at it; saved versions are never changed." },
       { sel: "#designChip", title: "Design stage", desc: "Opens the Design Studio for this event." },
-      { sel: "#backToFlowBtn", title: "Save & back to the quote", desc: "Saves this floor as a new version and takes you back to the quotation, re-priced from the chairs you placed." },
+      { sel: "#backToFlowBtn", title: "Save & back to the quote", desc: "Saves this floor as a new version and takes you back to the quotation. If the quote was already sent to the client, you are asked first before its price changes (Update quote / Keep quote)." },
       { sel: "#saveBtn", title: "Save", desc: "Saves a new version of this floor (⌘S / Ctrl+S). The chair count flows straight into the price breakdown on the right." },
       { sel: "#loadBtn", title: "Open", desc: "Open another saved layout." },
       { sel: "#clientImgBtn", trial: false, title: "Client images", desc: "Captures a clean 2D plan and 3D view of this floor for the client booklet." },
@@ -87,7 +87,7 @@
       { sel: "#sec-proposal", title: "3 · Proposal", desc: "Your pitch to the client — it sits above the floor layout so you sell first, then plan." },
       { sel: "#sec-layout", title: "4 · Floor layout", desc: "Open the builder. The chairs you place here feed straight back into the quotation." },
       { sel: "#sec-quote", title: "5 · Quote", desc: "Final pricing and confirmation. Confirming sets the event live." },
-      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. \"Valid until\" shows how long the quote stays open (dd/mm/yyyy) - Extend it or pick a date; Undo fixes a mistake. Free trial: a test approval, no code is sent (use 000000)." },
+      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. Change the \"Valid until\" date (dd/mm/yyyy); Undo fixes a mis-click. Client 2D / 3D images come with a paid plan, so they are off in the free trial. Trial approval is a test (code 000000)." },
       { sel: "#sec-pay", need: "finance", title: "6 · Payment", desc: "Record the advance (amount, method, receipt no.) to confirm the booking, and pick a payment schedule - you see the split (e.g. 30% / 50% / 20%) before you add it." },
     ],
     "logistics.html": [

@@ -219,7 +219,7 @@
   .plan-chip-x:hover{text-decoration:underline}
   .sales-note{margin:-8px 0 18px;font-size:13px;color:var(--ink-2)} .sales-note a{color:var(--accent);font-weight:700}
 </style>
-<link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=2"><script src="/ui-pickers.js?v=3" defer></script>
+<link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="/public-v2.css?v=7">
 <meta name="bp-theme-toggle" content="off">
 <script src="/marketing-theme.js?v=3"></script>
@@ -524,16 +524,16 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=322" defer></script>
+<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=324" defer></script>
 <script src="auth-ui.js?v=58" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=6" defer></script>
 <script src="/trial-signup.js?v=14" defer></script>
-<script src="/plan-cards.js?v=3" defer></script>
-<script src="/signup-flow.js?v=7" defer></script>
+<script src="/plan-cards.js?v=4" defer></script>
+<script src="/signup-flow.js?v=8" defer></script>
 <script src="/referral-rules.js?v=2" defer></script>
 <script src="/referral-demo-gate.js?v=1" defer></script>
-<script src="/referral-signup.js?v=4" defer></script>
+<script src="/referral-signup.js?v=5" defer></script>
 <script src="/google-gis.js?v=2" defer></script>
 <script>
 document.addEventListener("DOMContentLoaded", function(){
@@ -1111,6 +1111,15 @@ document.addEventListener("DOMContentLoaded", function(){
   function showInviteError(err, tok){
     showView("#loginForm");
     const box=$("#err"), u=BPStore.auth.user()||{};
+    // R106 (0316): a free-trial login invited into another studio - the server explains it (own trial studio + inviting
+    // studio by name, hint own_trial); same next steps as below. Nothing is joined or left automatically.
+    if(err&&(err.hint==="own_trial"||/own free-trial studio/i.test(String(err.message||"")))){
+      box.textContent="";
+      box.appendChild(document.createTextNode(String(err.message||"You are already in your own free-trial studio, and a Helm login can be in one studio at a time.").slice(0,400)+" "));
+      box.appendChild(inviteBtn("inviteMyStudio","Go to my trial studio", ()=>{ routeSignedIn().catch(()=>{ location.replace("/dashboard.html"); }); }));
+      box.appendChild(document.createTextNode(" · "));
+      box.appendChild(inviteBtn("inviteSignOut","Sign out", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){} location.replace("login.html"); }));
+      box.hidden=false; return; }
     // 0205: one login = one studio. A login that is already in another studio cannot join this one.
     if(/already belong to an organi[sz]ation/i.test(String((err&&err.message)||""))){
       box.textContent="";

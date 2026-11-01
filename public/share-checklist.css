@@ -31,3 +31,7 @@
 .sc-styles{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 0;font-size:13px}
 .sc-style{display:inline-flex;align-items:center;gap:6px;min-height:32px;cursor:pointer}
 .sc-thumb .sc-btn{margin-top:6px}
+/* R106: free trial - the 2D / 3D picture sections are off (client images unlock on a paid plan) */
+.sc-item.sc-off{cursor:not-allowed;color:var(--ink-3,#6b6577)}
+.sc-item.sc-off input{cursor:not-allowed}
+.sc-trial-note{grid-column:1/-1;margin:0 0 4px 26px;color:var(--ink-2,#4b475f)}

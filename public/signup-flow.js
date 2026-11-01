@@ -247,16 +247,37 @@
   function restoreDetails() {
     var s = null; try { s = JSON.parse(ssGet(DETAILS_KEY) || "null"); } catch (e) { s = null; }
     if (!s) return;
+    // r110: the studio name comes back too (a reload on step 3 / 4 kept everything except the name)
+    if (s.name && $("#ob_name") && !$("#ob_name").value) $("#ob_name").value = String(s.name).slice(0, 80);
     if (s.city && $("#ob_city") && !$("#ob_city").value) $("#ob_city").value = s.city;
     if (s.country && $("#ob_country")) { $("#ob_country").value = s.country; locForm(s.country); }
     if (s.state) { if (s.country === "IN" || !s.country) { if ($("#ob_state")) $("#ob_state").value = s.state; } else if ($("#ob_state_t")) $("#ob_state_t").value = s.state; }
     if (s.teamSize && $("#ob_team")) $("#ob_team").value = s.teamSize;
     (s.eventTypes || []).forEach(function (v) { var c = doc.querySelector('#ob_types input[value="' + String(v).replace(/[^a-z_]/g, "") + '"]'); if (c) c.checked = true; });
   }
+  // r110: step-3 answers are kept in this tab while they are typed (sessionStorage, best effort), so a reload never loses
+  // them; "at4" = step 3 was completed, so a reload on step 4 comes back to step 4 (Back clears it)
+  function draftSave(extra) {
+    var prev = null; try { prev = JSON.parse(ssGet(DETAILS_KEY) || "null"); } catch (e) { prev = null; }
+    var types = []; Array.prototype.forEach.call(doc.querySelectorAll('#ob_types input[type="checkbox"]'), function (c) { if (c.checked) types.push(c.value); });
+    var cc = ($("#ob_country") || {}).value || "IN";
+    var d = { name: String(($("#ob_name") || {}).value || "").slice(0, 80), city: String(($("#ob_city") || {}).value || "").slice(0, 80), country: cc,
+      state: String((cc === "IN" ? ($("#ob_state") || {}).value : ($("#ob_state_t") || {}).value) || "").slice(0, 60),
+      teamSize: ($("#ob_team") || {}).value || "", eventTypes: types };
+    ssSet(DETAILS_KEY, JSON.stringify(Object.assign({}, prev || {}, d, extra || {})));
+  }
+  var draftWired = false;
   // called by login.html showOnboarding()
   async function showStudio() {
     fillStudioForm(); restoreDetails(); slugSoon();
+    var f = $("#onboardForm");
+    if (f && !draftWired) { draftWired = true; f.addEventListener("input", function () { draftSave({ at4: false }); }); f.addEventListener("change", function () { draftSave({ at4: false }); }); }
     await termsCheck();
+    var saved = null; try { saved = JSON.parse(ssGet(DETAILS_KEY) || "null"); } catch (e) { saved = null; }
+    if (saved && saved.at4 === true && st.termsOk) {
+      var v = readDetails();
+      if (v.ok) { st.details = v.clean; await showStart(); }
+    }
   }
   async function submitStudio() {
     var B = S(), err = $("#obErr"); err.hidden = true;
@@ -278,7 +299,7 @@
       if (!st.termsVersion) st.termsOk = true;   // older server (no 0255): the Terms are taken again on /checkout
     }
     st.details = v.clean;
-    ssSet(DETAILS_KEY, JSON.stringify(v.clean));
+    ssSet(DETAILS_KEY, JSON.stringify(Object.assign({}, v.clean, { at4: true })));
     await showStart();
   }
 
@@ -291,6 +312,8 @@
     var u = (B.auth.user && B.auth.user()) || {}; $("#stEmail").textContent = u.email || "";
     $("#stStudio").textContent = st.details ? st.details.name : "";
     var P = global.HelmPlanCards, tz = P.browserZone ? P.browserZone() : "";
+    // r110 (QA B3): the country chosen in step 3 decides the currency (India -> INR), not the browser time zone
+    if (P.zoneForCountry && st.details && st.details.country) tz = P.zoneForCountry(st.details.country, tz);
     var o = null; try { o = B.signup ? await B.signup.planOptions(tz) : null; } catch (e) { o = null; }
     st.opts = o || {};
     if (st.opts.terms_version && !st.termsVersion) st.termsVersion = String(st.opts.terms_version);
@@ -379,6 +402,7 @@
     if (r.billing_interval === "yearly") st.interval = "yearly";
     st.salesReq = r;
     try { st.tz = global.HelmPlanCards && global.HelmPlanCards.browserZone ? global.HelmPlanCards.browserZone() : ""; } catch (e) { st.tz = ""; }
+    try { if (global.HelmPlanCards.zoneForCountry && st.details.country) st.tz = global.HelmPlanCards.zoneForCountry(st.details.country, st.tz); } catch (e) {}   // r110 B3
     showSalesDone(r);
     return true;
   }
@@ -447,7 +471,8 @@
     var sdt = $("#sdTrial"); if (sdt) sdt.addEventListener("click", function () { go("trial", currentPlan(), sdt); });
     var sds = $("#sdSetup"); if (sds) sds.setAttribute("data-label", sds.textContent);
     var sds = $("#sdSetup"); if (sds) sds.addEventListener("click", function () { go("setup", currentPlan(), sds); });
-    var back = $("#stBack"); if (back) back.addEventListener("click", function () { doc.body.classList.remove("su-wide"); ctx.showView("#onboardForm"); });
+    var back = $("#stBack"); if (back) back.addEventListener("click", function () { doc.body.classList.remove("su-wide"); ctx.showView("#onboardForm");
+      try { var d0 = JSON.parse(ssGet(DETAILS_KEY) || "null"); if (d0) { d0.at4 = false; ssSet(DETAILS_KEY, JSON.stringify(d0)); } } catch (e) {} });
   }
 
   // r23: called by login.html's setMode() after trial-signup.js has laid out step 1. Tailors the heading to

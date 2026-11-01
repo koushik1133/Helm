@@ -105,9 +105,9 @@ await t('AUTH-1 the join page sends the e-mailed mail key (&k=) to invite-signup
   const TPL = rd('supabase/functions/invite-mailer/templates.ts');
   assert.match(TPL, /invite_mail_key_set/); assert.match(TPL, /p_hash: await sha256Hex\(key\)/);
 });
-await t('store-api cache-buster: every page loads store-api.js?v=322', () => {
+await t('store-api cache-buster: every page loads store-api.js?v=324', () => {
   for (const p of readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
-    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '322', p);
+    const m = rd('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '324', p);
   }
 });
 

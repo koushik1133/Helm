@@ -573,24 +573,55 @@ function quotePricingNow(){
   // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
   }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
 }
-async function syncQuotePricingNow(){
+// R112: a sent / approved quote is never re-priced silently. When the layout (or the builder's plates / package / chairs)
+// would change its guests or total, the background sync writes NOTHING (it remembers the pending change) and the explicit
+// saves (Save, Save & back to quote) ask: "Layout changes the quote: guests 200 -> 150, total X -> Y" -
+// "Update quote (new version)" saves a new quotation version (save_quotation_version; the client must approve again) /
+// "Keep quote" leaves the quote's price exactly as it is. Drafts keep the old live sync.
+let _repricePending=null, _repriceTold=false;
+async function syncQuotePricingNow(opts){
   if(!currentQuoteId) return false;
   clearTimeout(_syncTimer);
+  const interactive = !!(opts && opts.interactive);
     try{
       // refetch the latest saved pricing (discount/coupon/rates may have changed in quotes.html since
       // this page opened) and write back conditioned on its updated_at, so nothing is clobbered
-      let expectedUpdatedAt = null;
-      try{ const latest = await BPStore.quotes.get(currentQuoteId);
+      let expectedUpdatedAt = null, latest = null;
+      try{ latest = await BPStore.quotes.get(currentQuoteId);
         if(latest){ currentPricing = latest.pricing || currentPricing; expectedUpdatedAt = latest.updatedAt || null; } }catch(_){}
       const p = quotePricingNow();
       const t = BPStore.pricing.quoteTotal(p);
       // C3: never drop / change the quote's own tax snapshot (country, currency, ...) from the builder
       const pricing = BPStore.tax.preserveSnapshot(currentPricing, Object.assign({}, p, { computed:t, total:t.total, client: currentClient }));
+      const G = window.HelmRepriceGuard;
+      if(G && G.committed(latest || Object.assign({}, currentQuoteRow||{}, { approvalStatus: currentQuoteGuard.sent ? 'sent' : (currentQuoteGuard.approved ? 'approved' : '') }))){
+        const d = G.diff(currentPricing, pricing);
+        if(d.changed){
+          if(!interactive){
+            _repricePending = d;
+            if(!_repriceTold){ _repriceTold=true;
+              toast('This quote was sent to the client, so its price is not changed here until you save - you will be asked first.'); }
+            return false;
+          }
+          const approved = !!(latest && (latest.approvalStatus==='approved' || latest.approvalStatus==='paid' || latest.status==='confirmed')) || currentQuoteGuard.approved;
+          const go = await BPUI.confirm(G.message(d, inr)+' '+(approved
+              ? 'Updating saves a new quotation version, and the client must approve the new price again (payments pause until then).'
+              : 'Updating saves a new quotation version; send the client the updated quote afterwards.')+' Keep quote leaves the price exactly as it is.',
+            { title: approved ? 'Client approval will go stale' : 'Layout changes the quote', okLabel:'Update quote (new version)', cancelLabel:'Keep quote' });
+          _repricePending = null;
+          if(!go){ toast('Quote kept at '+inr(d.totalFrom)+' - only the layout was saved.'); return 'kept'; }
+          const r = await BPStore.quotationVersions.save(currentQuoteId, pricing);
+          currentPricing = pricing; _lastAutoOther = pricing.otherAuto;
+          updateQuoteBadge && updateQuoteBadge();
+          toast('Quote updated - saved as '+((r&&r.label)||'a new version')+(approved?'. The client must approve the new price.':'.'));
+          return true;
+        }
+      }
       await BPStore.quotes.updateMeta(currentQuoteId, { pricing }, expectedUpdatedAt);
       currentPricing = pricing; _lastAutoOther = pricing.otherAuto;
       updateQuoteBadge && updateQuoteBadge();
       return true;
-    }catch(e){ /* non-fatal */ return false; }
+    }catch(e){ /* non-fatal */ if(interactive) toast('Couldn\u2019t update the quote price: '+String((e&&e.message)||'please try again').slice(0,160)); return false; }
 }
 // r19: "No package / decide later" was picked - the quote's synced pricing drops the package name it was priced
 // with (pricing._packageName), so reopening the builder does not show the old package again (QA-B10)
@@ -948,6 +979,15 @@ function makeItem(type, x, y, overrides={}){
 const NEW_ITEM_FACING = { sofa:180, loveseat:180, armchair:180, lounge:180 };
 // Items most events only want ONE of — adding a second is usually a slip, so we ask first.
 const SINGULAR_ASSETS = new Set(['stage','dancefloor','dj','mandap','caketable','headtable','foh','videowall','piano','redcarpet','fountain']);
+// R106: the first free spot on a short diagonal from (x, y): no other item's top-left corner within 1 ft
+function newItemSpot(x, y, w, h){
+  const STEP=3, taken=(px,py)=>store.items.some(it=>Math.abs((it.x||0)-px)<1 && Math.abs((it.y||0)-py)<1);
+  let px=x, py=y;
+  for(let i=1;i<=40 && taken(px,py);i++){
+    px=clamp(snapFt(x+(i%10)*STEP), 0, WORLD.w-w); py=clamp(snapFt(y+(i%10)*STEP+Math.floor(i/10)*STEP*0.5), 0, WORLD.h-h);
+  }
+  return {x:px, y:py};
+}
 async function addAsset(type, atFt, opts){
   const a = ASSETS[type], lbl = opts && opts.label;
   if(SINGULAR_ASSETS.has(type) && store.items.some(it=>it.type===type)){
@@ -959,6 +999,9 @@ async function addAsset(type, atFt, opts){
   const cy = atFt ? atFt.y : viewCenterFt().y;
   let x = clamp(snapFt(cx - a.w/2), 0, WORLD.w-a.w);
   let y = clamp(snapFt(cy - a.h/2), 0, WORLD.h-a.h);
+  // R106: click-to-add (no drop point) lands at the view centre - step each new item down-right so repeated adds
+  // don't all stack on one spot (a drag-drop keeps its exact spot)
+  if(!atFt){ const p=newItemSpot(x, y, a.w, a.h); x=p.x; y=p.y; }
   // the Entrance marker gets its own blue (exits stay green); still editable in the Inspector
   const it = makeItem(type, x, y, lbl ? Object.assign({label:lbl}, type==='exit' && /entr/i.test(lbl) ? {color:'#2563eb', colorCustom:true} : {}) : undefined);
   if(NEW_ITEM_FACING[type]!=null) it.rotation = NEW_ITEM_FACING[type];   // R72: new sofa/lounge faces into the room
@@ -4076,18 +4119,9 @@ async function saveLayout(silent, opts){
       const fromNo = currentVersionNo, fromOlder = isViewingOlder();
       const label = (opts && opts.label) || (fromOlder ? 'Based on V'+fromNo : null);
       if(currentQuoteGuard.closed){ if(!silent) await BPUI.alert('This event is closed, so its layout can’t be changed.',{title:'Event closed'}); return false; }
-      if(currentQuoteGuard.sent && !currentQuoteGuard.approved && !_staleAck){
-        if(silent) return false;
-        const go = await BPUI.confirm('This quote was sent to the client for approval. Saving a new layout re-prices it, so send the client the updated quote afterwards. Save anyway?',{title:'Quote already sent',okLabel:'Save and re-price'});
-        if(!go) return false;
-        _staleAck=true;
-      }
-      if(currentQuoteGuard.approved && !_staleAck){
-        if(silent) return false;
-        const go = await BPUI.confirm('This quote is already confirmed/approved. Saving a new layout re-prices it, so the client’s approval will go stale and they will need to approve again (payments pause until then). Save anyway?',{title:'Client approval will go stale',okLabel:'Save and re-price'});
-        if(!go) return false;
-        _staleAck=true;
-      }
+      // R112: a sent / approved quote: a silent (auto) save never writes; an explicit save stores the layout version and
+      // then asks before the quote's price changes (syncQuotePricingNow interactive) - never re-priced silently
+      if((currentQuoteGuard.sent || currentQuoteGuard.approved) && silent) return false;
       if(name) { try{ await BPStore.quotes.updateMeta(currentQuoteId, { title:name }); }catch{} }
       const v = await BPStore.quotes.addVersion(currentQuoteId, label, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
@@ -4096,7 +4130,9 @@ async function saveLayout(silent, opts){
       refreshVersionsSoon(true);                // re-read the server list (names, teammates' saves)
       clearDraft();
       updateQuoteBadge();
-      syncQuotePricing();                       // keep the stored quote total in step with the layout
+      // keep the stored quote total in step with the layout; R112: a sent / approved quote asks first (never silent)
+      if(!silent && (currentQuoteGuard.sent || currentQuoteGuard.approved || _repricePending)){ if(!(opts && opts.noReprice)) await syncQuotePricingNow({ interactive:true }); }
+      else syncQuotePricing();
       setTimeout(()=>{ autoCaptureIfStale(); }, 400);   // R2: keep the client booklet images in step
       if(silent){ if(btn){ btn.textContent='✓ v'+currentVersionNo; clearTimeout(saveBtnT); saveBtnT=setTimeout(()=>{ btn.innerHTML='💾 Save'; },1500); } }
       else toast(fromOlder ? 'Saved as V'+currentVersionNo+' (new latest) — V'+fromNo+' is unchanged' : 'Saved V'+currentVersionNo);
@@ -4517,14 +4553,20 @@ async function runCaptureHost(){
   // R9: R4-E — never write pictures for a closed / cancelled / archived event
   if(currentQuoteGuard && currentQuoteGuard.frozen){ post({type:'helm-capture-done', ok:false, code:'frozen', error:'This event is closed, so its pictures can’t be updated'}); return; }
   if(!clientImagesSupported()){ post({type:'helm-capture-done', ok:false, code:'readonly', error:'You can’t update the pictures for this event'}); return; }
+  // R106: client images are off in the free trial (owner rule r20) - the database refuses them too (0316)
+  if(await captureTrialOff()){ post({type:'helm-capture-done', ok:false, code:'trial', error:CLIENT_IMG_TRIAL_MSG}); return; }
   captureProgressHook=step=>post({type:'helm-capture-progress', step});
   let ok=false; try{ ok=await captureClientImages(true); }catch(e){ ok=false; }
   post({type:'helm-capture-done', ok:!!ok, results:lastCaptureResults||{}, error: ok ? null : 'The pictures could not be saved'});
 }   // R8: the in-flight capture promise (a second click / auto-capture waits for it)
 // capture style -> label mode used by planBlob / capture3D
 const CLIENT_IMG_STYLES=[['labels','numbers'],['plain','none']];
+// R106: the free trial never renders / saves client 2D / 3D pictures (button, share auto-capture and after-save refresh)
+const CLIENT_IMG_TRIAL_MSG='Client images unlock on a paid plan';
+async function captureTrialOff(){ try{ if(window.HelmTrialLock && HelmTrialLock.whenKnown && await HelmTrialLock.whenKnown()) return true; }catch(e){} return builderInTrial(); }
 function captureClientImages(silent){
   if(!clientImagesSupported() || !store.items.length) return Promise.resolve(false);
+  if(builderInTrial()){ if(!silent) BPUI.toast(CLIENT_IMG_TRIAL_MSG+'.',{type:'info'}); return Promise.resolve(false); }
   if(clientImgBusy) return clientImgBusy;
   clientImgBusy=captureClientImagesRun(silent).finally(()=>{ clientImgBusy=null; });
   return clientImgBusy;
@@ -4573,6 +4615,7 @@ async function captureClientImagesRun(silent){
 async function autoCaptureIfStale(){
   if(!clientImagesSupported() || !store.items.length || isViewingOlder() || docSig()!==savedSig) return;   // only the saved latest version
   if(currentQuoteGuard.frozen) return;   // R4-E: no background writes for closed / cancelled / archived events
+  if(await captureTrialOff()) return;     // R106: no client pictures in the free trial
   const qid=currentQuoteId;
   try{
     const cur=await BPStore.booklet.current(qid);
@@ -4626,11 +4669,12 @@ async function saveAndBackToFlow(){
   // "no edit since the page opened" - a default layout generated on arrival is new and must be written.
   const need = !RO && (window.HelmFlowLayout && HelmFlowLayout.needsVersion
     ? HelmFlowLayout.needsVersion(storedKey, canvasKey(), dirty.isDirty()) : dirty.isDirty());
-  const ok = !need ? true : await saveLayout(false);
+  const ok = !need ? true : await saveLayout(false, { noReprice:true });
   if(!ok) return;                               // save refused/failed: stay, the error is already shown
   if(need && window.HelmFlowLayout && HelmFlowLayout.needsVersion && HelmFlowLayout.needsVersion(storedKey, canvasKey(), false)){
     BPUI.toast('The layout was not saved yet — press Save & back to quote again.',{type:'err'}); return; }   // only leave once the version exists
-  if(!RO) await syncQuotePricingNow();          // the flow page re-checks and saves the quotation too
+  // R112: one pricing write, asked first on a sent / approved quote ("Update quote (new version)" / "Keep quote")
+  if(!RO) await syncQuotePricingNow({ interactive:true });   // the flow page re-checks and saves the quotation too
   location.href = HelmFlowLayout.returnUrl(currentQuoteId);
 }
 (function(){ const b=$('#backToFlowBtn'); if(!b) return;
@@ -4821,8 +4865,11 @@ async function init(){
       PRICING.eventType = q.eventType || null;
       PRICING.eventDate = q.eventDate || null;   // photo render: season from the event date
       // pull the event's guest count + applied menu package so the price is synced
-      if(q.client && q.client.guests!=null) PRICING.guests = +q.client.guests;
-      else if(currentPricing.guests!=null) PRICING.guests = +currentPricing.guests;   // set in the Confirm modal
+      // R112: the plates the QUOTE is priced with (pricing.guests, the flow's "Plates" field) win; the client head count is
+      // only the fallback for a quote that never stored one. Client-first re-priced a 200-plate quote at 150 on layout save.
+      { const pl = window.HelmRepriceGuard ? HelmRepriceGuard.platesFor(q.client, currentPricing)
+          : (currentPricing.guests!=null ? +currentPricing.guests : (q.client && q.client.guests!=null ? +q.client.guests : null));
+        if(pl!=null) PRICING.guests = +pl; }
       try{
         const plan = await BPStore.plan.get(q.id);
         if(plan){
