@@ -90,8 +90,9 @@ await t('edge functions: client-mailer + send-otp ask the 0212 gates; comms-disp
   assert.match(cm, /if \(!g && await trialSendBlocked\(/);
   assert.match(tg, /admin\.rpc\("trial_email_gate"/);
   assert.match(tg, /if \(error \|\| !data \|\| typeof data !== "object" \|\| typeof data\.allowed !== "boolean"\) return null;/);
-  assert.match(so, /if \(channel !== "email"\) return json\(\{ error: TRIAL_CHANNEL_MSG, trial: true \}, 403\);/);
-  assert.match(so, /admin\.rpc\("trial_email_otp_begin", \{ p_token: token, p_user_agent: ua \}\)/);
+  // R113 (0322): send-otp no longer e-mails a code in a trial (test mode, code 000000) - every channel refused
+  assert.match(so, /if \(await trialSendBlocked\(admin, \{ token \}\)\) return json\(\{ error: TRIAL_OTP_MSG, trial: true, test_mode: true \}, 403\);/);
+  assert.doesNotMatch(so, /admin\.rpc\("trial_email_otp_begin"/);
   assert.match(cd, /import \{ trialRowAllowed \} from "\.\/trial-row\.mjs";/);
   assert.match(cd, /if \(!trialRowAllowed\(purpose, channel, payload\)\) res = "skipped";/);
   const { trialRowAllowed } = await import('../supabase/functions/comms-dispatch/trial-row.mjs');
@@ -118,11 +119,12 @@ await t('UI: e-mail works in an active trial, WhatsApp / SMS options hidden', ()
   assert.match(is, /trialEmail = m\.trial === true && m\.email === true;/);
   // proposal WhatsApp box hidden in the trial
   assert.match(read('public/wa-proposal.js'), /box\.hidden = isTrial === true;/);
-  // client approval page: no SMS / WhatsApp buttons in the trial, the e-mail code + Test mode confirm stay
-  const ap = read('public/approve.html');
-  assert.match(ap, /\["#sendOtp","#sendWa"\]\.forEach\(\(sel\)=>\{ const b=\$\(sel\); if\(b\)\{ b\.hidden=true; b\.style\.display="none"; \} \}\);/);
-  assert.match(ap, /id="trialSkipBtn" type="button">Test mode - confirm<\/button>/);
-  assert.match(ap, /You can get your one-time code by e-mail \(above\), or confirm here instead\. In the free trial no SMS or WhatsApp is sent/);
+  // client approval page - R113 (0322): in the trial NO code is sent (no e-mail / SMS / WhatsApp buttons); test mode with
+  // the test code 000000 + "Simulate approval" (approve-test-mode.js)
+  const ap = read('public/approve.html'), tm = read('public/approve-test-mode.js');
+  assert.match(tm, /\["#sendEmailOtp", "#sendWa", "#sendOtp", "#waNote"\]\.forEach\(hide\)/);
+  assert.match(ap, /id="trialSkipBtn" type="button">Simulate approval<\/button>/);
+  assert.match(ap, /No code is sent to you; use the test code 000000\./);
   // store: my_trial_messaging, signed-in only, null on error
   assert.match(read('public/store-api.js'), /messaging: \(\) => \(supa \? trialSignedIn\(\)\.then\(\(ok\) => \(ok \? rpc\("my_trial_messaging"\)\.catch\(\(\) => null\) : null\)\) : Promise\.resolve\(null\)\),/);
 });

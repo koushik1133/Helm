@@ -13,6 +13,8 @@
 --       cannot insert consents, a consent UPDATE to another studio is still refused by zz_quote_org_match.
 -- The code is stored the way the live send-otp edge function does it (service role: wa_otp_begin /
 -- trial_email_otp_begin -> admin_store_otp). Re-applies 0319 twice. Every case runs in a rolled-back sub-block.
+-- R113 (0322): trial cases run with the 0322 test-mode triggers switched off inside the rolled-back case (a trial now
+-- gets no real code at all - see tests/db/r113-trial-test-mode-0322.sql); the 0319 org stamp is what is proven here.
 \set ON_ERROR_STOP 0
 set client_min_messages = error;
 \ir ../../supabase/migrations/0319_r109_consent_org_from_quote.sql
@@ -47,6 +49,15 @@ declare q uuid := 'b0000000-0000-4000-8000-00000000da01'; tok text := 'b0000000-
 begin
   begin
     if p_old then execute 'alter table public.quote_consents disable trigger ab0_r109_consent_org'; end if;
+    -- R113 (0322): a free trial no longer stores / accepts a real code (proven in r113-trial-test-mode-0322.sql). This suite
+    -- proves the 0319 org stamp on the code path, so its trial cases switch the 0322 test-mode triggers off (rolled back).
+    if p_status = 'trial' then
+      if exists (select 1 from pg_trigger where tgname = 'ab2_r322_trial_otp' and tgrelid = 'public.quote_otps'::regclass) then
+        execute 'alter table public.quote_otps disable trigger ab2_r322_trial_otp';
+        execute 'alter table public.trial_email_sends disable trigger ab2_r322_trial_otp_slot';
+        execute 'alter table public.quote_consents disable trigger ab2_r322_trial_consent';
+      end if;
+    end if;
     insert into public.studio_subscriptions(org_id, status, trial_ends_at) values (b_org, p_status, current_date + 10)
       on conflict (org_id) do update set status = excluded.status, trial_ends_at = excluded.trial_ends_at;
     update public.quotes set pricing = jsonb_build_object('total', p_total, 'subtotal', p_total), approval_status = 'sent',

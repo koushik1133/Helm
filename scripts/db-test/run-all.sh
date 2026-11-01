@@ -62,6 +62,8 @@ run "r23-quote-validity-0262" "R23-QUOTE-VALIDITY-0262: ALL PASS \(69/69\)" psql
 run "r84-otp-single-use-0307" "R84-OTP-SINGLE-USE-0307: ALL PASS \(9/9\)" psql -q -f tests/db/r84-otp-single-use-0307.sql
 # r109 (0319): "Confirm & approve" works when the approval link is opened in a browser signed in to ANOTHER studio (consent org = quote org); paid + trial x e-mail + WhatsApp x total 0 / > 0; old behaviour reproduced (42501); rolled back
 run "r109-otp-verify-org-0319" "R109-OTP-VERIFY-ORG-0319: ALL PASS \(41/41\)" psql -q -f tests/db/r109-otp-verify-org-0319.sql
+# r113 (0322): free-trial client approval = TEST MODE - no real code for a trial (active / ended) on any path, only 000000 approves (consent test_mode, audit approval.test_mode), 0318 still refuses unpriced, paid unchanged; re-applies itself twice, rolled back
+run "r113-trial-test-mode-0322" "R113-TRIAL-TEST-MODE-0322: ALL PASS \(28/28\)" psql -q -f tests/db/r113-trial-test-mode-0322.sql
 # r86 (0308): "Complete your profile" saves for a member of an ended trial studio; the Staff sync is skipped; crew_members stays read-only
 run "r86-profile-trial-gate-0308" "R86-PROFILE-TRIAL-0308: ALL PASS \(10/10\)" psql -q -f tests/db/r86-profile-trial-gate-0308.sql
 # r92 (0311): crew task lifecycle on the server - accept / reject final, reassign locked once accepted, QC only from pending, audit rows; re-applies itself twice, rolled back (early: later suites re-apply OLDER worker_respond / reassign_task / verify_task layers)
@@ -190,7 +192,7 @@ run "trial-data-0171" "TRIAL-DATA-0171: ALL PASS \(16/16\)" psql -q -f tests/db/
 run "trial-lockdown-0173" "TRIAL-LOCKDOWN-0173: ALL PASS \(34/34\)" psql -q -f tests/db/trial-lockdown-0173.sql
 run "trial-seed-0174" "TRIAL-SEED-0174: ALL PASS \(12/12\)" psql -q -f tests/db/trial-seed-0174.sql
 run "trial-layout-0175" "TRIAL-LAYOUT-0175: ALL PASS \(6/6\)" psql -q -f tests/db/trial-layout-0175.sql
-run "trial-client-flow-0176" "TRIAL-CLIENT-FLOW-0176: ALL PASS \(16/16\)" psql -q -f tests/db/trial-client-flow-0176.sql
+run "trial-client-flow-0176" "TRIAL-CLIENT-FLOW-0176: ALL PASS \(18/18\)" psql -q -f tests/db/trial-client-flow-0176.sql
 run "trial-no-send-0179" "TRIAL-NO-SEND-0179: ALL PASS \(41/41\)" psql -q -f tests/db/trial-no-send-0179.sql
 run "trial-signup-0180" "TRIAL-SIGNUP-0180: ALL PASS \(33/33\)" psql -q -f tests/db/trial-signup-0180.sql
 run "trial-guards-0181" "TRIAL-GUARDS-0181: ALL PASS \(60/60\)" psql -q -f tests/db/trial-guards-0181.sql

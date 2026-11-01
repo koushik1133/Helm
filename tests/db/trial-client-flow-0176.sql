@@ -7,6 +7,8 @@ set client_min_messages = warning;
 begin;
 -- earlier suites re-apply old migrations / grant sweeps; re-apply 0176 inside this rolled-back tx
 \ir ../../supabase/migrations/0176_trial_client_flow.sql
+-- R113: the 0322 test-mode RPC + triggers (grant sweeps in earlier suites; re-applied inside this rolled-back tx)
+\ir ../../supabase/migrations/0322_r113_trial_approval_test_mode.sql
 create temp table _uf(name text, result text); grant all on _uf to anon, authenticated, service_role;
 create temp table _ukv(k text primary key, v text); grant all on _ukv to anon, authenticated, service_role;
 
@@ -59,9 +61,17 @@ do $$ declare a uuid; q record; r jsonb; begin
   perform pg_temp.put('AQ', q.id::text); perform pg_temp.put('AT', q.approval_token::text);
   perform pg_temp.anon();
   perform pg_temp.res('01 portal (anon) sees Test mode in trial', public.trial_test_mode_for_token(q.approval_token));
-  r := public.trial_test_approve(q.approval_token, null, E'Demo · Client', 'v1', 'I agree (test)', 'test');
+  -- R113 (0322): the old confirm without a code is refused in a trial (no code row may be stored outside the test)
+  r := null;
+  begin r := public.trial_test_approve(q.approval_token, null, E'Demo · Client', 'v1', 'I agree (test)', 'test');
+  exception when others then r := jsonb_build_object('err', sqlstate, 'hint', 'raised'); end;
   perform pg_temp.su();
-  perform pg_temp.res('02 portal (anon) Test mode - confirm approves', coalesce((r ->> 'approved')::boolean, false), r::text);
+  perform pg_temp.res('06 R113: trial_test_approve without the test code is refused', coalesce(r ->> 'err', '') = '42501', coalesce(r::text, '<null>'));
+  perform pg_temp.anon();
+  -- R113 (0322): the client page's "Simulate approval" with the test code 000000
+  r := public.trial_test_approve_code(q.approval_token, '000000', null, E'Demo · Client', 'v1', 'I agree (test)', 'test');
+  perform pg_temp.su();
+  perform pg_temp.res('02 portal (anon) Test mode - simulate approval (code 000000) approves', coalesce((r ->> 'approved')::boolean, false), r::text);
   select * into q from public.quotes where id = q.id;
   perform pg_temp.res('03 event moved on: approved + stage confirmed + status confirmed',
     q.approval_status = 'approved' and q.lifecycle_stage = 'confirmed' and q.status = 'confirmed',
@@ -70,6 +80,9 @@ do $$ declare a uuid; q record; r jsonb; begin
     exists (select 1 from public.quote_consents where quote_id = q.id and not verified_via_otp)
     and exists (select 1 from public.audit_log where entity_id = q.id::text and action = 'approval.trial_test_skip'));
   perform pg_temp.res('05 nothing queued to send (outbox rows skipped)', pg_temp.sent(a) = 0, pg_temp.sent(a)::text);
+  perform pg_temp.res('07 R113: the consent is flagged test_mode + audit approval.test_mode',
+    exists (select 1 from public.quote_consents where quote_id = q.id and test_mode)
+    and exists (select 1 from public.audit_log where entity_id = q.id::text and action = 'approval.test_mode'));
 exception when others then perform pg_temp.su(); insert into _uf values ('0x trial', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
 -- ---- 2) next steps: event group, add members, booklet link, portal --------------------------------
