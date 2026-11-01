@@ -248,8 +248,11 @@
   function parse(s) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
   function pretty(s) { var d = parse(s); return d ? pad(d.getDate()) + " " + MONTHS[d.getMonth()] + " " + d.getFullYear() : ""; }
 
+  // R106: a page's own hidden helper date box (e.g. quote-validity.js "Change date": a dd/mm/yyyy text box + a calendar
+  // button over a hidden native picker, aria-hidden + tabindex -1) is not a field - enhancing it showed the date twice.
+  function helperInput(inp) { return inp.getAttribute("aria-hidden") === "true" || inp.hidden || inp.type === "hidden"; }
   function enhanceDate(inp) {
-    if (inp.__hp || optedOut(inp)) return;
+    if (inp.__hp || optedOut(inp) || helperInput(inp)) return;
     inp.__hp = true;
     inp.classList.add("uip-date");
     var wrap = el("span", "uip-date-wrap");
@@ -488,6 +491,6 @@
       }
     }).observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["list"] });
   }
-  window.__helmPickers = { scan: scan, version: 2, _sameGesture: sameGesture };
+  window.__helmPickers = { scan: scan, version: 3, _sameGesture: sameGesture, _helperInput: helperInput };
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", start); else start();
 })();

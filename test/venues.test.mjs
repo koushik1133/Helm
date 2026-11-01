@@ -71,7 +71,7 @@ t('pages wire the venue scripts (no inline), store-api v=157', () => {
     const h = read('public/' + p);
     assert.match(h, /<script src="venues-core\.js\?v=11"><\/script>\s*<script src="venue-picker\.js\?v=8"><\/script>/, p);
     assert.match(h, /venues\.css\?v=8/, p);
-    assert.match(h, /store-api\.js\?v=323/, p);
+    assert.match(h, /store-api\.js\?v=324/, p);
   }
   for (const f of ['venues-core.js', 'venue-picker.js', 'venues-admin.js']) {
     const js = read('public/' + f);
@@ -101,7 +101,7 @@ t('linked venue on the client JSON: flow + builder', () => {
   assert.match(f, /venueId:vid, venueName:vnm, setting:vs/, 'saveVenue persists the link + setting');
   assert.match(f, /cl\.venueId[\s\S]{0,400}HelmVenuePicker\.sync\(\)/, 'load restores the link and re-shows warnings');
   assert.match(b, /HelmBuilderVenue[\s\S]{0,400}venueId: v\.id, venueName: v\.name/);
-  assert.match(read('public/builder.html'), /builder\.js\?v=83/);
+  assert.match(read('public/builder.html'), /builder\.js\?v=84/);
   assert.match(pk, /Linked to saved venue: /); assert.match(pk, /text: "change"/); assert.match(pk, /text: "unlink"/);
 });
 console.log('venues: ok (' + n + ')');

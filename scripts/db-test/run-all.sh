@@ -80,6 +80,8 @@ run "r103-profile-payment-0314" "R103-PROFILE-PAYMENT-0314: ALL PASS \(13/13\)" 
 run "r105-signup-sales-0315" "R105-SIGNUP-SALES-0315: ALL PASS \(21/21\)" psql -q -f tests/db/r105-signup-sales-0315.sql
 # r108 (0318): a client cannot approve a quote with no price (total 0 / missing) - HL409 friendly message, no consent, code not used up; priced quote approves; public_quote_ready {priced, studio}; re-applies itself twice, rolled back
 run "r108-unpriced-approval-0318" "R108-UNPRICED-APPROVAL-0318: ALL PASS \(13/13\)" psql -q -f tests/db/r108-unpriced-approval-0318.sql
+# r106 (0316): trial studios cannot save 2D / 3D client pictures; ONE trial e-mail counter (links + approval codes + reminders); "ends today" for trials ending 00:00-00:07 IST; friendly own_trial invite refusal; re-applies itself twice, rolled back (early: later suites re-apply 0120 / 0212 / 0241 bodies)
+run "r106-trial-gaps-0316" "R106-TRIAL-GAPS-0316: ALL PASS \(32/32\)" psql -q -f tests/db/r106-trial-gaps-0316.sql
 # r112 (0321): a re-priced sent / approved quote keeps a new Q-version (never silent); payment schedule outstanding = closure balance; mismatch flag (template schedules); open payments re-split on re-approval / by Finance edit (audited, paid rows untouched, hand-made schedules left alone); re-applies itself twice, rolled back
 run "r112-reprice-money-0321" "R112-REPRICE-MONEY-0321: ALL PASS \(25/25\)" psql -q -f tests/db/r112-reprice-money-0321.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
