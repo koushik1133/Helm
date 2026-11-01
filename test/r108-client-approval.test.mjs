@@ -29,7 +29,7 @@ t('consent clause is channel-neutral in every country; v1 "OTP sent to your mobi
   assert.ok(!/<p>By verifying the OTP sent to your mobile/.test(AP));
   for (const c of ['IN', 'AE', 'US']) {
     assert.match(P.TERMS_BY_COUNTRY[c].html, /By verifying the one-time code we sent you and accepting these terms/);
-    assert.match(P.TERMS_BY_COUNTRY[c].v, /^v2-2026-10/);
+    assert.match(P.TERMS_BY_COUNTRY[c].v, /^v3-2026-10/);   // R110 bumped v2 -> v3 (no payment-link wording)
   }
 });
 t('isPriced: total above zero only', () => {

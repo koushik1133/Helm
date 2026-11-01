@@ -84,9 +84,9 @@ t('L2: needsVersion - a generated layout over a stored empty V1 must be written;
 t('L2: Save & back writes a version when the canvas differs from the stored one and leaves only once it exists', () => {
   const fn = bjs.slice(bjs.indexOf('async function saveAndBackToFlow()'), bjs.indexOf('$(\'#loadBtn\')'));
   assert.match(fn, /HelmFlowLayout\.needsVersion\(storedKey, canvasKey\(\), dirty\.isDirty\(\)\)/);
-  assert.match(fn, /const ok = !need \? true : await saveLayout\(false\);\s*\n\s*if\(!ok\) return;/);
+  assert.match(fn, /const ok = !need \? true : await saveLayout\(false, \{ noReprice:true \}\);\s*\n\s*if\(!ok\) return;/);
   assert.match(fn, /HelmFlowLayout\.needsVersion\(storedKey, canvasKey\(\), false\)\)\{\s*\n[^\n]*return; \}/, 'still differs -> stay');
-  assert.match(fn, /if\(!RO\) await syncQuotePricingNow\(\);[^\n]*\n\s*location\.href = HelmFlowLayout\.returnUrl\(currentQuoteId\);/);
+  assert.match(fn, /if\(!RO\) await syncQuotePricingNow\(\{ interactive:true \}\);[^\n]*\n\s*location\.href = HelmFlowLayout\.returnUrl\(currentQuoteId\);/);
   assert.match(bjs, /const v = await BPStore\.quotes\.addVersion\(currentQuoteId, label, data, store\.items\.length\);\s*\n\s*currentVersionNo = v\.version_no \|\| v\.versionNo;\s*\n\s*noteStoredVersion\(sentKey\);/);
   assert.match(bjs, /storedKey = ver\.missing \? null : canvasKey\(\);/, 'opened version = stored');
   assert.match(bjs, /function loadVersionIntoEditor\(no, data\)\{\s*\n\s*applyLayout\(data\);[^\n]*\n\s*noteStoredVersion\(\);/);
