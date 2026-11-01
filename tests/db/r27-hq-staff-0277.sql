@@ -292,7 +292,7 @@ do $$ declare e text; r jsonb; x jsonb; n int; begin
     and not has_table_privilege('authenticated', 'public.hq_staff_events', 'select'));
   select count(*) into n from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'hq\_%'
      and has_function_privilege('authenticated', p.oid, 'execute') and p.proname not in ('hq_me')
-     and p.prosrc !~ '(_hq_gate|_hq_wgate|_hq27_require|_r29_hq|_hq_studio_detail_core|hq_staff_invite|hq_staff_remove)\(';
+     and p.prosrc !~ '(_hq_gate|_hq_wgate|_hq27_require|_r29_hq|_hq_studio_detail_core|hq_staff_invite|hq_staff_remove|hq_activate_plan__pre0328)\(';   -- r120 (0328): the wrapper calls the kept, gated 0287 body
   perform pg_temp.res('49 every HQ function a signed-in user can call goes through the permission gate', n = 0, 'ungated=' || n);
   perform pg_temp.as_user('sales1@helm.events', 'aal2');
   e := pg_temp.try('select public.hq_stage_machine()') || '|' || pg_temp.try('select public.hq_studio_link_check(gen_random_uuid(), ''abc'')');

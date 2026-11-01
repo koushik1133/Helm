@@ -9223,7 +9223,9 @@ window.HelmUrl = HelmUrl;
         + (d.event_code ? " · " + d.event_code : "")
         + (d.hq === true && d.studio ? " · " + d.studio : "")],
       // 0058: free-trial reminders (admins only — the server decides)
-      trial_reminder: [d.source === "r29_referral" ? "🎁" : "⏳", String(d.label || (d.source === "r29_referral" ? "Referral update" : "Free trial update"))],
+      // r120 (0328): HQ activated the studio's plan (source r120_plan_active) - same admin-only kind, opens the plan page
+      trial_reminder: [d.source === "r29_referral" ? "🎁" : d.source === "r120_plan_active" ? "🎉" : "⏳",
+        String(d.label || (d.source === "r29_referral" ? "Referral update" : d.source === "r120_plan_active" ? "Your plan is active - thank you" : "Free trial update"))],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
       // r23 (0257): Helm support changed the studio name / link (old links keep working)
@@ -10160,7 +10162,9 @@ window.HelmUrl = HelmUrl;
       // r23 (0257): studio name / link changes (Helm support only; old links keep working)
       case "studio.renamed": return "Studio renamed" + (c.from || c.to ? " from \u201c" + String(c.from || "").slice(0, 120) + "\u201d to \u201c" + String(c.to || "").slice(0, 120) + "\u201d" : "");
       case "studio.link_renamed": return "Studio link changed" + (c.from || c.to ? " from " + String(c.from || "").slice(0, 60) + " to " + String(c.to || "").slice(0, 60) + " (old links keep working)" : "");
-      case "booklet.link_sent": return "Booklet link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
+      // R120: a free-trial preview reads like the bell ("... ready (trial preview — not sent)")
+      case "booklet.link_sent": if (c.status === "skipped" && c.reason === "free_trial") return "Booklet link ready (trial preview — not sent)" + ev;
+        return "Booklet link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
         + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "booklet.snapshot": case "booklet.snap": return auditHuman(kindLabel(c.kind)) + (c.set === false ? " removed" : " updated") + " in the booklet" + ev;
       case "booklet.log": return "Booklet activity" + ev;
@@ -10179,7 +10183,8 @@ window.HelmUrl = HelmUrl;
       case "work_links.revoked": return "Work links revoked" + ev;
       case "event_site.reslugged": return "Invitation site address changed" + ev;
       case "event_site.new_link": return "Invitation site: new link made (the old link now says it has moved)" + ev;
-      case "event_site.link_sent": return "Invitation website link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
+      case "event_site.link_sent": if (c.status === "skipped" && c.reason === "free_trial") return "Invitation link ready (trial preview — not sent)" + ev;
+        return "Invitation website link " + (c.status === "skipped" ? "not sent (" + (c.reason === "free_trial" ? "free trial test mode" : c.reason === "demo" ? "demo event" : "skipped") + ")" : "sent")
         + (c.channel === "whatsapp" ? " on WhatsApp" : c.channel === "email" ? " by email" : "") + (c.to ? " to " + String(c.to).slice(0, 80) : "") + ev;
       case "chat.event_group.create": return "Event chat group created" + ev;
       case "notification_pref.set": return "Notification setting changed";
@@ -10224,7 +10229,12 @@ window.HelmUrl = HelmUrl;
       return raw;
     }
     if (a.kind !== "notify") return raw;
-    const i = raw.indexOf(" → "); const kind = (i >= 0 ? raw.slice(0, i) : raw).trim(); const to = (i >= 0 ? raw.slice(i + 3) : "").trim();
+    // the server writes "kind -> to" (0144); older rows / tests use "kind → to"
+    const arrow = raw.indexOf(" → ") >= 0 ? " → " : " -> ";
+    const i = raw.indexOf(arrow); const kind = (i >= 0 ? raw.slice(0, i) : raw).trim(); const to = (i >= 0 ? raw.slice(i + arrow.length) : "").trim();
+    // R120 (0328): a free-trial PREVIEW (nothing reached the client) reads like the bell: "Approval link ready (trial preview — not sent)"
+    if (a.trial_preview === true && /^(approval_link|booklet_link|invite_site_link)$/.test(kind) && typeof bellLabel === "function")
+      return bellLabel({ kind: kind, status: "simulated", detail: { suppressed_by: "trial_simulation" } }).text;
     const what = ({ advance_paid: "Payment received — receipt sent", payment_received: "Payment received — receipt sent", pkg_payment: "Package payment received",
       payment_receipt: "Payment receipt sent", payment_link: "Payment link sent", payment_reminder: "Payment reminder sent", payment_reconcile: "Payment flagged for checking",
       approval_link: "Approval link sent", otp: "Approval code sent", pkg_selected: "Client chose a package", pkg_accepted: "Package choice accepted",
