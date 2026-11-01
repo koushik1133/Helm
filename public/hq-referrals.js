@@ -10,7 +10,7 @@
   var R = window.HelmReferral;
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(String(location.hostname || ""));
   var D = LOCAL ? window.HelmReferralDemo || null : null;
-  var REAL = !D, S = window.HelmHqStaff || null, ME = null;
+  var REAL = !D, S = window.HelmHqStaff || null, ME = null, blockedNow = false;
   function $(id) { return document.getElementById(id); }
   function h(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
   function clear(n) { while (n && n.firstChild) n.removeChild(n.firstChild); }
@@ -29,9 +29,11 @@
   var DEMO_NOTE = ". Demo mode - nothing is saved.";
 
   /* the HQ address is never written in this page's HTML (HQ stays unlinked); set only after the HQ gate passes */
-  function hqLinks() { var to = "/" + "hq"; Array.prototype.forEach.call(document.querySelectorAll("[data-hq]"), function (a) { a.setAttribute("href", to); }); }
+  // r118 (F-08): data-hq="studios" -> /hq#studios (hq.js opens that tab); "1" -> /hq (Overview)
+  function hqHref(v) { var to = "/" + "hq", t = String(v || ""); return /^(studios|billing|plans|activity|requests|people|staff|settings|privacy)$/.test(t) ? to + "#" + t : to; }
+  function hqLinks() { Array.prototype.forEach.call(document.querySelectorAll("[data-hq]"), function (a) { a.setAttribute("href", hqHref(a.getAttribute("data-hq"))); }); }
   function notFound() { document.title = "Page not found - Helm"; $("vApp").hidden = true; $("vSoon").hidden = false; }
-  function blocked(title, text) { hqLinks(); $("soonH").textContent = title; $("soonP").textContent = text; $("soonA").hidden = false; $("vApp").hidden = true; $("vSoon").hidden = false; }
+  function blocked(title, text) { blockedNow = true; hqLinks(); $("soonH").textContent = title; $("soonP").textContent = text; $("soonA").hidden = false; $("vApp").hidden = true; $("vSoon").hidden = false; }
 
   /* ---- every HQ call: a fresh-code refusal asks for the code once and retries; a role refusal gets a plain sentence ---- */
   var codeWait = null;
@@ -55,10 +57,42 @@
     return BPStore.hq(fn, args).catch(function (e) {
       var k = S ? S.errKind(e) : null;
       if (k === "reauth") return askCode().then(function () { return BPStore.hq(fn, args); });
-      if (k === "idle" || k === "expired" || k === "ended") { blocked("Sign in to Helm HQ again", S.friendly(k)); throw new Error(S.friendly(k)); }
+      if (k === "idle" || k === "expired" || k === "ended") { sessionOver(S.friendly(k)); throw new Error(S.friendly(k)); }
       if (k === "role" || k === "ip") throw new Error(S.friendly(k, ME && ME.role_label));
       throw e;
     });
+  }
+  /* ---- r118 (F-13): the same idle / absolute sign-out as /hq (hq.js startWatch): HQ's idle minutes + the session's hard
+     end (hq_my_session), a throttled "still here" heartbeat while in use. When it ends, the data leaves the screen. ---- */
+  var lastInput = Date.now(), lastBeat = 0, MYS = null;
+  function sessionOver(text) {
+    if (blockedNow) return;
+    blocked("Session expired - sign in again", text || "Your Helm HQ sign-in has ended.");
+    try { var A = window.BPStore && BPStore.auth; if (A && A.signOut) Promise.resolve(A.signOut()).catch(function () {}); } catch (e) {}
+  }
+  // pure (exported for tests): has this HQ session run out? idle minutes (min 5, default 30) since the last input, or past the hard end
+  function sessionOut(now, lastIn, idleMin, hardEnd) {
+    var idleMs = Math.max(5, Number(idleMin) || 30) * 60000, h = Date.parse(hardEnd || "");
+    if (now - lastIn > idleMs) return "idle";
+    if (isFinite(h) && now > h) return "expired";
+    return null;
+  }
+  function beat(force) {
+    if (!REAL || !ME || blockedNow) return;
+    var t = Date.now(); if (!force && t - lastBeat < 120000) return; lastBeat = t;
+    BPStore.hq("hq_heartbeat", { p_page: "referrals" }).catch(function (e) { var k = S && S.errKind(e); if (k === "idle" || k === "expired" || k === "ended") sessionOver(S.friendly(k)); });
+  }
+  function startWatch() {
+    if (!REAL) return;
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (ev) { document.addEventListener(ev, function () { lastInput = Date.now(); }, { passive: true }); });
+    BPStore.hq("hq_my_session").then(function (r) { MYS = r && !Array.isArray(r) ? r : null; }).catch(function () { MYS = null; });
+    beat(true);
+    setInterval(function () {
+      if (!ME || blockedNow) return;
+      var out = sessionOut(Date.now(), lastInput, ME.idle_minutes, MYS && MYS.hard_end_at);
+      if (out) { sessionOver(S ? S.friendly(out) : ""); return; }
+      if (Date.now() - lastInput < 120000 && document.visibilityState === "visible") beat(false);
+    }, 30000);
   }
   function msg(e) { var m = String((e && e.message) || "Something went wrong."); return m.replace(/^not authorized:\s*HQ_[A-Z_]+\s*/, ""); }
 
@@ -392,7 +426,10 @@
     call("hq_referral_settings_set", { p: body }).then(function () { $("st_msg").textContent = "Saved."; return loadReal(); })
       .catch(function (x) { $("st_msg").textContent = msg(x); });
   }
+  // r118 (F-03): the daily job writes to real studios - say what it does first (the database then asks for a fresh code)
+  var TICK_CONFIRM = "Run the referral daily job now?\n\nIt is not a preview. It confirms referrals whose hold has ended, applies earned free months to studios' bills, marks unpaid ones as not qualified, expires old rewards and sends the notices to those studios.\n\nIt also runs on its own every day.";
   function runTick() {
+    if (!window.confirm(TICK_CONFIRM)) return;
     $("st_msg").textContent = "Running…";
     call("hq_referral_run_tick").then(function (r) {
       r = r || {}; $("st_msg").textContent = "Done: " + (r.qualified | 0) + " confirmed, " + (r.applied | 0) + " free months used, " + (r.not_paid | 0) + " did not pay, " + (r.expired | 0) + " expired.";
@@ -444,13 +481,21 @@
     try { step = B.auth.mfa && B.auth.mfa.operatorStep ? await B.auth.mfa.operatorStep() : "unknown"; } catch (e) { step = "unknown"; }
     if (step === "none") { notFound(); return; }
     if (step !== "ok") { blocked("Sign in to Helm HQ first", "Open Helm HQ, sign in with your two-step code, then come back to Referrals & partners."); return; }
-    try { ME = await B.hq("hq_me"); } catch (e) { ME = null; }
+    // r118 (F-15): hq_me failing = fail closed (no role-gated buttons for a role we don't know); missing (pre-0277) = as before
+    try { ME = await B.hq("hq_me"); } catch (e) {
+      ME = null;
+      var mk = S ? S.errKind(e) : null;
+      if (mk) { blocked("Sign in to Helm HQ again", S.friendly(mk) || msg(e)); return; }
+      if (!/PGRST202|does not exist|schema cache|not find the function/i.test(String((e && (e.message || e.code)) || ""))) {
+        blocked("Referrals & partners couldn't load", "Your HQ role didn't load (a network blip?). Nothing was changed. Reload the page to try again."); return;
+      }
+    }
     if (ME && ME.status === "suspended") { blocked("Your Helm HQ access is paused", "Ask the HQ owner if you think this is a mistake."); return; }
     if (ME && !(can("billing.read") || can("inbox.read"))) { blocked("Your HQ role can't open Referrals & partners", "Ask the HQ owner if you need it."); return; }
     try { await loadReal(); } catch (e) { if (S && S.errKind(e)) { blocked("Sign in to Helm HQ again", S.friendly(S.errKind(e)) || msg(e)); return; } notFound(); return; }
     document.title = "Referrals & partners · Helm HQ";
     $("who").textContent = ((B.auth.user() && B.auth.user().email) || "") + (ME && ME.role_label ? " · " + ME.role_label : "");
     hqLinks(); $("vApp").hidden = false;
-    wire();
+    wire(); startWatch();
   })();
 });

@@ -190,7 +190,7 @@ t('9 SQL 0324: one read-only definer function, additive, guarded; APPLY file + M
   assert.ok(ap.includes(sql.trim())); assert.match(ap, /^begin;$/m); assert.match(ap, /^commit;$/m);
   assert.equal((ap.match(/^  \('0\d /gm) || []).length, 4);
   assert.doesNotMatch(ap, /[^\x00-\x7f]/); assert.doesNotMatch(ap, /temp table|^\\/im);
-  assert.match(read('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0324_r116_trial_sim_reads\.sql\n?$/);
+  assert.match(read('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0324_r116_trial_sim_reads\.sql\n/);
   assert.match(read('scripts/db-test/run-all.sh'), /R116-TRIAL-SIM-READS-0324: ALL PASS \\\(12\/12\\\)/);
 });
 

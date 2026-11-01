@@ -96,6 +96,19 @@
   function notFound() {
     document.title = "Page not found — Helm";
     $("#vLoading").hidden = true; $("#vApp").hidden = true; $("#vNotFound").hidden = false;
+    var vb = $("#vBlocked"); if (vb) vb.hidden = true; var ve = $("#vLoadErr"); if (ve) ve.hidden = true;   // r118 (F-07): never two screens at once
+  }
+  // r118 (F-07): an HQ person whose first load failed (network blip, one call failing) - NOT the 404 page: a plain
+  // "couldn't load" box with Retry. Only shown after the HQ gate said "this is an HQ person", so it reveals nothing.
+  function loadFailed(e) {
+    if (blockedNow) return;   // "Session expired" (or another blocked screen) is already up - leave it alone
+    $("#vLoading").hidden = true; $("#vApp").hidden = true; $("#vNotFound").hidden = true;
+    var vb = $("#vBlocked"); if (vb) vb.hidden = true;
+    var ve = $("#vLoadErr"); if (!ve) { notFound(); return; }
+    ve.hidden = false; document.title = "Helm HQ";
+    var m = $("#leDetail"); if (m) m.textContent = (e && e.message) ? "Details: " + String(e.message).slice(0, 200) : "";
+    var r = $("#leRetry"); if (r && !r.dataset.wired) { r.dataset.wired = "1"; r.addEventListener("click", function () { try { location.reload(); } catch (x) {} }); }
+    var o = $("#leOut"); if (o && !o.dataset.wired) { o.dataset.wired = "1"; o.addEventListener("click", function () { signOutThen("login.html"); }); }
   }
   function showErr(e) { var b = $("#err"); b.textContent = "Couldn’t complete that: " + ((e && e.message) || "unknown error"); b.hidden = false; }
   function okMsg(t) { var b = $("#ok"); b.textContent = t; b.hidden = false; setTimeout(function () { b.hidden = true; }, 4000); }
@@ -285,6 +298,16 @@
       if (Date.now() - lastInput < 120000 && document.visibilityState === "visible") beat(curTab, false);
     }, 30000);
   }
+  // r118 (F-09): Data & privacy rule 3 states the REAL sign-in rules (HQ team -> Sign-in rules), not fixed numbers
+  function paintPrivacyRules() {
+    if (!ME) return;
+    var i = Number(ME.idle_minutes), m = Number(ME.max_hours), a = $("#pvIdle"), b = $("#pvMax");
+    if (a && i > 0) a.textContent = int(i) + " minute" + (i === 1 ? "" : "s") + " idle";
+    if (b && m > 0) b.textContent = int(m) + " hour" + (m === 1 ? "" : "s");
+  }
+  // pure (r118 F-08): the tab an address asks for (/hq#studios, #billing, #plans, #activity ... from the Referrals menu);
+  // null for none / unknown (exported for tests)
+  function hashTab(h) { var t = String(h || "").replace(/^#/, "").toLowerCase(); return TABS.indexOf(t) >= 0 ? t : null; }
   // hide every page / control the role can't use (the database refuses them anyway)
   function applyPerms() {
     Array.prototype.slice.call(document.querySelectorAll("[data-perm]")).forEach(function (n) { if (!can(n.getAttribute("data-perm"))) n.hidden = true; });
@@ -568,7 +591,8 @@
     clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3 2",
     alert: "M12 3l9.5 17h-19zM12 10v4M12 17.5h.01",
     quiet: "M3 6l6 6 4-4 8 8M21 11v5h-5",
-    check: "M5 12.5l4.5 4.5L19 7.5"
+    check: "M5 12.5l4.5 4.5L19 7.5",
+    shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"   // r118 (F-12): the Security table's line icon (was an emoji)
   };
   function attIcon(name) {
     var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), path = document.createElementNS(NS, "path");
@@ -723,6 +747,13 @@
     try { if (lastFocus && lastFocus.focus) lastFocus.focus(); } catch (e) {}
   }
   function openStudio(org, tab) { if (!org || !canTab("studios")) return; loadDetail(org, tab || "overview").catch(showErr); }
+  // r118 (F-11): "Trial ends" on the drawer Overview = the same studio-zone day as the Plan tab (trialDay; hq_trial_info
+  // then repaints both with the studio's own time zone)
+  function trialFact(sub) {
+    var f = fact(sub.status === "trial" ? "Trial ends" : "Period ends", sub.status === "trial" ? trialDay(sub.trial_ends_at, null) : date(sub.current_period_end));
+    if (sub.status === "trial") { var v = f.querySelector ? f.querySelector(".v") : null; if (v) v.id = "ovTrialEnd"; }
+    return f;
+  }
   function fact(label, value) { return el("div", { cls: "fact" }, [el("div", { cls: "l", text: label }), el("div", { cls: "v", text: value })]); }
   function kvList(pairs) {
     var dl = el("dl", { cls: "kv" });
@@ -747,7 +778,7 @@
     var since = daysSince(d.created_at);
     wrap.appendChild(el("div", { cls: "facts" }, [
       fact("Plan", (sub.plan_name || "No plan") + " · billed in " + billCur({ billing_currency: acc.billing_currency || d.billing_currency, country: acc.country })),
-      fact(sub.status === "trial" ? "Trial ends" : "Period ends", sub.status === "trial" ? date(sub.trial_ends_at) : date(sub.current_period_end)),
+      trialFact(sub),
       fact("Paid to Helm", money(d.total_paid, d.paid_currency || "INR")),
       fact("Team size", int(d.users_count) + " user" + (num(d.users_count) === 1 ? "" : "s")), fact("Last active", ago(d.last_active_at || lastIn)),
       fact("Created", date(d.created_at))]));
@@ -815,7 +846,7 @@
       sub.price_monthly != null ? " · " + money(sub.price_monthly, sub.currency) + "/month" : "",
       sub.current_period_end ? " · period ends " + date(sub.current_period_end) : "",
       // L9: replaced by the studio-zone day once hq_trial_info answers (loadTrialInfo)
-      sub.trial_ends_at ? el("span", { id: "subTrialEnd", text: " · trial ends " + date(sub.trial_ends_at) }) : ""]));
+      sub.trial_ends_at ? el("span", { id: "subTrialEnd", text: " · trial ends " + trialDay(sub.trial_ends_at, null) }) : ""]));
     if (sub.status === "suspended") subCard.appendChild(el("div", { cls: "muted", text: "Suspended " + date(sub.suspended_at) + " — " + (sub.suspend_reason || "") }));
     var selPlan = el("select", { "aria-label": "Plan" }); selPlan.appendChild(el("option", { value: "", text: "(keep plan)" }));
     plans.filter(function (p) { return p.active; }).forEach(function (p) { selPlan.appendChild(el("option", { value: p.code, text: p.name + " · " + moneyBoth(p.price_monthly, p.currency) })); });
@@ -824,6 +855,9 @@
     var ps = el("input", { type: "date" }), pe = el("input", { type: "date" }), te = el("input", { type: "date" });
     var save = el("button", { cls: "btn", type: "button", text: "Save subscription" });
     save.addEventListener("click", function () {
+      var what = subscriptionChangeText({ plan: selPlan.value ? selPlan.options[selPlan.selectedIndex].text : "", status: selSt.value, periodStart: ps.value, periodEnd: pe.value, trialEnds: te.value });
+      if (!what) { showErr(new Error("Nothing to change - pick a plan, a status or a date first.")); return; }
+      if (!window.confirm("Change the subscription of " + (d.name || "this studio") + " by hand?\n\n" + what + "\n\nThe studio sees this at once. It is recorded in the HQ log.")) return;   // r118 (F-06)
       save.disabled = true;
       call("hq_set_subscription", { p_org: org, p_plan_code: selPlan.value || null, p_status: selSt.value || null, p_trial_ends_at: te.value || null,
         p_period_start: ps.value || null, p_period_end: pe.value || null, p_notes: null })
@@ -942,17 +976,41 @@
   /* ---------------- r33 (0283) studio owner + "Recover studio owner" (Helm HQ only, never self-serve) ---------------- */
   var OWNER_SOURCE = { backfill_creator: "Recorded: studio creator", backfill_admin: "Recorded: earliest admin (creator missing)", backfill_none: "No admin found",
     auto: "First admin of the studio", transfer: "Handed over by the previous owner", hq_recovery: "Recovered by Helm HQ" };
+  // r118 (0326, F-01): one owner-card e-mail, masked with "Show". With a person id: hq_reveal('member', id, 'email')
+  // (role check + hq.reveal row + the value in one step). An older database (before 0326) sends the address in clear
+  // and no id: it is masked here and Show writes hq_log_reveal first, then shows it.
+  function ownerMail(v, uid, org) {
+    var s = String(v == null ? "" : v).trim(); if (!s) return null;
+    if (uid) return masked(s, "email", "member", uid, "email");
+    if (isMasked(s)) return el("span", { cls: "mv hid", text: s });
+    var t = el("span", { cls: "mv hid", text: maskEmail(s), title: "Masked - press Show to see it (recorded)" });
+    var b = el("button", { cls: "rv", type: "button", text: "Show", "aria-label": "Show owner e-mail (recorded in the HQ log)" });
+    b.addEventListener("click", function (e) {
+      if (e) e.stopPropagation(); b.disabled = true;
+      logReveal("studio", org, "owner_email").then(function () { t.textContent = s; t.classList.remove("hid"); t.removeAttribute("title"); b.remove(); })
+        .catch(function (er) { b.disabled = false; showErr(er); });
+    });
+    return el("span", { cls: "mask" }, [t, b]);
+  }
+  // the real address of the admin chosen in "Recover studio owner" (hq_reveal - logged; an older database: logged, then the clear value)
+  function ownerRealEmail(a, org) {
+    var v = String((a && a.email) || "").trim();
+    if (a && a.user_id && isMasked(v)) return revealValue("member", a.user_id, "email", v).then(function (r) { return r && r.value ? String(r.value) : ""; });
+    return logReveal(a && a.user_id ? "member" : "studio", a && a.user_id ? a.user_id : org, "email").then(function () { return isMasked(v) ? "" : v; });
+  }
   async function loadOwner(org, box, studio) {
     var r = await call("hq_studio_owner_info", { p_org: org }); r = r && !Array.isArray(r) ? r : {};
     clear(box);
     var card = el("div", { cls: "card" }, [el("h2", { text: "Studio owner" })]); box.appendChild(card);
     var o = r.owner || null;
-    card.appendChild(kvList([["Owner", o ? (o.name || "-") + " (" + (o.email || "-") + ")" : "Nobody recorded"],
+    // r118 (0326, F-01): every e-mail on this card arrives masked; Show = hq_reveal('member', user id) - logged
+    card.appendChild(kvList([["Owner", o ? el("span", null, [(o.name || "-") + " (", ownerMail(o.email, o.user_id, org) || "-", ")"]) : "Nobody recorded"],
       ["Status", r.owner_missing ? "Needs attention: the owner is not an active admin" : "Active admin"]]));
     var ul = el("ul", { cls: "list" });
     (r.history || []).forEach(function (h) {
+      var om = ownerMail(h.owner_email, h.owner_user_id, org), bm = ownerMail(h.by_email, h.by_user_id, org);
       ul.appendChild(el("li", null, [el("span", { cls: "m", text: (OWNER_SOURCE[h.source] || h.source || "") + (h.hq_flag ? " - check this" : "") }),
-        el("span", { cls: "muted", text: ist(h.at) + (h.owner_email ? " · " + h.owner_email : "") + (h.by_email ? " · by " + h.by_email : "") + (h.reason ? " · " + h.reason : "") })]));
+        el("span", { cls: "muted" }, [ist(h.at), om ? " · " : null, om, bm ? " · by " : null, bm, h.reason ? " · " + h.reason : null])]));
     });
     if (ul.firstChild) card.appendChild(ul);
     var admins = (r.admins || []).filter(function (a) { return a && a.active && (!o || a.user_id !== o.user_id); });
@@ -961,17 +1019,22 @@
     det.appendChild(el("p", { cls: "hint", text: "Only when the studio's owner can't act any more (left, died or lost access) and you have checked who is asking: a call back on the registered number, proof of the business. Never on a call or e-mail alone. Every admin of the studio is told by e-mail and in the bell." }));
     if (!admins.length) { det.appendChild(el("p", { cls: "muted", text: "This studio has no other active admin. The studio must make someone an admin first." })); card.appendChild(det); return; }
     var sel = el("select", { "aria-label": "New owner" });
-    admins.forEach(function (a) { sel.appendChild(el("option", { value: a.email, text: (a.name || a.email) + " (" + a.email + ")" + (a.two_step ? "" : " - no two-step") })); });
+    // r118 (F-01): the option shows the masked address; the real one is asked from hq_reveal (logged) only on "Make owner"
+    admins.forEach(function (a, i) { var mk = isMasked(a.email) ? a.email : maskEmail(a.email);
+      sel.appendChild(el("option", { value: String(i), text: (a.name || mk) + " (" + mk + ")" + (a.two_step ? "" : " - no two-step") })); });
     var why = el("textarea", { maxlength: "1000", rows: "3", "aria-label": "Reason", placeholder: "Why, and how you checked who is asking (20+ characters)" });
     var go = el("button", { cls: "btn danger", type: "button", text: "Make this admin the owner" });
     go.addEventListener("click", function () {
       var reason = String(why.value || "").trim();
       if (reason.length < 20) { showErr({ message: "Write at least 20 characters: why, and how you checked who is asking." }); why.focus(); return; }
-      if (!window.confirm("Make " + sel.value + " the owner of " + (studio || "this studio") + "? Every admin of the studio is told.")) return;
+      var pick = admins[Number(sel.value)]; if (!pick) return;
       go.disabled = true;
-      call("hq_studio_owner_recover", { p_org: org, p_email: sel.value, p_reason: reason })
-        .then(function () { okMsg("Studio owner changed. The studio's admins were told."); return loadOwner(org, box, studio); })
-        .catch(showErr).then(function () { go.disabled = false; });
+      ownerRealEmail(pick, org).then(function (email) {
+        if (!email) throw new Error("Couldn't read that admin's e-mail. Try again.");
+        if (!window.confirm("Make " + (pick.name ? pick.name + " (" + email + ")" : email) + " the owner of " + (studio || "this studio") + "? Every admin of the studio is told.")) return null;
+        return call("hq_studio_owner_recover", { p_org: org, p_email: email, p_reason: reason })
+          .then(function () { okMsg("Studio owner changed. The studio's admins were told."); return loadOwner(org, box, studio); });
+      }).catch(showErr).then(function () { go.disabled = false; });
     });
     det.appendChild(el("div", { cls: "form" }, [field("New owner (an active admin)", sel), field("Reason", why), go]));
     card.appendChild(det);
@@ -1244,13 +1307,24 @@
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "No requests here." })]));
   }
 
+  // pure (r118 F-06): the lines the "Save subscription" confirm shows; "" when nothing would change (exported for tests)
+  var SUB_STATUS_WORD = { trial: "Trial", active: "Paying (active)", past_due: "Past due", cancelled: "Cancelled" };
+  function subscriptionChangeText(c) {
+    c = c || {}; var out = [];
+    if (c.plan) out.push("Plan: " + c.plan);
+    if (c.status) out.push("Status: " + (SUB_STATUS_WORD[c.status] || c.status) + (c.status === "cancelled" || c.status === "past_due" ? " - the studio's access changes" : ""));
+    if (c.periodStart) out.push("Period start: " + date(c.periodStart));
+    if (c.periodEnd) out.push("Period end: " + date(c.periodEnd));
+    if (c.trialEnds) out.push("Trial ends: " + date(c.trialEnds));
+    return out.join("\n");
+  }
   /* ---------------- r24 (0271) sales enquiries + suggestions + their e-mail settings ---------------- */
   var SE_STATUS = { new: ["New", "warn"], contacted: ["Contacted", ""], won: ["Won", "ok"], lost: ["Lost", "bad"] };
   var SG_STATUS = { new: ["New", "warn"], reviewed: ["Reviewed", ""], done: ["Done", "ok"] };
   var SE_PLAN = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
   var SE_TEAM = { "1": "Just me", "2-5": "2–5 people", "6-15": "6–15 people", "16-50": "16–50 people", "51+": "51+ people" };
   var SG_KIND = { idea: "Idea", problem: "Problem", other: "Other" };
-  function ist(v) { return v ? new Date(v).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—"; }   // r37: India time, no zone label (owner)
+  function ist(v) { var d = v ? new Date(v) : null; return d && !isNaN(d) ? d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—"; }   // r37: India time, no zone label (owner); r118 (F-14): a bad timestamp shows "—", never "Invalid Date"
   // status buttons + "Note" for one row; fn = the HQ RPC, map = the statuses
   function rowActions(x, map, fn, reload) {
     var out = [];
@@ -1381,6 +1455,8 @@
     var x = t.extension || null, ended = t.trial_ends_at && new Date(t.trial_ends_at).getTime() <= Date.now(), tz = t.timezone || null;
     var subEnd = document.getElementById("subTrialEnd");
     if (subEnd && t.trial_ends_at) subEnd.textContent = " · trial ends " + trialDay(t.trial_ends_at, tz);
+    var ovEnd = document.getElementById("ovTrialEnd");   // r118 (F-11): the Overview fact shows the same day
+    if (ovEnd && t.trial_ends_at) ovEnd.textContent = trialDay(t.trial_ends_at, tz);
     box.appendChild(el("div", null, [statusPill(t.status || "none"), " ",
       t.trial_ends_at ? (ended ? "trial ended " : "trial ends ") + trialDay(t.trial_ends_at, tz) : "no trial end date",
       t.locked ? " · read-only" : "", t.trial_mode ? " · " + (t.trial_mode === "demo" ? "sample data" : "own data") : ""]));
@@ -1552,12 +1628,26 @@
       .catch(showErr).then(function () { b.disabled = false; });
   }
   function saveSettings() {
+    var rate; try { rate = requiredNumber($("#sRate").value, "GST rate (%)", 0, 50); } catch (e) { showErr(e); return; }
+    if (rate === 0 && !window.confirm("GST rate 0%? New Helm invoices will charge NO GST. Press OK only if that is right (for example an export under LUT).")) return;
     call("hq_set_billing_settings", { p_legal_name: $("#sName").value, p_gstin: $("#sGstin").value || null, p_address: $("#sAddr").value || null,
-      p_gst_rate: Number($("#sRate").value), p_invoice_prefix: $("#sPrefix").value })
+      p_gst_rate: rate, p_invoice_prefix: $("#sPrefix").value })
       .then(function () { return call("hq_set_seller_tax", { p_seller_country: $("#sCountry").value || "IN", p_seller_state: $("#sState").value || null,
         p_lut_number: $("#sLut").value || null, p_lut_valid_from: $("#sLutFrom").value || null, p_lut_valid_to: $("#sLutTo").value || null }); }).then(function () { okMsg("Invoice settings saved — used for new payments."); }).catch(showErr);
   }
 
+  // r118 (F-02): "Refresh past-due" writes to real studios - say so first (the database then asks for a fresh two-step code)
+  var REFRESH_PAST_DUE_CONFIRM = "Refresh past-due now?\n\nThis is not just a refresh of the screen. Helm checks every studio: a paid period or a trial that has ended unpaid is marked PAST DUE, and billing reminder e-mails + bell notices are queued to those studios' admins.\n\nHelm can't tell in advance how many studios this touches; the count shows when it is done. It also runs on its own every day.";
+  // r118 (F-05): a money / rate field - blank is an error (never a silent 0); a deliberate 0 must be typed as 0
+  function requiredNumber(raw, label, min, max) {
+    var t = String(raw == null ? "" : raw).trim();
+    if (!t) throw new Error(label + " is empty - type a number (type 0 only if you really mean 0)");
+    var n = Number(t);
+    if (!isFinite(n)) throw new Error(label + " must be a number");
+    if (min != null && n < min) throw new Error(label + " must be " + min + " or more");
+    if (max != null && n > max) throw new Error(label + " must be " + max + " or less");
+    return n;
+  }
   /* ---------------- plans ---------------- */
   // r25 (0273): each plan's fixed USD price (studios outside India pay in USD) - {code: {monthly, yearly}}
   var PLAN_INR = {};
@@ -1666,15 +1756,17 @@
   }
   function savePlan() {
     var u; try { u = usdPriceArgs($("#plCode").value, $("#plUsdM").value, $("#plUsdY").value); } catch (e) { showErr(e); return; }
-    var code = String($("#plCode").value || "").trim().toLowerCase(), iy = String($("#plInrY").value || "").trim(), co = null;
+    var code = String($("#plCode").value || "").trim().toLowerCase(), iy = String($("#plInrY").value || "").trim(), co = null, pm;
     if (iy && !(Number(iy) >= 0)) { showErr(new Error("₹ price per year must be 0 or more")); return; }
+    try { pm = requiredNumber($("#plPrice").value, "₹ price per month", 0); } catch (e) { showErr(e); return; }   // r118 (F-05): blank is never ₹0
+    if (pm === 0 && $("#plActive").checked && !window.confirm("Save this visible plan at ₹0 per month? It shows as free on the website pricing page and in checkout.")) return;
     // r28 round 2: the website + checkout text is saved in the same step when it was filled in
     if (String($("#pcDesc").value || "").trim() || String($("#pcFeat").value || "").trim() || $("#pcRzpM").value || $("#pcRzpY").value) {
       try { co = planCheckoutArgs(code, "INR", $("#pcDesc").value, $("#pcFeat").value, $("#pcRzpM").value, $("#pcRzpY").value); } catch (e) { showErr(e); return; }
     }
-    call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: Number($("#plPrice").value), p_currency: "INR", p_active: $("#plActive").checked })
+    call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: pm, p_currency: "INR", p_active: $("#plActive").checked })
       .then(function () { return u ? call("hq_upsert_plan_price", u) : null; })   // r25: the fixed USD price next to INR
-      .then(function () { return iy ? call("hq_upsert_plan_price", { p_plan_code: code, p_currency: "INR", p_price_monthly: Number($("#plPrice").value), p_price_yearly: Number(iy) }) : null; })
+      .then(function () { return iy ? call("hq_upsert_plan_price", { p_plan_code: code, p_currency: "INR", p_price_monthly: pm, p_price_yearly: Number(iy) }) : null; })
       .then(function () { return co ? call("hq_set_plan_checkout", co) : null; })
       .then(function () { okMsg("Plan saved. Visible plans show on the website pricing page."); $("#planEditor").hidden = true; loadPlans().catch(showErr); }).catch(showErr);
   }
@@ -1697,7 +1789,7 @@
     $("#secTotal").textContent = int(r.total) + " event" + (num(r.total) === 1 ? "" : "s");
     var tb = clear($("#tSec"));
     (r.by_studio || []).forEach(function (x) {
-      tb.appendChild(el("tr", null, [el("td", { text: "🛡️ " + (x.label || x.type || "") }), el("td", { text: x.studio || "—" }),
+      tb.appendChild(el("tr", null, [el("td", null, [el("span", { cls: "secic", "aria-hidden": "true" }, [attIcon("shield")]), String(x.label || x.type || "")]), el("td", { text: x.studio || "—" }),
         el("td", { cls: "n", text: int(x.count) }), el("td", { text: x.latest ? new Date(x.latest).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" })]));
     });
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "No security events in this range." })]));
@@ -1990,6 +2082,8 @@
   }
 
   function on(id, ev, fn) { var n = $(id); if (n) n.addEventListener(ev, fn); }
+  // pure (r118): "hq_me does not exist on this database" (older than 0277) vs any other failure (exported for tests)
+  function meMissing(e) { return /PGRST202|does not exist|schema cache|not find the function/i.test(String((e && (e.message || e.code)) || "")); }
   // r28: ?demo=1 ONLY on this computer (localhost / 127.0.0.1 / [::1]): hq-demo.js swaps BPStore for made-up data held in
   // the browser. Any other host ignores ?demo=1 (and hq-demo.js is never deployed - .vercelignore). Pure - exported for tests.
   function demoWanted(host, search) {
@@ -2021,23 +2115,32 @@
     if (g !== "hq") { notFound(); return; }
     on("#blkOut", "click", function () { signOutThen("login.html"); });
     // r27 (0277): who am I in HQ? (a database without 0277: null -> everything shown as before; the gates still decide)
-    try { ME = await BPStore.hq("hq_me"); } catch (e) { ME = null; }
+    // r118 (F-15): hq_me missing (a database without 0277) = null, as before; hq_me FAILING = fail closed - no buttons
+    // drawn for a role we don't know: "couldn't load" + Retry (an ended / idle sign-in -> "Session expired")
+    try { ME = await BPStore.hq("hq_me"); } catch (e) {
+      ME = null;
+      var mk = S ? S.errKind(e) : null;
+      if (mk === "idle" || mk === "expired" || mk === "ended") { sessionOver(S.friendly(mk)); return; }
+      if (!meMissing(e)) { loadFailed(e); return; }
+    }
     if (ME && typeof ME !== "object") ME = null;
     if (ME && ME.status === "suspended") { blocked("Your Helm HQ access is paused", "An HQ owner or the security team paused your access. Ask the HQ owner if you think this is a mistake.", null); return; }
     if (ME && ME.needs_2step && !ME.has_2step) { enrollGate(); return; }
     if (ME && ME.needs_2step) { blocked("Set up two-step first", "Helm HQ needs two-step verification for everyone, on every visit. Sign in again and set it up - it takes a minute.", "Set up two-step", "login.html"); return; }
-    applyPerms();
+    applyPerms(); paintPrivacyRules();
     // r37: Helm HQ runs on India time - default ranges and the paid-on date are IST days (same as the server's hq_today)
     var tIst = istDay(Date.now()), mIst = tIst.slice(0, 8) + "01", pIst = istDay(Date.now() - 30 * 864e5);
     $("#bFrom").value = mIst; $("#bTo").value = tIst; $("#aFrom").value = pIst; $("#aTo").value = tIst; $("#rPaidOn").value = tIst;
     try { await loadAll(); }
-    catch (e) { notFound(); return; }   // any failure on first load looks like a missing page — never reveal HQ exists
+    catch (e) { loadFailed(e); return; }   // r118 (F-07): the gate already said HQ - a failed first load gets Retry, not the 404 page
     document.title = "Helm HQ";
     $("#who").textContent = (BPStore.auth.user() && BPStore.auth.user().email) || "";
     $("#vLoading").hidden = true; $("#vApp").hidden = false;
     // r24 (0271): the e-mail alerts link straight to Requests (hq#requests)
     var first = TABS.filter(canTab)[0] || "overview";
+    var askTab = hashTab(location.hash);
     if (location.hash === "#requests" && canTab("requests")) { showTab("requests"); reqTab("plan"); loadRequestsTab(); }
+    else if (askTab && askTab !== "requests" && canTab(askTab)) showTab(askTab);   // r118 (F-08): /hq#studios etc. (its loaders run once the tabs are wired, below)
     else { showTab(canTab("overview") ? "overview" : first); if (first === "requests" && !canTab("overview")) loadRequestsTab(); if (!canTab("overview") && first === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); } }
     startWatch();
 
@@ -2048,6 +2151,7 @@
       if (t === "requests") loadRequestsTab();
       if (t === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
     }); });
+    if (askTab && askTab !== "requests" && canTab(askTab)) { var tb0 = $("#tab-" + askTab); if (tb0) tb0.click(); }
     on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); if (!$("#pane-staff").hidden) { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
       if (!$("#pane-activity").hidden) { loadAudit().catch(showErr); loadSecurity().catch(showErr); } if (!$("#pane-settings").hidden && can("billing.read")) loadSettings().catch(showErr); });
     // r28: phone menu + bottom bar + Settings shortcuts
@@ -2109,7 +2213,7 @@
     on("#tmRemoved", "change", function () { loadTeam().catch(showErr); });
     on("#btnStAdd", "click", addStaff);
     on("#btnStDom", "click", addDomain);
-    on("#btnRefreshBilling", "click", function () { call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }).catch(showErr); });
+    on("#btnRefreshBilling", "click", function () { if (!window.confirm(REFRESH_PAST_DUE_CONFIRM)) return; call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }).catch(showErr); });
     on("#fStatus", "change", function () { loadStudios(0).catch(showErr); });
     on("#qStudios", "input", function () { clearTimeout(sTimer); sTimer = setTimeout(function () { loadStudios(0).catch(showErr); }, 300); });
     on("#qUsers", "input", function () { clearTimeout(uTimer); uTimer = setTimeout(function () { loadUsers(0).catch(showErr); }, 300); });

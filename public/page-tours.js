@@ -489,13 +489,21 @@
     /* ---------------- pages with their own layout (no app shell) ---------------- */
     "hq.html": [
       { sel: "#navgBiz", side: "right", title: "Helm HQ", desc: "The console for Helm staff: studios, requests, billing and plans." },
-      { sel: "#gSearch", title: "Search everything", desc: "Find a studio, person or invoice." },
+      { sel: "#gSearch", title: "Search studios and people", desc: "Find a studio by name or link, or a person by e-mail. Invoices are under Billing." },
       { sel: "#kpis", title: "Key numbers", desc: "New studios, monthly income, plan mix and the trial funnel." },
       { sel: "#attList", title: "Needs attention", desc: "Studios and requests waiting on HQ." },
       { sel: "#tab-requests", side: "right", title: "Requests", desc: "Plan requests, sales enquiries and suggestions from studios." },
       { sel: "#tab-staff", side: "right", title: "Staff access", desc: "Who on the Helm team can use HQ, and with which rights." },
       // r39 (0288): owner-only card on the Staff access tab (shown there only)
       { sel: "#sgCard", title: "Google-only sign-in", desc: "Owner only: make every Helm staff member sign in to HQ with their helm.events Google account. Read the warning first and keep the emergency undo handy." },
+    ],
+    "hq-referrals.html": [
+      // r118 (F-16): Helm HQ Referrals & partners (HQ staff only; the button sits in the top bar, shown only after the HQ gate)
+      { sel: "#kpis", title: "Referral numbers", desc: "Referred studios, how many are waiting for review and the free months given, in USD at list price." },
+      { sel: "#t-rev", title: "Needs review", desc: "Referrals the checks flagged. Approve or reject each one; every decision is written to the HQ log." },
+      { sel: "#t-led", title: "Rewards ledger", desc: "Every free month earned, held, used or expired. Rewards are months of Helm, never cash." },
+      { sel: "#t-par", title: "Partner codes", desc: "Marketing links and partner codes. Creating or switching one needs Owner / Admin and a fresh two-step code." },
+      { sel: "#t-set", title: "Program rules", desc: "Hold days, caps and expiry. \"Run the daily job now\" applies free months and sends notices to studios, so it asks first." },
     ],
     "booklet.html": {
       signedIn: true,   // client-facing link: the tour button only shows for a signed-in studio member

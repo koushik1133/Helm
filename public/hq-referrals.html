@@ -34,12 +34,12 @@
     <nav aria-label="HQ sections">
       <div class="navg">Business</div>
       <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-3H4z"/></svg>Overview</a>
-      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>Studios</a>
-      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3zM3 11h18M7 15h3"/></svg>Billing</a>
-      <a class="navi" href="/hq-referrals?demo=1" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v4H4zM5 13v7h14v-7M12 9v11M12 9c-1.5-3-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 15 9 12 9z"/></svg>Referrals &amp; partners</a>
-      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8zM8 8h.01"/></svg>Plans</a>
+      <a class="navi" data-hq="studios"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>Studios</a>
+      <a class="navi" data-hq="billing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3zM3 11h18M7 15h3"/></svg>Billing</a>
+      <a class="navi" href="/hq-referrals" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v4H4zM5 13v7h14v-7M12 9v11M12 9c-1.5-3-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1.5-3 5-3.5 5-1.2C17 9 15 9 12 9z"/></svg>Referrals &amp; partners</a>
+      <a class="navi" data-hq="plans"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8zM8 8h.01"/></svg>Plans</a>
       <div class="navg">Team &amp; safety</div>
-      <a class="navi" data-hq="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4"/></svg>Security &amp; activity</a>
+      <a class="navi" data-hq="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4"/></svg>Security &amp; activity</a>
     </nav>
     <div class="foot" id="who"></div>
   </aside>
@@ -50,6 +50,7 @@
     <header class="topbar">
       <button class="iconbtn" id="btnMenu" type="button" aria-label="Open the HQ menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <span class="crumb"><span class="pre">Helm HQ / </span><b>Referrals &amp; partners</b></span>
+      <button class="btn" id="helpBtn" type="button" title="Tour this page: a quick walk through what is on it">? Tour</button>
       <a class="btn" href="/referral-terms" target="_blank" rel="noopener">Terms</a>
     </header>
     <div class="content">
@@ -167,8 +168,10 @@
 <script src="telemetry.js?v=9"></script>
 <script src="config.js?v=112"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=326"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=327"></script>
 <script src="hq-staff.js?v=2"></script>
-<script src="/hq-referrals.js?v=3"></script>
+<script src="/hq-referrals.js?v=4"></script>
+<script src="/page-tours.js?v=16"></script>
+<script src="/tour.js?v=36"></script>
 </body>
 </html>

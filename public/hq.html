@@ -155,6 +155,7 @@
   .att .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:14px;font-weight:700;flex:none;background:var(--line-2);color:var(--ink-2)}
   .list.att li>.ic:first-child{flex:0 0 32px;width:32px}
   .att .ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .secic{display:inline-flex;vertical-align:-3px;margin-right:6px;color:var(--ink-2)} .secic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .att .ic.warn{background:#fdf3e1;color:#8a5300} .att .ic.bad{background:#fdeceb;color:#a8261b} .att .ic.ok{background:var(--accent-soft);color:var(--accent-2)}
   .att .tx{flex:1;min-width:0} .att .tx b{display:block;font-weight:600} .att .tx span{font-size:13px;color:var(--ink-3)}
   .muted{color:var(--ink-3)} .empty{color:var(--ink-3);font-size:13.5px;padding:var(--s5) 0;text-align:center}
@@ -397,6 +398,17 @@
     <h2>We couldn’t find that page</h2>
     <p>The link may be broken, or the page may have moved.</p>
     <a href="/">Go to the home page →</a>
+  </div>
+</main>
+
+<!-- r118 (F-07): an HQ person whose first load failed - a plain error with Retry (never the 404 page) -->
+<main id="vLoadErr" class="blk" hidden>
+  <div class="box" role="alert">
+    <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19zM12 10v4M12 17.5h.01"/></svg></div>
+    <h2>Helm HQ couldn’t load</h2>
+    <p>Something went wrong while loading (a network blip, or one part of HQ didn’t answer). Nothing was changed. Try again.</p>
+    <p class="muted" id="leDetail"></p>
+    <div class="actions"><button class="btn primary" id="leRetry" type="button">Retry</button><button class="btn" id="leOut" type="button">Sign out</button></div>
   </div>
 </main>
 
@@ -837,7 +849,7 @@
       <ul class="rules">
         <li><span class="dotk" aria-hidden="true">1</span><span><b>No studio business data</b>HQ shows studios, their people and what they paid Helm. Never a studio’s clients, quotes, prices, events or messages. For that data Helm only processes it for the studio, so HQ staff see it only if the studio asks (none today).</span></li>
         <li><span class="dotk" aria-hidden="true">2</span><span><b>Masked by default</b>E-mails, phone numbers, PAN, GSTIN and tax ids show as ka•••@studio.in / +91 ••••••••23. “Show” reveals one value and records who, when and which field &mdash; never the value.</span></li>
-        <li><span class="dotk" aria-hidden="true">3</span><span><b>Only what your role needs</b>Each HQ role sees only its pages; the database refuses everything else. Two-step always, sign-out after 30 minutes idle, sign-ins end after 12 hours, a fresh code for big changes.</span></li>
+        <li><span class="dotk" aria-hidden="true">3</span><span><b>Only what your role needs</b>Each HQ role sees only its pages; the database refuses everything else. Two-step always, sign-out after <span id="pvIdle">the set idle time</span>, sign-ins end after <span id="pvMax">the set number of hours</span> (HQ team &rarr; Sign-in rules), a fresh code for big changes.</span></li>
         <li><span class="dotk" aria-hidden="true">4</span><span><b>Never stored</b>Passwords (only hashes, kept by Supabase Auth), card numbers or CVV (Razorpay holds them), Aadhaar numbers.</span></li>
         <li><span class="dotk" aria-hidden="true">5</span><span><b>Everything is logged</b>Page views, changes, reveals and exports are in Security &amp; activity, with who and when.</span></li>
       </ul>
@@ -852,7 +864,7 @@
         <tr><td><b>Payments to Helm, invoices, UTR</b></td><td>Accounts and GST returns</td><td>Owner, Admin (Billing)</td><td>About 8 years (confirm with the CA)</td></tr>
         <tr><td><b>Logins: e-mail, role, last sign-in, two-step on/off</b></td><td>Security and support</td><td>People roles &mdash; e-mail masked</td><td>While the account exists</td></tr>
         <tr><td><b>Sales enquiries and suggestions</b></td><td>Answering the person</td><td>Requests roles &mdash; contact masked</td><td>24 months</td></tr>
-        <tr><td><b>HQ staff sessions, devices, short IP</b></td><td>Protecting HQ</td><td>Owner, Security</td><td>12&ndash;18 months</td></tr>
+        <tr><td><b>HQ staff sessions, devices, short IP</b></td><td>Protecting HQ</td><td>Owner, Admin, Security</td><td>12&ndash;18 months</td></tr>
         <tr><td><b>HQ activity log (views, changes, reveals)</b></td><td>Accountability (DPDP Rules: logs at least 1 year)</td><td>Owner, Admin, Security</td><td>At least 1 year, better 2&ndash;3 years</td></tr>
       </tbody></table></div>
       <p class="muted gap-t">Breaches: tell the Data Protection Board and each affected person without delay, with a detailed report to the Board within 72 hours; certain cyber incidents go to CERT-In within 6 hours. Details and sources: HQ-SUPERADMIN-RESEARCH.md.</p>
@@ -890,13 +902,13 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=326"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=327"></script>
 <script src="auth-ui.js?v=58"></script>
 <script src="hq-invoice.js?v=2"></script>
 <script src="hq-mfa.js?v=1"></script>
 <script src="hq-staff.js?v=2"></script>
-<script src="hq.js?v=30"></script>
-<script src="page-tours.js?v=15"></script>
-<script src="tour.js?v=35"></script>
+<script src="hq.js?v=31"></script>
+<script src="page-tours.js?v=16"></script>
+<script src="tour.js?v=36"></script>
 </body>
 </html>
