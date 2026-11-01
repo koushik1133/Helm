@@ -91,8 +91,10 @@ t('client-mailer: 0166 outbox gate, then 0179 trial_send_blocked, both before th
   const cm = read('supabase/functions/client-mailer/index.ts');
   const a = cm.indexOf('await outboundBlocked(admin'), b = cm.indexOf('await trialSendBlocked(admin'), c = cm.indexOf('await sendMail(');
   assert.ok(a > 0 && b > a && c > b, 'gate order');
-  assert.match(cm, /return json\(\{ status: "test_mode", masked, reason: TEST_MODE_TEXT \}\);/);
-  assert.match(cm, /return json\(\{ status: "not_configured", trial: true,/);
+  // R114 (0323): a trial answers with the simulation (preview, nothing sent); an unreadable plan -> 503
+  assert.match(cm, /return json\(\{ status: "test_mode", trial: true, simulated: true, masked, reason: TRIAL_SIM_TEXT, preview/);
+  assert.match(cm, /if \(!g && await trialSendBlocked\(admin, [^\n]*\) \{\n\s*return await simulated\(\);/);
+  assert.match(cm, /could not check the studio plan - nothing was sent, try again[^\n]*503\)/);
 });
 t('menu package editor: Sample tag (0185) + trial edits the price only (L8), never dishes or Active', () => {
   const m = read('public/menu-pkg-editor.js');

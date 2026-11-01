@@ -127,12 +127,27 @@ t('MANIFEST / db test runner / release lists know 0323 (after 0322)', () => {
   const man = read('supabase/migrations/MANIFEST');
   const a = man.indexOf('forward  supabase/migrations/0322_'), b = man.indexOf('forward  supabase/migrations/0323_r114_trial_simulation.sql');
   assert.ok(a > 0 && b > a, 'MANIFEST: 0323 after 0322');
-  assert.match(read('scripts/db-test/run-all.sh'), /run "r114-trial-sim-0323" "R114-TRIAL-SIM-0323: ALL PASS \\\(34\/34\\\)" psql -q -f tests\/db\/r114-trial-sim-0323\.sql/);
+  assert.match(read('scripts/db-test/run-all.sh'), /run "r114-trial-sim-0323" "R114-TRIAL-SIM-0323: ALL PASS \\\(35\/35\\\)" psql -q -f tests\/db\/r114-trial-sim-0323\.sql/);
   for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(read(f), /'0322', '0323'\]/, f);
   assert.ok(existsSync(new URL('../tests/db/r114-trial-sim-0323.sql', import.meta.url)));
 });
 t('audit document exists with the action table', () => {
   const a = read('testing/phase2/TRIAL-SIMULATION-AUDIT.md');
   assert.match(a, /\| Action \| Today in trial \| After fix \| File:line \|/);
+});
+t('studio step 10 (trial-test-note): red SIMULATION banner + the client simulated payments (TEST receipts only)', () => {
+  const N = require('../public/trial-test-note.js');
+  assert.equal(N.paySimSpec(null), null); assert.equal(N.paySimSpec({ is_trial_org: false }), null);
+  assert.match(N.paySimSpec({ is_trial_org: true, ended: true }).text, /^SIMULATION - no real payment\./);
+  const l = N.simLines([{ amount: 41772, currency: 'INR', label: 'Advance (30%)', receipt: 'TEST-ABCD1234' }]);
+  assert.equal(l.length, 1); assert.match(l[0], /Advance \(30%\) - INR 41,772 \(receipt TEST-ABCD1234, TEST - no real money\)/);
+  assert.deepEqual(N.simLines(null), []);
+  const js = read('public/trial-test-note.js');
+  assert.match(js, /trialSimPayments\(id\)/); assert.doesNotMatch(js, /innerHTML/);
+});
+t('payment schedule: in a trial the reminder line says reminders are not sent (simulation)', () => {
+  const js = read('public/payment-schedule.js');
+  assert.match(js, /Trial simulation - reminders are not sent to your client in the free trial\./);
+  assert.match(js, /HelmTrialLock\.isTrial\(\)\) line \+= " " \+ TRIAL_SIM_REMIND/);
 });
 console.log(`r114-trial-simulation: ${n} passed`);

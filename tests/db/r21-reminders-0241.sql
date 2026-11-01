@@ -9,6 +9,16 @@
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 begin;
+-- R114 (0323): a free trial now sends NO client e-mail at all (proven in tests/db/r114-trial-sim-0323.sql). This suite
+-- proves the 0212 rules underneath, so inside this rolled-back transaction the 0323 switch + slot trigger are put back
+-- to the pre-0323 behaviour.
+do $$ begin
+  if to_regprocedure('public._tr212_email_ok__pre0323(uuid)') is not null then
+    execute 'alter table public.trial_email_sends disable trigger ab2_r323_trial_email_slot';
+    execute $f$create or replace function public._tr212_email_ok(p_org uuid) returns boolean language sql stable security definer
+      set search_path = '' as $b$ select public._tr212_email_ok__pre0323(p_org) $b$ $f$;
+  end if;
+end $$;
 create temp table _dr(name text, result text); grant all on _dr to anon, authenticated, service_role;
 create temp table _dk(k text primary key, v text); grant all on _dk to anon, authenticated, service_role;
 

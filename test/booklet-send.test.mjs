@@ -68,7 +68,7 @@ await t("migration: additive, idempotent, ASCII, token never stored, trial skip,
 await t("client-mailer (older Email booklet button): free trial -> test_mode, nothing sent", () => {
   assert.ok(mailer.indexOf("outboundBlocked(admin") > 0 && mailer.indexOf("outboundBlocked(admin") < mailer.indexOf("await sendMail("));
   assert.match(mailer, /status: "test_mode"/);
-  assert.match(ems, /st === "test_mode"\) return TEST_MODE/); assert.match(ems, /if \(trial\) \{ btn\.disabled = true/);
+  assert.match(ems, /st === "test_mode"\) return TEST_MODE/); assert.match(ems, /if \(trial\) \{ btn\.disabled = false; btn\.textContent = SIM_LABEL;/);   // R114: preview, never sent
 });
 
 // run the shared box with the booklet adapters against a tiny fake DOM
@@ -120,9 +120,11 @@ await t("box + booklet adapters: expired link -> gate with reason, send off; tri
   const a = await mountBooklet({ live: false });
   assert.equal(a.by("ishGate").hidden, false); assert.match(a.by("ishGate").textContent, /expired/); assert.equal(a.by("ishSend").disabled, true);
   const b = await mountBooklet({ trial: true, answer: { status: "skipped", reason: "free_trial" } });
-  assert.equal(b.by("ishTrial").hidden, false); assert.match(b.by("ishTrial").textContent, /^Test mode — in the free trial we don't send real messages; copy the link instead\.$/);
-  assert.match(b.by("ishSend").textContent, /\(test mode\)$/);
+  // R114 (0323): a trial is a simulation - Preview, the server is never asked to send
+  assert.equal(b.by("ishTrial").hidden, false); assert.match(b.by("ishTrial").textContent, /^Trial simulation \u2014 nothing is sent to your client\./);
+  assert.match(b.by("ishSend").textContent, /^Preview \(trial/);
   b.by("ishSend").fire("click"); await new Promise((r) => setTimeout(r, 0));
-  assert.match(b.by("ishMsg").textContent, /^Test mode: nothing was sent \(free trial\)/);
+  assert.match(b.by("ishMsg").textContent, /^Preview only .*nothing was sent to your client/);
+  if (b.calls) assert.equal(b.calls.length, 0, "nothing sent");
 });
 console.log("booklet-send: " + n + " passed");

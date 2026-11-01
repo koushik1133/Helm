@@ -9,6 +9,16 @@ begin;
 -- earlier suites re-apply old migrations (0166 / 0195 / 0200 / 0207); re-apply 0212 twice inside this rolled-back tx
 \ir ../../supabase/migrations/0212_trial_client_email.sql
 \ir ../../supabase/migrations/0212_trial_client_email.sql
+-- R114 (0323): a free trial now sends NO client e-mail at all (proven in tests/db/r114-trial-sim-0323.sql). This suite
+-- proves the 0212 rules underneath, so inside this rolled-back transaction the 0323 switch + slot trigger are put back
+-- to the pre-0323 behaviour.
+do $$ begin
+  if to_regprocedure('public._tr212_email_ok__pre0323(uuid)') is not null then
+    execute 'alter table public.trial_email_sends disable trigger ab2_r323_trial_email_slot';
+    execute $f$create or replace function public._tr212_email_ok(p_org uuid) returns boolean language sql stable security definer
+      set search_path = '' as $b$ select public._tr212_email_ok__pre0323(p_org) $b$ $f$;
+  end if;
+end $$;
 create temp table _uf(name text, result text); grant all on _uf to anon, authenticated, service_role;
 
 create or replace function pg_temp.su() returns void language plpgsql as $$

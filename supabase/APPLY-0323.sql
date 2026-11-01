@@ -10,7 +10,7 @@
 --
 -- OWNER STEPS (staging first, then production):
 --   1  Make sure APPLY-0322.sql has been run on this database (this file stops otherwise).
---   2  Paste this whole file and Run. Every VERIFY row at the end must say ok = true.
+--   2  Paste this whole file and Run. Every VERIFY row at the end (9 rows) must say ok = true.
 --   3  Deploy the client-mailer edge function (trial: preview instead of sending) and the site.
 --   4  Open a trial studio's approval link: red "Trial simulation" banner; 000000 + Simulate approval, then
 --      Simulate payment shows a TEST receipt. "Send by email" in the studio shows a preview, nothing is sent.
@@ -145,6 +145,19 @@ do $$ declare r text; begin
                    and policyname = 'trial_sim_payments_own_studio_read') then
     create policy trial_sim_payments_own_studio_read on public.trial_sim_payments
       for select to authenticated using (org_id = public.current_org_id());
+  end if;
+end $$;
+
+-- the 0045 read-only guard (an ended-trial / suspended studio takes no new rows) and the G4 quote/org match, like
+-- every studio table that carries org_id + quote_id
+do $$ begin
+  if to_regprocedure('public.tg_studio_read_only()') is not null
+     and not exists (select 1 from pg_catalog.pg_trigger where tgname = 'zzz_studio_read_only' and tgrelid = 'public.trial_sim_payments'::regclass) then
+    execute 'create trigger zzz_studio_read_only before insert or update or delete on public.trial_sim_payments for each row execute function public.tg_studio_read_only(''org_id'')';
+  end if;
+  if to_regprocedure('public.tg_quote_org_match()') is not null
+     and not exists (select 1 from pg_catalog.pg_trigger where tgname = 'zz_quote_org_match' and tgrelid = 'public.trial_sim_payments'::regclass) then
+    execute 'create trigger zz_quote_org_match before insert or update on public.trial_sim_payments for each row execute function public.tg_quote_org_match()';
   end if;
 end $$;
 
@@ -373,5 +386,8 @@ select item, ok from (values
      and exists (select 1 from pg_trigger where tgrelid = 'public.quote_otps'::regclass and tgname = 'ab2_r322_trial_otp')),
   ('08 trial data deletion (0184) knows trial_sim_payments (or 0184 not installed)',
      to_regprocedure('public._tr184_purge_tables()') is null
-     or 'trial_sim_payments' = any(public._tr184_purge_tables()))
+     or 'trial_sim_payments' = any(public._tr184_purge_tables())),
+  ('09 trial_sim_payments has the read-only guard and the quote / studio match (like every studio table)',
+     exists (select 1 from pg_trigger where tgrelid = 'public.trial_sim_payments'::regclass and tgname = 'zzz_studio_read_only')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.trial_sim_payments'::regclass and tgname = 'zz_quote_org_match'))
 ) v(item, ok);

@@ -131,6 +131,19 @@ do $$ declare r text; begin
   end if;
 end $$;
 
+-- the 0045 read-only guard (an ended-trial / suspended studio takes no new rows) and the G4 quote/org match, like
+-- every studio table that carries org_id + quote_id
+do $$ begin
+  if to_regprocedure('public.tg_studio_read_only()') is not null
+     and not exists (select 1 from pg_catalog.pg_trigger where tgname = 'zzz_studio_read_only' and tgrelid = 'public.trial_sim_payments'::regclass) then
+    execute 'create trigger zzz_studio_read_only before insert or update or delete on public.trial_sim_payments for each row execute function public.tg_studio_read_only(''org_id'')';
+  end if;
+  if to_regprocedure('public.tg_quote_org_match()') is not null
+     and not exists (select 1 from pg_catalog.pg_trigger where tgname = 'zz_quote_org_match' and tgrelid = 'public.trial_sim_payments'::regclass) then
+    execute 'create trigger zz_quote_org_match before insert or update on public.trial_sim_payments for each row execute function public.tg_quote_org_match()';
+  end if;
+end $$;
+
 -- trial retention (0184): purged with the studio's quotes (children first), patched in place like 0310
 do $$ declare v_def text; begin
   if to_regprocedure('public._tr184_purge_tables()') is not null then

@@ -101,14 +101,15 @@ await t('edge functions: client-mailer + send-otp ask the 0212 gates; comms-disp
   assert.equal(trialRowAllowed('pay_reminder', 'email', { trial_email: true }), false);
   assert.equal(trialRowAllowed('pay_reminder', 'email', { text: 'x' }), true);
 });
-await t('UI: e-mail works in an active trial, WhatsApp / SMS options hidden', () => {
+await t('UI: R114 - any trial is a simulation (preview, nothing sent), WhatsApp / SMS options hidden', () => {
   // email-send.js: my_trial_messaging -> test mode only when e-mail does not reach clients
   const src = read('public/email-send.js'); const ctx = { window: {}, document: {} }; vm.runInNewContext(src, ctx);
   const E = ctx.window.HelmEmailSend;
   assert.equal(E.trialState(null), null, 'before 0212: older rule');
   assert.deepEqual(JSON.parse(JSON.stringify(E.trialState({ trial: false, email: true }))), { testMode: false, note: '' });
+  // R114 (0323): ANY free trial is a simulation - even an older database that still says email:true
   const s = E.trialState({ trial: true, email: true, email_per_day: 30 });
-  assert.equal(s.testMode, false); assert.match(s.note, /really goes to your client \(up to 30 e-mails a day\)\. WhatsApp and SMS unlock on a paid plan/);
+  assert.equal(s.testMode, true);
   assert.equal(E.trialState({ trial: true, email: false }).testMode, true, 'ended trial / switch off: test mode');
   assert.match(E.resultText({ status: 'limit', reason: 'Free trial e-mail limit reached' }), /^Not sent: Free trial e-mail limit/);
   assert.match(E.resultText({ status: 'demo' }), /sample \(demo\) event/);
@@ -116,7 +117,7 @@ await t('UI: e-mail works in an active trial, WhatsApp / SMS options hidden', ()
   const is = read('public/invite-site-share.js');
   assert.match(is, /radioLabs\.whatsapp\.hidden = trialEmail && !isTrial;/);
   assert.match(is, /if \(st === "skipped" && r\.reason === "trial_email_cap"\) return TRIAL_CAP;/);
-  assert.match(is, /trialEmail = m\.trial === true && m\.email === true;/);
+  assert.match(is, /trialEmail = false;\n\s*isTrial = m\.trial === true;/);   // R114: any trial = simulation
   // proposal WhatsApp box hidden in the trial
   assert.match(read('public/wa-proposal.js'), /box\.hidden = isTrial === true;/);
   // client approval page - R113 (0322): in the trial NO code is sent (no e-mail / SMS / WhatsApp buttons); test mode with

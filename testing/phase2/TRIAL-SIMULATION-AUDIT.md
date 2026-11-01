@@ -8,7 +8,7 @@ Owner decision (2026-10-31): in a free-trial studio, nothing real may leave Helm
 
 ## Table
 
-| Action | Today in trial (before R114) | After fix | File:line |
+| Action | Today in trial | After fix | File:line |
 |---|---|---|---|
 | Approval link e-mail ("Send by email", quote page / booklet dialog) | **Really sent** in an active trial (0212 gate, capped 30/day) | Not sent. The DB gate says `allowed:false`. client-mailer returns `{status:"test_mode", simulated:true, preview}` and logs `simulated`. The button reads "Preview e-mail (trial)" and shows what the client would get | `supabase/functions/client-mailer/index.ts:143`, `:157`; `supabase/migrations/0323_r114_trial_simulation.sql:65`; `public/email-send.js:56` |
 | Booklet link e-mail (client-mailer kind `booklet`) | **Really sent** (0212) | Same as above: preview only | `supabase/functions/client-mailer/index.ts:143` |
@@ -17,8 +17,9 @@ Owner decision (2026-10-31): in a free-trial studio, nothing real may leave Helm
 | Approval code (OTP) by e-mail / WhatsApp / SMS | Refused since R113 / 0322 (test code 000000) | Unchanged. The trial e-mail ledger now refuses every kind, not only `otp` | `supabase/functions/send-otp/index.ts:86`; `0322_r113_trial_approval_test_mode.sql:84`; `0323_r114_trial_simulation.sql:89` |
 | Client approval itself | Test approval with code 000000 (0322) | Unchanged, plus the red banner and a "Next step (simulated): payment" card | `public/approve.html:141`, `:459` |
 | Payment link (Razorpay, create-payment-link) | Refused (0187: 409 `trial`); the page hid "Proceed to payment" | Unchanged on the server. The client page now offers **Simulate payment**: `trial_simulate_payment` records one TEST row per open milestone in `trial_sim_payments`, writes the audit row `payment.simulated` and returns a `TEST-...` receipt. It never writes `quote_payments` or `payment_milestones` and never calls Razorpay | `supabase/functions/create-payment-link/index.ts:90`; `0323_r114_trial_simulation.sql:208`; `public/approve.html:459` |
+| Studio payment step (quote page step 10) | Trial test-mode note + Skip | Red "SIMULATION - no real payment" banner, plus the client's simulated payments (TEST receipts, read-only, `trial_sim_payments_for_quote`) | `public/trial-test-note.js` (`renderPaySim`) |
 | Simulated checkout page `sim-pay.html` | Only on local / staging, never on prod hosts | Unchanged | `public/sim-pay.html:72` |
-| Payment reminders (automatic + "Send reminder now") | Outbox row `skipped` (0166 guard) | Unchanged (nothing sent) | `supabase/migrations/0166_trial_sandbox_skeleton.sql:352` |
+| Payment reminders (automatic + "Send reminder now") | Outbox row `skipped` (0166 guard) | Unchanged on the server (nothing sent). The schedule card now adds "Trial simulation - reminders are not sent to your client in the free trial." | `supabase/migrations/0166_trial_sandbox_skeleton.sql:352` |
 | Client follow-ups (comms-dispatch `follow_up`) | `skipped` (0166) | Unchanged | `supabase/migrations/0166_trial_sandbox_skeleton.sql:352` |
 | Package accept / decline / booklet code to the client (pkg-client-notify, pkg_outbox) | `skipped` (0166) | Unchanged | `supabase/functions/pkg-client-notify/index.ts:116` |
 | Proposal WhatsApp (wa-proposal) | Simulated path, `{simulated:true, trial:true}`; the box is hidden in the trial | Unchanged | `supabase/functions/wa-proposal/index.ts:65`; `public/wa-proposal.js:102` |

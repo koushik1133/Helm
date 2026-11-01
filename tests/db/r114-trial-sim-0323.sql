@@ -237,6 +237,9 @@ do $$ begin
   perform pg_temp.t('34 trial retention: trial_sim_payments purged before quote_payments (0184 list)',
     to_regprocedure('public._tr184_purge_tables()') is null
     or array_position(public._tr184_purge_tables(), 'trial_sim_payments') < array_position(public._tr184_purge_tables(), 'quote_payments'), null);
+  perform pg_temp.t('35 trial_sim_payments has the 0045 read-only guard + the G4 quote / studio match (like every studio table)',
+    exists (select 1 from pg_trigger where tgrelid = 'public.trial_sim_payments'::regclass and tgname = 'zzz_studio_read_only')
+    and exists (select 1 from pg_trigger where tgrelid = 'public.trial_sim_payments'::regclass and tgname = 'zz_quote_org_match'), null);
 end $$;
 
 select name, result from _g323 where result <> 'PASS' order by name;
