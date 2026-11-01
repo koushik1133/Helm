@@ -21,7 +21,8 @@
   var SIM_NO_PREVIEW = "Trial simulation \u2014 nothing was sent. (The e-mail preview appears once the latest Helm update is live.)";
   // 0212: an ACTIVE free trial e-mails the client for real (n = the studio's daily cap from the server)
   function trialEmailText(n) {
-    return "Free trial: this e-mail really goes to your client (up to " + (n > 0 ? n : 30) + " e-mails a day). WhatsApp and SMS unlock on a paid plan.";
+    // R116 (0323): kept for callers, but a free trial is a simulation - nothing is e-mailed to the client (n unused)
+    return "Free trial: nothing is sent to your client - you see a preview of the e-mail (trial simulation). WhatsApp and SMS unlock on a paid plan.";
   }
   var TRIAL_EMAIL = trialEmailText(30);
   var OK = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;

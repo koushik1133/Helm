@@ -58,7 +58,7 @@
 </style>
 <link rel="stylesheet" href="/theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="/public-pages-v2.css?v=6">
-<link rel="stylesheet" href="/trial-sim.css?v=1">
+<link rel="stylesheet" href="/trial-sim.css?v=2">
 <script src="/public-theme.js?v=4"></script>
 </head>
 <body>
@@ -127,13 +127,14 @@
 <script src="/telemetry.js?v=9"></script>
 <script src="/config.js?v=112"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=325"></script><script src="/trial-sim.js?v=2" data-trial-sim="quote"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=326"></script><script src="/trial-sim.js?v=2" data-trial-sim="quote"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   // 0090: the quote's OWN currency/tax snapshot (a signed-out client can't read the studio config)
   let qTax=null;
   let MS_N=0;   // milestone count of the rendered payment schedule
+  let MS_ROWS=[];   // R116: the rendered schedule rows ({label, amount}, in order) - to mark simulated TEST payments
   const inr=(n)=> (qTax&&qTax.country!=="IN") ? BPStore.tax.money(Math.round(Number(n||0)), qTax) : "\u20b9"+Math.round(Number(n||0)).toLocaleString("en-IN");   // B11: no snapshot = INR
   const LINK=BPStore.links.parse("portal");   // branded /<studio>/portal/<token> (server-verified below)
   const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
@@ -193,7 +194,7 @@
     }
     // payments
     $("#total").textContent=inr(d.total);
-    const ms=(d.payment&&d.payment.milestones)||[]; MS_N=ms.length;
+    const ms=(d.payment&&d.payment.milestones)||[]; MS_N=ms.length; MS_ROWS=ms.map(m=>({label:m.label,amount:m.amount}));
     $("#milestones").innerHTML = ms.length ? ms.map(m=>`<div class="prow"><span class="g">${esc(m.label)}${m.due_date?`<div class="due">due ${esc(BPStore.fmtDateIN(m.due_date))}</div>`:""}</span>
       <span class="amt">${inr(m.amount)}</span><span class="paybadge ${esc(m.status)}">${esc(m.status)}</span></div>`).join("")
       : (d.approval_status==="paid" ? "" : '<div class="empty" id="noSchedule">No payment schedule yet — your planner will share one.</div>');
@@ -226,7 +227,7 @@
   async function paySchedule(){
     let s=null; try{ s=await BPStore.paySchedule.publicGet(token); }catch(_){ s=null; }
     if(!s||!Array.isArray(s.rows)) return;
-    if(s.rows.length){ const box=$("#milestones"); box.textContent=""; MS_N=s.rows.length;
+    if(s.rows.length){ const box=$("#milestones"); box.textContent=""; MS_N=s.rows.length; MS_ROWS=s.rows.map(m=>({label:m.label,amount:m.amount}));
       s.rows.forEach(m=>{ const row=document.createElement("div"); row.className="prow";
         const g=document.createElement("span"); g.className="g"; g.textContent=String(m.label||"Payment");
         if(m.due_date){ const due=document.createElement("div"); due.className="due"; due.textContent="due "+BPStore.fmtDateIN(m.due_date)
@@ -246,11 +247,21 @@
   // R116: a free-trial studio's portal is a SIMULATION (trial-sim.js asks public_trial_simulation and puts the red banner
   // on top): the payment schedule is labelled "Simulated schedule (trial) - no real payment", the balance line says it is
   // simulated and no "How to pay" box is shown. Paid studios: the server answers simulation:false and nothing changes.
-  function trialSched(){
+  // R116 item 9 (0324): a milestone the client paid with "Simulate payment" reads "Paid (test) - TEST-XXXXXXXX" and a
+  // "Simulated received X (test, no real money)" line is shown - display only, the real schedule / ledger are untouched.
+  let simBusy=false;
+  async function trialSched(){
     const TS=window.HelmTrialSim; if(!TS||!TS.active||!TS.markSchedule) return;
     TS.markSchedule($("#payCard"));
     const o=$("#outstanding"); if(o&&o.textContent.trim()&&!o.querySelector(".trial-sim-tag")){ const t=document.createElement("b"); t.className="trial-sim-tag"; t.textContent="Simulated (trial) \u00b7 "; o.insertBefore(t,o.firstChild); }
     const how=$("#payHow"); if(how) how.hidden=true;
+    if(simBusy||!BPStore.approval||!BPStore.approval.trialSimList||!TS.simList) return; simBusy=true;
+    let sim=null; try{ sim=TS.simList(await BPStore.approval.trialSimList("quote",token)); }catch(_){ sim=null; } finally{ simBusy=false; }
+    if(!sim) return;
+    const marks=TS.simMarks(MS_ROWS,sim), rows=document.querySelectorAll("#milestones .prow");
+    marks.forEach((rc,i)=>{ const b=rows[i]&&rows[i].querySelector(".paybadge"); if(!rc||!b) return; b.className="paybadge paid"; b.textContent=TS.PAID_TEST+" \u00b7 "+rc; });
+    const line=TS.simReceivedLine(sim); let el=$("#simReceived");
+    if(line){ if(!el){ el=document.createElement("div"); el.id="simReceived"; el.className="muted trial-sim-received"; const host=$("#outstanding"); host.parentNode.insertBefore(el,host.nextSibling); } el.textContent=line; }
   }
   window.addEventListener("helm:trial-simulation",trialSched);
   // E11: booklet, invitation, quotation & terms, floor plan, receipts, planner contact - only what exists

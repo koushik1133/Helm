@@ -915,7 +915,15 @@
     if (isMoney) slotRole.classList.add("hd-off");                           // KPI tiles cover the money roles' board
     if (isCrew) { cShift.hidden = false; root.classList.add("hd-crew"); cWeek.classList.remove("hd-off");   // crew home: shift ticket, tasks, their week; nothing else
       [cResume, cAtt, cUp, cCal, cFol, cPipe, cRev, slotWork, slotQuotes, slotRole].forEach(function (n) { n.classList.add("hd-off"); }); }
-    if (vAudit) cAct.hidden = false;
+    /* R116: the activity log is not part of the free trial (0203; audit.html bounces a trial with "The audit log isn't
+       available on the free trial"). trial-lock.css hides .hd-act-card once html.helm-trial is set, but the card was
+       unhidden here before that class arrived, so the "Audit log" link showed and bounced. Same convention as the rail /
+       palette (hidden in the trial), decided here in JS too: never shown while the studio is (or turns out to be) a trial. */
+    function actTrial() { return document.documentElement.classList.contains("helm-trial"); }
+    function hideActForTrial() { if (actTrial()) { cAct.hidden = true; dropMore(cAct); } }
+    if (vAudit && !actTrial()) cAct.hidden = false;
+    window.addEventListener("helm:trial", hideActForTrial);
+    try { var TOa = window.BPStore && BPStore.trialOrg; if (vAudit && TOa && typeof TOa.inTrial === "function") Promise.resolve(TOa.inTrial()).then(function (t) { if (t === true) { cAct.hidden = true; dropMore(cAct); } }, function () {}); } catch (e) {}
     if ((vLeads || vQuotes) && !isCrew) cFol.hidden = false;
     if (signedOut) {                                                         // one shared empty instead of a wall of empty cards
       [cResume, cAtt, cCal, cFol, cNotes, cPipe, cRev, cAct, slotWork, slotQuotes, slotRole, slotTasks].forEach(function (n) { n.classList.add("hd-off"); });

@@ -227,6 +227,18 @@
       lab.appendChild(cb); lab.appendChild(doc.createTextNode(" " + x[1])); list.appendChild(lab);
     });
     box.appendChild(fs);
+    // R116: in the free trial the client's floor plan / 3D images are off (r20), so those two switches say "(paid plan)"
+    // and are switched off for editing here (display only - the server decides what the booklet shows)
+    trialOnce().then((trial) => {
+      if (!trial) return;
+      ["layout2d", "layout3d"].forEach((k) => {
+        const cb = doc.getElementById("bkSec_" + k), lab = cb && cb.parentNode;
+        if (!cb || !lab || lab.getAttribute("data-paid-only") === "1") return;
+        lab.setAttribute("data-paid-only", "1"); cb.disabled = true; cb.checked = false; lab.title = "Paid plan - client floor plan and 3D images are off in the free trial";
+        lab.appendChild(doc.createTextNode(" (paid plan)"));
+      });
+      if (cur.layoutAutoOn) note.textContent = "";
+    }).catch(() => {});
     return fs;
   }
 

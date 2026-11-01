@@ -403,10 +403,21 @@
     ms = withAdvance(ms, total, d.payTerms);
     if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", line || "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "6"); tr.appendChild(td); tb.appendChild(tr); return; }
     const alloc = msAllocate(ms, p.paid);
+    // R116 (0324, display only): a free-trial studio's simulated TEST payments - "Paid (test) · TEST-XXXXXXXX" on that
+    // milestone + "Simulated received X (test, no real money)". The real schedule / ledger are never changed.
+    const TS = global.HelmTrialSim, sim = d.__sim || null;
+    const marks = TS && TS.simMarks && sim ? TS.simMarks(ms, sim) : [];
+    const simLine = TS && TS.simReceivedLine && sim ? TS.simReceivedLine(sim) : "";
+    let sr = doc.getElementById("simReceived");
+    if (simLine) { if (!sr) { sr = el("p", "payterm trial-sim-received"); sr.id = "simReceived"; sr.setAttribute("role", "note"); const t = $("#payTable"); t.parentNode.insertBefore(sr, t); } sr.textContent = simLine; }
+    else if (sr) sr.remove();
     ms.forEach((m, i) => {
       const tr = el("tr"); tr.appendChild(el("td", "", String(m.label || "Payment"))); tr.appendChild(el("td", "", shortDate(m.due_date) || "—"));
       const a = alloc[i], st = overdueOf(a.status, m.due_date, a.remaining);
-      const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
+      const td = el("td");
+      if (marks[i] && TS) td.appendChild(el("span", "st paid paid-test", TS.PAID_TEST + " \u00b7 " + marks[i]));
+      else td.appendChild(el("span", "st " + st, st.replace(/_/g, " ")));
+      tr.appendChild(td);
       tr.appendChild(el("td", "amt", money(m.amount)));
       tr.appendChild(el("td", "amt", a.paid > 0 ? money(a.paid) : "—"));
       tr.appendChild(el("td", "amt", a.remaining != null ? money(a.remaining) : "—")); tb.appendChild(tr);
@@ -638,6 +649,11 @@
     // E6 (0101): the studio's balance-due term for this link; older servers -> the event-date fallback
     try { const pt = global.BPStore.booklet.payTerms ? await global.BPStore.booklet.payTerms(token) : null;
       if (pt && typeof pt === "object" && VISIBLE.payments !== false && $("#payTerm")) { d.payTerms = pt; renderPayments(d); } } catch (e) {}
+    // R116 (0324): a trial studio's simulated payments (paid studio -> {simulation:false} -> nothing changes)
+    try { const TS = global.HelmTrialSim, B = global.BPStore;
+      if (TS && TS.simList && B.approval && B.approval.trialSimList && VISIBLE.payments !== false) {
+        const sim = TS.simList(await B.approval.trialSimList("booklet", token));
+        if (sim && sim.rows.length) { d.__sim = sim; renderPayments(d); } } } catch (e) {}
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
     // r23 (0262): "This quote is valid until dd/mm/yyyy" / expired + "Request a new quote" (nothing once approved)
     if (global.HelmQuoteValidity && $("#qvBanner")) global.HelmQuoteValidity.mountClient($("#qvBanner"), "booklet", token).catch(() => {});

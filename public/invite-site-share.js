@@ -22,7 +22,7 @@
   var SIM_NOTE = "Trial simulation — nothing is sent to your client. Preview shows the message they would get and opens their page for you.";
   var SIM_DONE = "Preview only — nothing was sent to your client (trial simulation). Their page opened in a new tab.";
   // 0212: an ACTIVE free trial - e-mail is real, WhatsApp is not offered
-  var TRIAL_EMAIL_NOTE = "Free trial: the e-mail really goes to your client (up to 30 a day). WhatsApp and SMS unlock on a paid plan.";
+  var TRIAL_EMAIL_NOTE = "Free trial: nothing is sent to your client - you see a preview (trial simulation). WhatsApp and SMS unlock on a paid plan.";   // R116 (0323)
   var TRIAL_CAP = "Not sent: the free trial e-mail limit for today is reached (30 a day, 5 to one address). Use Copy link to share it yourself.";
   var EMAIL_RE = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
   var STATUS = { queued: "Queued", pending: "Queued", sent: "Sent", skipped: "Not sent", failed: "Failed" };

@@ -19,7 +19,7 @@
  *   4. new static <script src>/<link href> with no ?v= at all  -> ?v=1
  * Idempotent: target version = max(current, baseVersion + 1), so re-running never double-bumps.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -117,6 +117,7 @@ for (const abs of scan) {
 }
 
 /* ---- rewrite ---- */
+const cascade = [];   // R116: assets that changed only because a ?v= inside them was bumped (e.g. store-api.js -> shell-proto.js)
 const origTexts = new Map(texts);   // R116: snapshot of the on-disk text, so a dry-run verify/--check judges the real files
 for (const abs of scan) {
   let t = texts.get(abs); const orig = t; const rel = relative(ROOT, abs);
@@ -149,7 +150,7 @@ for (const abs of scan) {
       return `${pre}${ref}?v=1${post}`;
     });
   }
-  if (APPLY && t !== orig) writeFileSync(abs, t);
+  if (APPLY && t !== orig) { writeFileSync(abs, t); if (abs.startsWith(PUB) && /\.(js|css)$/.test(abs) && !changedSet.has(relative(PUB, abs))) cascade.push(relative(PUB, abs)); }
   texts.set(abs, t);
 }
 
@@ -182,6 +183,16 @@ if (problems.length) { console.log('\nnotes:'); for (const p of problems) consol
 if (VERIFY || APPLY) {
   if (fails.length) { console.log('\nFAIL (reference version unchanged from base):'); for (const f of fails) console.log('  ' + f); }
   else console.log('\nverify: every reference of every changed asset differs from ' + BASE);
+}
+/* R116: bumping a reference INSIDE an asset changes that asset too (shell-proto.js bump -> store-api.js changes -> its
+   own ?v= must move). Re-run once more until nothing new changes (bounded). */
+if (APPLY && cascade.length) {
+  const depth = +(process.env.BUMP_CASCADE_DEPTH || 0);
+  if (depth < 5) {
+    console.log('\ncascade: ' + cascade.join(', ') + ' changed by this bump - bumping their references too');
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args], { cwd: ROOT, stdio: 'inherit', env: { ...process.env, BUMP_CASCADE_DEPTH: String(depth + 1) } });
+    process.exit(r.status == null ? 1 : r.status);
+  }
 }
 if (CHECK && (fails.length || plan.length)) {
   console.log('\nCHECK FAILED: assets changed vs ' + BASE + ' without a cache-bust. Browsers keep the old file for a year');

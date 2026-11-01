@@ -93,7 +93,8 @@
   // ---- the short read-only notice for an invited teammate (no agreement needed) -------------------
   var NOTICE = [
     "This studio is on Helm’s " + DAYS + "-day free trial. It runs on sample data marked “Demo ·” / “Sample”.",
-    "E-mail works: approval, booklet and invitation links (and the approval code) e-mailed from this studio really reach clients (up to " + EMAIL_PER_DAY + " a day). WhatsApp, SMS and payment links unlock on a paid plan.",
+    // R116 (0323: a free trial is a full SIMULATION): this teammate notice is not part of the agreed terms (no VERSION change)
+    "Trial simulation: nothing is sent to clients \u2014 approval, booklet and invitation links show a preview, the approval uses the test code 000000, and payments are simulated (TEST receipts).",
     "Downloads, prints, imports and photo renders unlock when the studio chooses a plan.",
     "The studio can create up to " + CREATE_CAP + " new quotes (events), and up to " + CREATE_CAP + " new leads, inventory items, vendors, staff and venues each (shared by the whole team). Sample records do not count.",
     "When the trial ends the studio becomes read-only for everyone until it chooses a plan."

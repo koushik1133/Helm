@@ -52,10 +52,14 @@
     var left = n === 0 ? "ends today" : n === 1 ? "1 day left" : n + " days left";
     // 0180: the strip is only "Free trial · N days left" + "Choose a plan" (admins): no body text,
     // no "Sample data" badge and no "Start my own studio" link any more
-    return { tone: n <= 2 ? "soon" : "", locked: false,
+    // R116 (owner approved): a teammate (not an admin) also gets "Ask my admin to upgrade" during the trial - the same
+    // 0244 ask_admin_upgrade flow as the ended trial (bell notice + e-mail to THIS studio's admins, once a day each)
+    var live = { tone: n <= 2 ? "soon" : "", locked: false,
       title: "Free trial · " + left,
       body: null,
       cta: admin ? "Choose a plan" : null };
+    if (!admin) live.ask = "Ask my admin to upgrade";
+    return live;
   }
 
   // QA B2 (pure, unit-tested): a studio on its free trial that my_trial_org() does not cover (is_trial_org false:

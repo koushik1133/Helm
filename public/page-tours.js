@@ -286,7 +286,7 @@
       { sel: "#floorLink", title: "Floor layout", desc: "Open this event's floor plan in the builder." },
       { sel: "#v_name", title: "Venue details", desc: "The venue, the contact there and how to get equipment in." },
       { sel: "#pkgCards", title: "Pick a menu package", desc: "Choose the package for this event. Its price goes into the quote." },
-      { sel: "#dishSearch", title: "Build the menu", desc: "Search the dish catalog and add items to this event's menu." },
+      { sel: "#dishSearch", title: "Build the menu", desc: "Search the dish catalog and add items to this event's menu. The results list opens above the cards below it." },
       { sel: "#lockBtn", title: "Lock the plan", desc: "Once the menu and details are final, lock the plan so numbers don't drift before the event." },
     ],
     "runsheet.html": [
@@ -415,7 +415,7 @@
       { sel: "#t_rev", title: "Budget at a glance", desc: "Revenue, estimated cost, actual cost and margin for this event." },
       { sel: "#planMount", title: "Budget plan", desc: "The cost lines for this event, estimated and actual." },
       { sel: "#c_desc", title: "Add a cost", desc: "Add a cost line with its type, estimate and actual." },
-      { sel: "#paySchedCard", need: "finance", title: "Payment schedule", desc: "The client's payment plan for this event." },
+      { sel: "#paySchedCard", need: "finance", title: "Payment schedule", desc: "The client's payment plan for this event. In the free trial, a payment the client simulated shows as Paid (test) with its TEST receipt - no real money." },
       { sel: "#chgBtn", title: "Change requests", desc: "The client wants something extra? Add it as a change so the price and cost update." },
     ],
     "ready.html": [

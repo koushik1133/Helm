@@ -8,6 +8,9 @@
    reminderLine) are unit-tested and mirror the SQL (_pst_compute / _pst_lines_clean). */
 (function (global) {
   "use strict";
+  // R116: "step 8" is the quote FLOW's numbering; on the event page the stage bar numbers Quote as stage 4,
+  // so outside the flow the hint names the step instead (clean URLs: /flow, /<studio>/flow, /flow.html)
+  function onFlowPage() { try { return /(^|\/)flow(\.html)?\/?$/.test(String(location.pathname || "")); } catch (e) { return false; } }
   var BUILTINS = [
     { key: "builtin:30-50-20", name: "30 / 50 / 20", lines: [
       { label: "Advance (30%)", kind: "percent", value: 30, anchor: "approval", offset_days: 0 },
@@ -140,6 +143,14 @@
       try { d = await B.paySchedule.forQuote(quoteId); } catch (e) { d = null; }
       state.data = d;
       if (!d) { box.hidden = true; clear(); return null; }
+      // R116 (0324, display only): in a free-trial studio, the client's simulated TEST payments (never the ledger)
+      state.sim = null;
+      try {
+        var TS = global.HelmTrialSim, TL = global.HelmTrialLock;
+        if (TS && TS.simList && TL && TL.isTrial && TL.isTrial() && B.approval && B.approval.trialSimRows) {
+          var sl = TS.simList(await B.approval.trialSimRows(quoteId)); if (sl && sl.rows.length) state.sim = sl;
+        }
+      } catch (e) { state.sim = null; }
       paint(); box.hidden = false;
       if (typeof opts.onLoad === "function") { try { opts.onLoad(d); } catch (e) {} }
       return d;
@@ -166,14 +177,17 @@
         ["Payment", "Due", "Amount", "Paid", "Status"].forEach(function (h, i) { var c = el("th", i >= 2 && i <= 3 ? "num" : "", h); c.scope = "col"; hr.appendChild(c); });
         th.appendChild(hr); t.appendChild(th);
         var tb = el("tbody");
-        rows.forEach(function (r) {
+        var TSm = global.HelmTrialSim, marks = TSm && TSm.simMarks && state.sim ? TSm.simMarks(rows, state.sim) : [];
+        rows.forEach(function (r, ri) {
           var tr = el("tr", "psch-row psch-" + r.state);
           tr.appendChild(el("td", "psch-lbl", r.label || "Payment"));
           tr.appendChild(el("td", "psch-due", fmtDate(r.due_date)));
           tr.appendChild(moneyEl("td", "num", r.amount, d.currency));
           var pd = Number(r.paid) > 0 ? moneyEl("td", "num", r.paid, d.currency) : el("td", "num", "-");
           tr.appendChild(pd);
-          var st = el("td"); var chip = el("span", "psch-chip psch-chip-" + r.state, stateLabel(r.state, r.days));
+          var st = el("td"); var chip = marks[ri]
+            ? el("span", "psch-chip psch-chip-paid", TSm.PAID_TEST + " \u00b7 " + marks[ri])   // R116: simulated by the client (TEST)
+            : el("span", "psch-chip psch-chip-" + r.state, stateLabel(r.state, r.days));
           st.appendChild(chip);
           if (r.state === "part_paid" || (r.state === "overdue" && Number(r.paid) > 0)) {
             var rem = el("span", "psch-rem"); rem.appendChild(document.createTextNode(" ")); rem.appendChild(moneyEl("span", "", r.remaining, d.currency));
@@ -187,6 +201,7 @@
           var s = el("span"); s.appendChild(document.createTextNode(x[0] + ": ")); s.appendChild(moneyEl("b", "", x[1], d.currency)); tot.appendChild(s);
         });
         box.appendChild(tot);
+        if (marks.length && state.sim && TSm.simReceivedLine) { var sline = TSm.simReceivedLine(state.sim); if (sline) { var sp = el("p", "psch-note trial-sim-received", sline); sp.setAttribute("role", "note"); box.appendChild(sp); } }
         // R112 (0321): Outstanding is the closure balance (invoice total - payments). When the quote total changed after
         // the schedule was made, say so - and Finance edit can re-split the open payments to the new total.
         if (d.mismatch) box.appendChild(mismatchNote(d));
@@ -276,7 +291,7 @@
         var my = ++seq, key = sel.value, local = fromTemplate(key);
         if (!priced) {
           draw(local.length ? local : [{ label: "Payments from this template", when: "Amounts and dates are worked out once the quote is priced" }]);
-          soft("Price the quote first (step 8) - the amounts are worked out from its total. You can still pick the template now.");
+          soft("Price the quote first " + (onFlowPage() ? "(step 8)" : "(Quotation in the quote flow)") + " - the amounts are worked out from its total. You can still pick the template now.");
           go.disabled = true; return;
         }
         draw(local); soft(""); go.disabled = false;

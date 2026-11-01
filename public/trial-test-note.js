@@ -57,14 +57,26 @@
     });
   }
 
-  var api = { noteSpec: noteSpec, paySimSpec: paySimSpec, simLines: simLines, PAY_SIM: PAY_SIM, TEXT: TEXT, shareSpec: shareSpec, approvedLabel: approvedLabel, SHARE_NOTE: SHARE_NOTE, ASK_TEXT: ASK_TEXT,
+  // R116: the page name from a path - production uses clean URLs (/flow, /settlement, /<studio>/flow,
+  // /<studio>/settlement) as well as /flow.html. The old /([a-z0-9_-]+)\.html/ test only matched *.html, so on live
+  // (cleanUrls) page() was "" and nothing on this page ran. Pure (unit-tested).
+  function pageFrom(pathname) {
+    var seg = String(pathname || "").split(/[?#]/)[0].replace(/\/+$/, "").split("/").pop() || "";
+    seg = seg.toLowerCase().replace(/\.html$/, "");
+    return /^[a-z0-9_-]{1,40}$/.test(seg) ? seg : "";
+  }
+
+  var api = { noteSpec: noteSpec, pageFrom: pageFrom, paySimSpec: paySimSpec, simLines: simLines, PAY_SIM: PAY_SIM, TEXT: TEXT, shareSpec: shareSpec, approvedLabel: approvedLabel, SHARE_NOTE: SHARE_NOTE, ASK_TEXT: ASK_TEXT,
     approvalTestMode: false };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
   global.HelmTrialTestNote = api;
   var doc = global.document;
 
-  function page() { var m = /([a-z0-9_-]+)\.html/i.exec(global.location.pathname || ""); return m ? m[1].toLowerCase() : ""; }
+  function page() {
+    try { var U = global.HelmUrl, r = U && U.page && U.page(); if (r === "flow" || r === "settlement") return r; } catch (e) {}
+    return pageFrom(global.location.pathname || "");
+  }
 
   function render(spec) {
     if (!spec || doc.getElementById("trialTestNote")) return;
