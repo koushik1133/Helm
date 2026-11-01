@@ -42,7 +42,8 @@
   }
 
   // R114 (0323): the studio's payment step in a trial is a simulation. Pure (unit-tested): my_trial_org() -> text or null
-  var PAY_SIM = "SIMULATION - no real payment. Your client is never sent a payment link in the free trial; on their page they can press Simulate payment (a TEST receipt, no money moves).";
+  // R117: the text follows the trial-sim banner's own "Trial simulation — " prefix, so it does not repeat the word
+  var PAY_SIM = "no real payment. Your client is never sent a payment link in the free trial; on their page they can press Simulate payment (a TEST receipt, no money moves).";
   function paySimSpec(t) {
     if (!t || typeof t !== "object" || t.is_trial_org !== true) return null;
     return { text: PAY_SIM };
@@ -113,7 +114,7 @@
     var TS = global.HelmTrialSim, h2 = sec.querySelector("h2");
     var box = doc.createElement("div"); box.id = "paySimNote";
     if (TS && TS.banner) { sec.insertBefore(box, h2 ? h2.nextSibling : sec.firstChild); TS.banner(box, spec.text); }
-    else { box.className = "hint"; box.setAttribute("role", "note"); box.textContent = spec.text; sec.insertBefore(box, h2 ? h2.nextSibling : sec.firstChild); }
+    else { box.className = "hint"; box.setAttribute("role", "note"); box.textContent = "Trial simulation \u2014 " + spec.text; sec.insertBefore(box, h2 ? h2.nextSibling : sec.firstChild); }
     var id = "";
     try { var sp = new URLSearchParams(global.location.search); id = sp.get("quote") || sp.get("id") || ""; } catch (e) { id = ""; }
     var st = global.BPStore;

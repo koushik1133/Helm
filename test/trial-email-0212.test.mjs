@@ -67,7 +67,7 @@ await t('terms version: 0212 = public/trial-facts.js VERSION (0207 format); MANI
   const F = require('../public/trial-facts.js');
   // 0212 shipped 'trial-2026-10-19'; the CURRENT version (= trial-facts.js) is re-issued by the latest migration (0238)
   assert.match(code, /select 'trial-2026-10-19'::text;/);
-  assert.match(read('supabase/migrations/0238_trial_quotes_cap_two.sql'), new RegExp("select '" + F.VERSION + "'::text;"));
+  assert.match(read('supabase/migrations/0325_r117_trial_terms_proposal.sql'), new RegExp("select '" + F.VERSION + "'::text;"));   // R117: 0325 is the latest version
   assert.match(F.VERSION, /^trial-[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
   assert.notEqual(F.VERSION, 'trial-2026-10-18', 'new wording = new version');
   const man = read('supabase/migrations/MANIFEST');
@@ -133,13 +133,13 @@ await t('copy: trial facts, terms, landing FAQ and checklist say e-mail works, W
   const F = require('../public/trial-facts.js');
   const all = JSON.stringify([F.SECTIONS, F.NOTICE, F.SIGNUP_KEY, F.SIGNUP_ALL]);
   assert.doesNotMatch(all, /no real e-mails|Real messages to clients|nothing is sent to anyone/);
-  assert.match(all, /E-mail your clients/); assert.match(all, /WhatsApp, SMS and online payment links/);
+  assert.match(all, /Try sending to clients \(simulation\)/); assert.match(all, /WhatsApp, SMS and online payment links/);   // R117 (0325): the trial is a simulation
   assert.equal(F.EMAIL_PER_DAY, 30); assert.equal(F.EMAIL_PER_RECIPIENT, 5);
   const terms = read('public/terms.html');
   assert.doesNotMatch(terms, /no real e-mails, WhatsApp or SMS messages are sent/);
-  assert.match(terms, /<b>E-mail to clients:<\/b> e-mail works during the trial/);
+  assert.match(terms, /<b>Client messages:<\/b> the trial is a simulation/);   // R117 (0325)
   const idx = read('public/index.html');
-  assert.equal((idx.match(/e-mail to your clients works \(WhatsApp and SMS unlock on a paid plan\)/g) || []).length, 2, 'FAQ + JSON-LD');
+  assert.equal((idx.match(/sending to your clients is a simulation \(previews and the test code 000000; real e-mail, WhatsApp and SMS unlock on a paid plan\)/g) || []).length, 2, 'FAQ + JSON-LD (R117)');
   assert.doesNotMatch(idx, /messages to clients stay in test mode/);
   assert.doesNotMatch(read('public/getting-started.js'), /Send a quote in test mode/);
 });

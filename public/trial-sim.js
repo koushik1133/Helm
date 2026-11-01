@@ -11,8 +11,10 @@
      * preview(host, p)        - "This is what your client would receive" box
      * payStep(sim)            - pure: the approval page's simulated payment step
      * refFrom(kind, loc)      - pure: the link reference of a client page
-     * auto banner: <script src="/trial-sim.js" data-trial-sim="quote|booklet|site">
-       asks public_trial_simulation and puts the banner at the top of <main>.
+     * auto banner: <script src="/trial-sim.js" data-trial-sim="quote|booklet|site|proposal">
+       asks public_trial_simulation (R117 "proposal": public_trial_simulation_for_proposal,
+       0325 - the proposal page has a proposal token, not an approval token) and puts the
+       banner at the top of <main>.
    The server decides everything (0323 / 0322 / 0187 / 0179): this only shows it.
    Paid studios: the server answers simulation:false and nothing is shown.
    CSP: createElement / textContent only, no inline styles or handlers.
@@ -71,14 +73,15 @@
     }
     return { ok: false, text: String(r.message || "Could not simulate the payment.") };
   }
-  // Pure: the link reference of a client page (approval token / booklet token / invitation slug), or ""
+  // Pure: the link reference of a client page (approval token / booklet token / invitation slug / proposal token), or ""
   function refFrom(kind, loc) {
     loc = loc || {};
     var path = String(loc.pathname || ""), q;
     try { q = new URLSearchParams(String(loc.search || "")); } catch (e) { q = { get: function () { return null; } }; }
     var m;
     if (kind === "quote") {
-      m = /^\/[a-z0-9-]{1,63}\/(?:quote|portal|proposal)\/([^\/?#]+)\/?$/i.exec(path);   // R116: = vercel.json slug ([a-z0-9-]+)
+      // R116: = vercel.json slug ([a-z0-9-]+). R117: /<studio>/proposal/<token> is a PROPOSAL token (kind "proposal")
+      m = /^\/[a-z0-9-]{1,63}\/(?:quote|portal)\/([^\/?#]+)\/?$/i.exec(path);
       var t = m ? m[1] : String(q.get("token") || "");
       try { t = decodeURIComponent(t); } catch (e) { return ""; }
       return UUID.test(t) ? t.toLowerCase() : "";
@@ -89,6 +92,13 @@
       var b = m ? m[1] : String(q.get("t") || q.get("token") || "");
       try { b = decodeURIComponent(b); } catch (e) { return ""; }
       return UUID.test(b) ? b.toLowerCase() : "";
+    }
+    if (kind === "proposal") {
+      // R117 (0325): the clean branded form /<studio>/proposal/<token> (vercel.json rewrite -> /proposal-view) or ?token=
+      m = /^\/[a-z0-9-]{1,63}\/proposal\/([^\/?#]+)\/?$/i.exec(path);
+      var pt = m ? m[1] : String(q.get("token") || "");
+      try { pt = decodeURIComponent(pt); } catch (e) { return ""; }
+      return UUID.test(pt) ? pt.toLowerCase() : "";
     }
     if (kind === "site") {
       m = /^\/[a-z0-9-]{1,63}\/invite\/([^\/?#]+)\/?$/i.exec(path) || /^\/i\/([^\/?#]+)/.exec(path);
@@ -173,7 +183,7 @@
     return h;
   };
 
-  // auto banner on a client page: <script src="/trial-sim.js" data-trial-sim="quote|booklet|site">
+  // auto banner on a client page: <script src="/trial-sim.js" data-trial-sim="quote|booklet|site|proposal">
   var me = doc.currentScript, kind = me && me.getAttribute("data-trial-sim");
   if (!kind) { global.HelmTrialSim = api; return; }
   var tries = 0;

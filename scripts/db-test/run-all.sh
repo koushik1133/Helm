@@ -68,6 +68,8 @@ run "r113-trial-test-mode-0322" "R113-TRIAL-TEST-MODE-0322: ALL PASS \(28/28\)" 
 run "r114-trial-sim-0323" "R114-TRIAL-SIM-0323: ALL PASS \(35/35\)" psql -q -f tests/db/r114-trial-sim-0323.sql
 # r116 (0324): read-only public_trial_sim_payments(kind, ref) - the client portal / booklet show a trial studio's TEST payments (milestone id, amount, TEST receipt); writes nothing; paid -> {simulation:false}; unknown / revoked / expired -> null; re-applies itself twice, rolled back
 run "r116-trial-sim-reads-0324" "R116-TRIAL-SIM-READS-0324: ALL PASS \(12/12\)" psql -q -f tests/db/r116-trial-sim-reads-0324.sql
+# r117 (0325): trial terms version trial-2026-11-01 ("nothing is sent to clients": owner re-accepts once, old agreements kept, nobody locked out, paid never asked) + public_trial_simulation_for_proposal(token) -> {simulation} only (null for unknown / unpublished / expired / archived / cancelled / deleted); re-applies itself twice, rolled back
+run "r117-trial-terms-proposal-0325" "R117-TRIAL-TERMS-PROPOSAL-0325: ALL PASS \(21/21\)" psql -q -f tests/db/r117-trial-terms-proposal-0325.sql
 # r118 (0326): the HQ "Studio owner" card + backfill flags send every e-mail masked; Show = hq_reveal('member', id, 'email') (role check + hq.reveal row); Sales reads + reveals, Viewer / studio admin / anon refused; kept __pre0326 copies; re-applies itself twice, rolled back
 run "r118-hq-owner-masked-0326" "R118-HQ-OWNER-MASKED-0326: ALL PASS \(17/17\)" psql -q -f tests/db/r118-hq-owner-masked-0326.sql
 # r86 (0308): "Complete your profile" saves for a member of an ended trial studio; the Staff sync is skipped; crew_members stays read-only

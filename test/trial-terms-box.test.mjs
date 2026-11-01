@@ -20,7 +20,7 @@ t('panel copy: every trial rule in plain words', () => {
   for (const re of [/8 days free/, /₹/, /IST/, /sample data/, /Demo/, /up to 2 teammates/, /read-only/, /60 days/]) assert.match(key, re, String(re));
   for (const re of [/8 days free\. No card/, /₹ \(INR\)/, /IST \(Asia\/Kolkata\)/, /16 leads \(clients\), 7 events with quotes, 41 client requirements, 165 inventory items, 16 vendors, 12 staff, 4 venues, 6 menu packages, 145 dishes, 3 layout templates and 3 coupons/,
     /marked “Demo”/, /up to 2 teammates/, /up to 2 new quotes \(events\)/, /up to 2 new records of each other kind/, /deleting a record does not free a slot/, /Menu prices are editable/,
-    /E-mail to your clients works during the trial/, /up to 30 e-mails a day per studio and 5 a day to one address/,
+    /During the trial nothing is sent to your clients/, /test code 000000/, /TEST receipts, no real money/,   // R117 (0325): simulation wording
     /WhatsApp messages, SMS approval codes and online payment links are not sent during the trial; they unlock on a paid plan/,
     /Downloads.*imports and photo renders unlock on a paid plan/, /After 8 days the studio becomes read-only/,
     /kept for 60 days .*permanently deleted/, /30, 7 and 1 day before/, /One free trial per e-mail/, /Choose a plan anytime to keep everything/]) assert.match(all, re, String(re));
@@ -64,7 +64,7 @@ t('terms.html: a plain-words "Free trial" section with the same rules', () => {
   const at = TERMS.indexOf('<section id="trial"'), sec = TERMS.slice(at, TERMS.indexOf('</section>', at));
   assert.ok(at > 0);
   for (const re of [/8-day free trial/, /₹, INR/, /IST/, /marked “Demo”/, /up to 2 teammates/, /up to 2 new quotes \(events\)/, /up to 2 new records of each other kind/, /Menu|menu prices can be edited/,
-    /e-mail works during the trial/, /WhatsApp messages, SMS approval codes and online payment links are not sent during the trial/,
+    /Client messages:<\/b> the trial is a simulation/, /real e-mail to clients, WhatsApp messages, SMS approval codes and online payment links unlock on a paid plan/,
     /downloads \(PDF, CSV and prints\), imports and photo renders unlock on a paid plan/, /becomes read-only/,
     /kept for 60 days after the trial ends/, /30, 7 and 1 day before deletion/, /one free trial per organisation or e-mail address/, /choose a paid plan at any time/]) assert.match(sec, re, String(re));
   assert.match(TERMS, /<a href="#trial">4\. Free trial<\/a>/);

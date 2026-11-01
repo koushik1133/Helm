@@ -513,6 +513,7 @@
         { sel: "#packages", title: "Packages", desc: "The client picks a menu package here (when the package choice is on)." },
         { sel: "#layout2d", title: "Floor plan", desc: "The 2D plan and 3D view you captured from the builder." },
         { sel: "#quote", title: "Quote", desc: "Every line of the quote and the total." },
+        { sel: "#payments", title: "Payment milestones", desc: "The client's payment plan. In the free trial a simulated payment shows Paid (test) with its TEST receipt and nothing left to pay is shown as \u2014 (test): no real money." },
         { sel: "#printBtn", title: "Download PDF", desc: "The client can save or print the booklet." },
       ],
     },

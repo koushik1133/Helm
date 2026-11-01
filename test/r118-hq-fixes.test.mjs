@@ -46,7 +46,7 @@ t('F-01 APPLY-0326.sql: begin/commit around the migration verbatim, STOP guards,
   assert.doesNotMatch(AP, /[^\x00-\x7f]/); assert.doesNotMatch(AP, /temp table|^\\/im);
   assert.match(rd('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0326_r118_hq_owner_masked\.sql\n/);
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r118-hq-owner-masked-0326" "R118-HQ-OWNER-MASKED-0326: ALL PASS \\\(17\/17\\\)" psql -q -f tests\/db\/r118-hq-owner-masked-0326\.sql/);
-  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0324', '0326'\]/, f);
+  for (const f of ['test/release-1019.test.mjs', 'test/release-1020.test.mjs']) assert.match(rd(f), /'0325', '0326'\]/, f);
 });
 t('F-01 hq.js: the owner card shows masked e-mails with Show (hq_reveal member), never the clear value', () => {
   const lo = body(J, 'loadOwner');

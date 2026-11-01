@@ -162,7 +162,7 @@ t('B22 + r19: quotes are not capped in the trial - "New quote" opens the flow di
 const TS = require('../public/trial-signup.js');
 t('B25: "What\'s in your free trial" box on the trial sign-up (caps, e-mail / WhatsApp rule, sample data, N days)', () => {
   const all = TS.TRIAL_KEY.map((k) => k.t + ' ' + k.s).join(' ') + ' ' + TS.TRIAL_ALL.join(' ');
-  assert.match(all, /8 days free/); assert.match(all, /sample data/i); assert.match(all, /E-mail to your clients works/); assert.match(all, /WhatsApp and SMS unlock on a plan/); assert.match(all, /up to 2 new records/);   // 0212: e-mail works
+  assert.match(all, /8 days free/); assert.match(all, /sample data/i); assert.match(all, /Sending to clients is a simulation/); assert.match(all, /WhatsApp and SMS unlock on a plan/); assert.match(all, /up to 2 new records/);   // 0212: e-mail works
   assert.match(TSU, /What’s in your free trial/);
   assert.match(fnSrc(TSU, 'trialTerms'), /var show = mode === "signup" && !joining && !direct(?: && TRIAL_KEY\.length > 0)?;/);   // + 0207 (trial-facts.js)
   assert.match(r('public/login.html'), /trial-terms\.css\?v=\d+/);

@@ -18,6 +18,11 @@
   var TERMS_LABEL = "Preview of the studio's terms (trial - not binding)";
   var ENDED = "This studio's free trial has ended, so the test approval is closed. Please contact your planner.";
   var APPROVED = "Approved in test mode - no code was sent. This is a trial preview: not a binding booking, and no payment is taken.";
+  // R117: the trial preview of clause "4. Consent" (display only - paid studios never run apply(), and the consent text
+  // the server records is unchanged; the test approval already tags it "[trial test mode - code 000000, nothing sent]")
+  var CONSENT_PAID = "By verifying the one-time code we sent you";
+  var CONSENT_TRIAL = "By entering the test code (trial simulation)";
+  function consentText(s) { return String(s == null ? "" : s).split(CONSENT_PAID).join(CONSENT_TRIAL); }
 
   // Pure (unit-tested): the public_trial_approval_mode answer (or, before 0322, the old boolean
   // trial_test_mode_for_token) -> what the page shows, or null for a paid studio / unknown answer.
@@ -37,7 +42,7 @@
   }
 
   var api = { CODE: CODE, BANNER: BANNER, TERMS_NOTE: TERMS_NOTE, TERMS_LABEL: TERMS_LABEL, ENDED: ENDED, APPROVED: APPROVED,
-    spec: spec, checkCode: checkCode };
+    CONSENT_PAID: CONSENT_PAID, CONSENT_TRIAL: CONSENT_TRIAL, consentText: consentText, spec: spec, checkCode: checkCode };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   if (!global || !global.document) return;
   var doc = global.document;
@@ -51,7 +56,13 @@
     var b = q("#testModeBanner"); if (b) { b.textContent = s.banner; b.hidden = false; }
     var tn = q("#termsTrialNote"); if (tn) { tn.textContent = s.termsNote; tn.hidden = false; }
     var tl = q("#termsLabel"); if (tl) tl.textContent = s.termsLabel;
-    var tc = q("#terms"); if (tc) tc.classList.add("terms-preview");
+    var tc = q("#terms"); if (tc) {
+      tc.classList.add("terms-preview");
+      // R117: clause 4 in the trial preview - "By entering the test code (trial simulation)..." (textContent only)
+      Array.prototype.forEach.call(tc.querySelectorAll("p"), function (p) {
+        if (p.textContent.indexOf(CONSENT_PAID) >= 0) p.textContent = consentText(p.textContent);
+      });
+    }
     if (s.hideSend) { ["#sendEmailOtp", "#sendWa", "#sendOtp", "#waNote"].forEach(hide); }
     var box = q("#trialSkip"); if (box) box.hidden = false;
     var info = q("#trialSkipInfo"); if (info) info.textContent = s.ended ? s.endedText
