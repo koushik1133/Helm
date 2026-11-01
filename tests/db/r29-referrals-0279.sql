@@ -361,7 +361,7 @@ do $$ declare yy uuid; r1 uuid; r2 uuid; c text; v_end date; begin
   v_end := pg_temp.pe(yy);
   perform pg_temp.tick();
   perform pg_temp.res('25 yearly plan: each free month moves the renewal date one month later, at once (2 rewards = +2 months)',
-    pg_temp.rw(yy, 'applied') = 2 and pg_temp.pe(yy) = (v_end + interval '2 months')::date
+    pg_temp.rw(yy, 'applied') = 2 and pg_temp.pe(yy) = ((v_end + interval '1 month')::date + interval '1 month')::date   -- each reward adds one month to the CURRENT end, so a month-end date clamps (31 Oct -> 30 Nov -> 30 Dec)
     and exists (select 1 from public.referral_rewards x where x.studio_id = yy and x.billing_interval = 'yearly' and x.value_minor = round(49990.0 / 12 * 100)),
     pg_temp.pe(yy)::text || ' was ' || v_end);
 exception when others then perform pg_temp.su(); insert into _rr values ('25x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
