@@ -22,6 +22,11 @@
 //   channel = 'email'   sent through the provider
 //   channel = 'skipped' no provider configured / no valid studio address (not retried)
 //
+// R119 (0327): before EVERY send the database re-checks the row (billing_reminder_recheck): a reminder queued more
+// than 3 days ago, or one the studio no longer needs (paid since it was queued, the plan moved on, the trial
+// converted / ended), is closed there as channel 'skipped' + skip_reason and is never sent late. A database without
+// 0327 (or any error) -> nothing is sent, the row stays unsent (fail closed).
+//
 // Logs carry only counts, SQLSTATE codes and HTTP status — never addresses or names.
 // Outbound HTTP goes only to a FIXED host allowlist (no URL is ever taken from input).
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
@@ -130,6 +135,10 @@ Deno.serve(async (req) => {
     for (const r of (Array.isArray(rows) ? rows : [])) {
       const id = String(r?.id ?? ""), kind = String(r?.kind ?? "");
       if (!UUIDISH.test(id) || !(["due_soon", "past_due"].includes(kind) || isTrialKind(kind))) { counts.invalid++; continue; }
+      // R119 (0327): still due? (too old / paid since / plan moved on -> closed by the database, never sent)
+      const { data: chk, error: cErr } = await admin.rpc("billing_reminder_recheck", { p_id: id });
+      if (cErr) { console.error("billing-reminder: recheck failed", errTag(cErr)); counts.failed++; continue; }
+      if (chk !== "send") { counts.skipped++; continue; }
       const { data: org, error: oErr } = await admin.from("organizations").select("name").eq("id", r.org_id).maybeSingle();
       if (oErr) { console.error("billing-reminder: studio load failed", errTag(oErr)); counts.failed++; continue; }
       const msg = message(kind, String(org?.name || "there"), String(r.period_end ?? ""));

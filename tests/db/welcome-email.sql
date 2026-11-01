@@ -93,6 +93,11 @@ begin perform pg_temp.su();
   select id into m from auth.users where email = 'we_member@new.test';
   select id into id1 from public.welcome_email_outbox where user_id = o;
   select id into id2 from public.welcome_email_outbox where user_id = m;
+  -- R119 (0327): welcomes go out only while the database switch is on, and only once a row is >= 2 minutes old
+  if to_regclass('public.helm_welcome_mail_settings') is not null then
+    update public.helm_welcome_mail_settings set enabled = true where id;
+    update public.welcome_email_outbox set created_at = now() - interval '5 minutes' where id in (id1, id2);
+  end if;
   set local role service_role;
   c := public.welcome_email_outbox_claim(100);
   perform pg_temp.t('claim returns both queued rows', (select count(*) from jsonb_array_elements(c) e where (e ->> 'id')::uuid in (id1, id2)) = 2, c::text);
