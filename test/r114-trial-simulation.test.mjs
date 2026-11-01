@@ -71,7 +71,7 @@ t('approve.html: simulated payment step after the test approval; no real payment
   assert.ok(!/innerHTML/.test(read('public/trial-sim.js')), 'trial-sim.js: textContent only');
 });
 t('store-api: the four 0323 RPCs; client calls fail soft (null / []), the simulate call throws to the page', () => {
-  assert.match(API, /trialSimPage: \(kind, ref\) => mode === "supabase" && ref \? rpc\("public_trial_simulation", \{ p_kind: String\(kind \|\| ""\), p_ref: String\(ref\)\.slice\(0, 200\) \}\)\.catch\(\(\) => null\)/);
+  assert.match(API, /: rpc\("public_trial_simulation", \{ p_kind: String\(kind \|\| ""\), p_ref: String\(ref\)\.slice\(0, 200\) \}\)\)\.catch\(\(\) => null\)/);   // R117: "proposal" -> its own RPC (0325)
   assert.match(API, /trialPaymentSim: \(token\) => mode === "supabase" && token \? rpc\("public_trial_payment_sim", \{ p_token: token \}\)\.catch\(\(\) => null\)/);
   assert.match(API, /trialSimulatePayment: \(token, clientName, ua\) => rpc\("trial_simulate_payment", \{ p_token: token, p_client_name: clientName \|\| null, p_user_agent: ua \|\| null \}\),/);
   assert.match(API, /trialSimPayments: \(quoteId\) => mode === "supabase" && quoteId \? rpc\("trial_sim_payments_for_quote", \{ p_quote: quoteId \}\)\.catch\(\(\) => \[\]\)/);
@@ -138,7 +138,7 @@ t('audit document exists with the action table', () => {
 t('studio step 10 (trial-test-note): red SIMULATION banner + the client simulated payments (TEST receipts only)', () => {
   const N = require('../public/trial-test-note.js');
   assert.equal(N.paySimSpec(null), null); assert.equal(N.paySimSpec({ is_trial_org: false }), null);
-  assert.match(N.paySimSpec({ is_trial_org: true, ended: true }).text, /^SIMULATION - no real payment\./);
+  assert.match(N.paySimSpec({ is_trial_org: true, ended: true }).text, /^no real payment\./);
   const l = N.simLines([{ amount: 41772, currency: 'INR', label: 'Advance (30%)', receipt: 'TEST-ABCD1234' }]);
   assert.equal(l.length, 1); assert.match(l[0], /Advance \(30%\) - INR 41,772 \(receipt TEST-ABCD1234, TEST - no real money\)/);
   assert.deepEqual(N.simLines(null), []);

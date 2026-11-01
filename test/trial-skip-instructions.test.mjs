@@ -19,7 +19,7 @@ test("noteSpec: only active trial studios on flow/settlement", () => {
 test("pages wire it up; approve.html carries the instructions + existing Skip OTP", () => {
   const ap = readFileSync(new URL("../public/approve.html", import.meta.url), "utf8");
   assert.ok(ap.includes(TEXT)); assert.ok(ap.includes('id="trialSkipBtn"')); assert.ok(ap.includes("trialTestMode("));
-  for (const p of ["flow", "settlement"]) assert.ok(readFileSync(new URL(`../public/${p}.html`, import.meta.url), "utf8").includes('src="trial-test-note.js?v=3"'));
+  for (const p of ["flow", "settlement"]) assert.ok(readFileSync(new URL(`../public/${p}.html`, import.meta.url), "utf8").includes('src="trial-test-note.js?v=4"'));
   const js = readFileSync(new URL("../public/trial-test-note.js", import.meta.url), "utf8");
   assert.ok(!/innerHTML|\.style\.|setAttribute\("style"/.test(js));
 });
