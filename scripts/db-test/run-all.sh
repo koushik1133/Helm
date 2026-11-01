@@ -72,6 +72,8 @@ run "r116-trial-sim-reads-0324" "R116-TRIAL-SIM-READS-0324: ALL PASS \(12/12\)" 
 run "r117-trial-terms-proposal-0325" "R117-TRIAL-TERMS-PROPOSAL-0325: ALL PASS \(21/21\)" psql -q -f tests/db/r117-trial-terms-proposal-0325.sql
 # r118 (0326): the HQ "Studio owner" card + backfill flags send every e-mail masked; Show = hq_reveal('member', id, 'email') (role check + hq.reveal row); Sales reads + reveals, Viewer / studio admin / anon refused; kept __pre0326 copies; re-applies itself twice, rolled back
 run "r118-hq-owner-masked-0326" "R118-HQ-OWNER-MASKED-0326: ALL PASS \(17/17\)" psql -q -f tests/db/r118-hq-owner-masked-0326.sql
+# r119 (0327): welcome e-mails live-safe - switch off by default (nothing handed out, stale rows still closed), only rows queued in the last 48 h (>= 2 min old), re-checks (deleted studio / ended trial / not a member / deactivated / second owner welcome), trial + trial_ends_at + safe marker, no double claim; billing_reminder_recheck (send / stale / paid_since / trial_over / gone); service role only, kept __pre0327 has no privilege; re-applies itself twice, rolled back
+run "r119-welcome-0327" "R119-WELCOME-0327: ALL PASS \(23/23\)" psql -q -f tests/db/r119-welcome-0327.sql
 # r86 (0308): "Complete your profile" saves for a member of an ended trial studio; the Staff sync is skipped; crew_members stays read-only
 run "r86-profile-trial-gate-0308" "R86-PROFILE-TRIAL-0308: ALL PASS \(10/10\)" psql -q -f tests/db/r86-profile-trial-gate-0308.sql
 # r92 (0311): crew task lifecycle on the server - accept / reject final, reassign locked once accepted, QC only from pending, audit rows; re-applies itself twice, rolled back (early: later suites re-apply OLDER worker_respond / reassign_task / verify_task layers)

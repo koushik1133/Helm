@@ -9186,6 +9186,9 @@ window.HelmUrl = HelmUrl;
   // friendly label + icon for a raw notification kind
   function bellLabel(n) {
     const k = (n.kind || "").toLowerCase(); const d = n.detail || {};
+    // R119: a free-trial PREVIEW (nothing reached the client) - client-mailer logs it as simulated / trial_simulation (0323),
+    // booklet_send / invite_site_share as suppressed + skipped "free_trial" (0195 / 0200 / 0212). Paid studios never carry these.
+    const trialPreview = d.suppressed_by === "trial_simulation" || d.suppressed_by === "trial" || d.skipped === "free_trial";
     const m = {
       task_assigned: ["🛠️", d.outsourced ? `Tasks outsourced to ${d.vendor || "a vendor"}` : `${d.count || ""} task(s) assigned${d.category ? " · " + d.category : ""}`],
       task_accept: ["✅", "Task accepted" + (d.worker ? " by " + d.worker : "")],
@@ -9200,7 +9203,7 @@ window.HelmUrl = HelmUrl;
       crew_unavailable: ["📅", (d.worker || "A crew member") + " marked a booked day unavailable" + (d.day ? " (" + d.day + ")" : "")],
       task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
       otp: ["🔐", "Approval OTP sent"],
-      approval_link: ["✉️", "Approval link sent"],
+      approval_link: ["✉️", trialPreview ? "Approval link ready (trial preview — not sent)" : "Approval link sent"],
       payment: ["💳", "Payment update"],
       payment_link: ["💳", "Payment link sent"],
       payment_received: ["💰", "Payment received"],
@@ -9258,12 +9261,12 @@ window.HelmUrl = HelmUrl;
       client_link_viewed: ["👁", String(d.label || "Your client opened their link") + (d.event_code ? " · " + d.event_code : "")],
       client_view_followup: ["⏳", String(d.label || "Viewed but not approved - send a nudge") + (d.event_code ? " · " + d.event_code : "")],
       // 0195: "Send to client" on the Invitation Studio
-      invite_site_link: ["💌", n.status === "suppressed"
-        ? "Invitation link not sent" + (d.skipped === "free_trial" ? " (free trial test mode)" : d.skipped === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
+      invite_site_link: ["💌", trialPreview ? "Invitation link ready (trial preview — not sent)" : n.status === "suppressed"
+        ? "Invitation link not sent" + (d.skipped === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
         : n.status === "failed" ? "Invitation link could not be sent" : "Invitation link sent to the client"],
       // 0200: "Send to client" in the Share booklet dialog (and the older client-mailer e-mail)
-      booklet_link: ["📖", n.status === "suppressed"
-        ? "Booklet link not sent" + (d.skipped === "free_trial" || d.suppressed_by === "trial" ? " (free trial test mode)" : d.skipped === "demo" || d.suppressed_by === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
+      booklet_link: ["📖", trialPreview ? "Booklet link ready (trial preview — not sent)" : n.status === "suppressed"
+        ? "Booklet link not sent" + (d.skipped === "demo" || d.suppressed_by === "demo" ? " (demo event)" : d.suppressed_by === "trial_cap" ? " (free trial e-mail limit)" : "")
         : n.status === "failed" ? "Booklet link could not be sent" : n.status === "simulated" ? "Booklet link not sent (sending not set up)" : "Booklet link sent to the client"],
     };
     if (k === "invite_site_link" || k === "booklet_link") return { icon: m[k][0], text: m[k][1] };

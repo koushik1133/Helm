@@ -191,7 +191,7 @@ Deno.test("r59 E-03: before 0300 (function missing) an UNCONFIRMED studio e-mail
 const REM = "../../supabase/functions/billing-reminder/index.ts";
 Deno.test("r59 E-03: billing reminder goes to studio_billing_email, never the unconfirmed studio e-mail", async () => {
   resetSupaMock();
-  g.__supaRpc = (name: string) => name === "studio_billing_email" ? { data: "owner-login@a.test", error: null } : { data: null, error: null };
+  g.__supaRpc = (name: string) => name === "billing_reminder_recheck" ? { data: "send", error: null } : name === "studio_billing_email" ? { data: "owner-login@a.test", error: null } : { data: null, error: null };   // R119 (0327): still due
   g.__supaResolver = (table: string, calls: any[]) => {
     if (table === "billing_reminders" && calls.some((c: any) => c[0] === "select")) return { data: [{ id: "c0000000-0000-4000-8000-0000000000c1", org_id: ORG, kind: "past_due", period_end: "2026-10-01" }], error: null };
     if (table === "organizations") return { data: { name: "Studio A", business_email: "attacker@evil.test", business_email_confirmed: false }, error: null };

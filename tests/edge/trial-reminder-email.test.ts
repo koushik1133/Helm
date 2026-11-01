@@ -54,7 +54,7 @@ for (const kind of TRIAL_KINDS) {
       return { data: null, error: null };
     };
     // 0165: trial nudges are non-transactional -> opt-out check + signed unsubscribe token
-    g.__supaRpc = (name: string) => name === "studio_billing_email" ? { data: "owner@studio-a.in", error: null } : name === "email_is_opted_out" ? { data: false, error: null }
+    g.__supaRpc = (name: string) => name === "billing_reminder_recheck" ? { data: "send", error: null } : name === "studio_billing_email" ? { data: "owner@studio-a.in", error: null } : name === "email_is_opted_out" ? { data: false, error: null }
       : name === "email_unsub_token" ? { data: UNSUB_TOKEN, error: null } : { data: null, error: null };
     const r = setEnv(ENV);
     const f = installFetch((url) => { if (url === "https://api.resend.com/emails") return jsonResponse({ id: "e1" }); throw new Error("unexpected " + url); });
@@ -101,7 +101,7 @@ Deno.test("billing-reminder: trial nudge to an opted-out address -> skipped, not
     return { data: null, error: null };
   };
   for (const optedOut of [true, null]) {   // null = 0165 not applied (no token) -> fail closed
-    g.__supaRpc = (name: string) => name === "studio_billing_email" ? { data: "owner@studio-a.in", error: null } : name === "email_is_opted_out" ? { data: optedOut === true, error: null }
+    g.__supaRpc = (name: string) => name === "billing_reminder_recheck" ? { data: "send", error: null } : name === "studio_billing_email" ? { data: "owner@studio-a.in", error: null } : name === "email_is_opted_out" ? { data: optedOut === true, error: null }
       : name === "email_unsub_token" ? { data: optedOut === null ? null : UNSUB_TOKEN, error: null } : { data: null, error: null };
     const r = setEnv(ENV); const f = installFetch((url) => { throw new Error("unexpected " + url); });
     try {

@@ -141,7 +141,7 @@ const REM_ENV = { ...BASE, HELM_BILLING_REMINDERS_ENABLED: "true", HELM_BILLING_
 const RID = "c0000000-0000-4000-8000-0000000000c1";
 const cronReq = (secret?: string) => new Request("https://fn.local/", { method: "POST", headers: secret === undefined ? {} : { "x-helm-cron-secret": secret } });
 function remDb() {
-  g.__supaRpc = (name: string) => name === "studio_billing_email" ? { data: "owner@studio-a.in", error: null } : { data: null, error: null };   // r59 (0300): where billing mail goes
+  g.__supaRpc = (name: string) => name === "billing_reminder_recheck" ? { data: "send", error: null } : name === "studio_billing_email" ? { data: "owner@studio-a.in", error: null } : { data: null, error: null };   // r59 (0300): where billing mail goes; R119 (0327): still due
   g.__supaResolver = (table: string, calls: any[]) => {
     if (table === "billing_reminders" && calls.some((c: any) => c[0] === "select")) return { data: [{ id: RID, org_id: ORG, kind: "past_due", period_end: "2026-10-01" }], error: null };
     if (table === "organizations") return { data: { name: "Studio <A>", business_email: "owner@studio-a.in" }, error: null };

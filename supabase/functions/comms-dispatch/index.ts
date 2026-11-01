@@ -29,6 +29,11 @@
 //                   link (booklet-link.mjs; host = APP_URL, path added by the claim - no token in the row)
 //   * quote_expiry  (0262) "your quote is valid until dd/mm/yyyy" reminder before the date (quote-expiry.mjs; the
 //                   approval link path is added by the claim - no token in the row; re-checked there)
+//   * welcome e-mails (0057 + R119 0327) "Welcome to Helm" for a new studio owner (the free-trial version for a trial
+//                   studio) and "You've joined <studio>" for a new teammate, designed HTML through the shared mailer
+//                   (welcome-mailer/send.ts). Nothing is claimed until the DATABASE switch is on
+//                   (helm_welcome_mail_settings.enabled, default off; APPLY-0327-WELCOME-ON.sql); the 0327 claim hands
+//                   out only rows queued in the last 48 hours, re-checked (studio / member / ended trial / duplicate).
 // FREE TRIAL (0212): the database queues and hands out a free-trial studio's row ONLY for the invitation /
 //   booklet link by e-mail of an ACTIVE trial, under caps (30 a day per studio, 5 a day per address); such a
 //   row carries payload.trial_email = true. Checked once more here: a trial-marked row that is not exactly that
@@ -92,6 +97,7 @@ import { fromHeader, replyToOf } from "../integrations-test/logic.mjs";
 import { listUnsubHeaders, mktFooter, postalAddress, txFooter, unsubLinks, withFooter } from "../_shared/email-compliance.mjs";
 import { brandMode, sendMail, type SmtpSend } from "../_shared/mailer.ts";
 import { rowReplyTo } from "../_shared/reply-to.mjs";   // R107: Reply-To fallback (business e-mail -> owner)
+import { runWelcomeBatch } from "../welcome-mailer/send.ts";   // R119 (0327): welcome e-mails (database switch, 48 h)
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -456,6 +462,12 @@ Deno.serve(async (req) => {
       if (mErr) { console.error("comms-dispatch: notice mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
+    // R119 (0327): welcome e-mails - only while the database switch is on; a database without 0327 -> nothing claimed
+    try {
+      const w = await runWelcomeBatch(admin, batch, { env });
+      if (w.error) console.error("comms-dispatch: welcome claim skipped", errTag(w.error));
+      counts.sent += w.counts.sent; counts.skipped += w.counts.skipped; counts.failed += w.counts.failed; counts.invalid += w.counts.invalid;
+    } catch (e) { console.error("comms-dispatch: welcome lane failed", errTag(e)); }
     console.log("comms-dispatch: run", JSON.stringify(counts));
     return json({ status: "ok", ...counts });
   } catch (e) {

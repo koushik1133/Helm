@@ -189,6 +189,10 @@ deploying them changes nothing. Do these steps only when subscription billing go
    `x-helm-cron-secret: <HELM_BILLING_CRON_SECRET>`.
 6. Flip the flags last: `supabase secrets set HELM_BILLING_REMINDERS_ENABLED=true
    HELM_RAZORPAY_SUBSCRIPTIONS_ENABLED=true`. Unset them to go dormant again.
+7. R119 (0327) must be applied BEFORE the reminder flag is flipped: `billing-reminder` asks
+   `billing_reminder_recheck(id)` before every send - a reminder queued more than 3 days ago, or one the studio no
+   longer needs (paid since / plan moved on / trial over), is closed as `channel = 'skipped'` + `skip_reason` and is
+   never sent late. Without 0327 the re-check fails and nothing is sent (fail closed).
 
 Tests: `tests/edge/billing-extras.test.ts` (signature valid/invalid/missing/tampered,
 dormant mode, cron secret, org mismatch, idempotent marking).
@@ -262,40 +266,39 @@ and the HQ "Security" panel work without it.
 5. Turn it on: `supabase secrets set HELM_SECURITY_ALERTS_ENABLED=true`.
 Studios can switch security e-mails off in Settings → Notifications → Security.
 
-## Welcome e-mails (LATER — owner only, DORMANT)
-`welcome-mailer` e-mails the welcomes queued by migration 0057 (`welcome_email_outbox`):
-"Welcome to Helm" (3 first steps, manual, support contact) when someone **creates a new studio**,
-and "You've joined <studio>" when an **invited member joins**. One per person per kind, ever.
-It is a **no-op (200)** until enabled; studios work exactly the same without it. Only people
-who create / join a studio after 0057 is applied are queued (no back-fill).
-Template source: `supabase/functions/welcome-mailer/templates.ts` (previews in
-`docs/email-templates/welcome-*.html`, light-only).
+## Welcome e-mails (0057 + R119 0327) — OFF until the owner flips ONE database switch
+Welcomes are queued by migration 0057 (`welcome_email_outbox`): "Welcome to Helm" when someone **creates a new
+studio**, and "You've joined <studio>" when an **invited member joins**. One per person per kind, ever.
+R119 (0327): a studio on its **free trial** gets the free-trial welcome instead (8 days + end date in IST, sample
+data marked Demo / Sample, simulation: nothing is sent to clients / test code 000000 / TEST receipts, limits, what is
+locked, read-only after; links to the dashboard, `/terms#trial`, `/checkout`); a trial member gets a short
+"nothing is sent to clients" note. Paid studios: unchanged content.
+Template source: `supabase/functions/welcome-mailer/templates.ts`; the batch (switch -> claim -> send -> mark):
+`supabase/functions/welcome-mailer/send.ts`.
 
-1. Apply 0057 (staging, then prod): paste `supabase/APPLY-0057.sql`. Every verify row must be `t`.
-2. Deploy (called by cron with its own shared secret, no Supabase JWT):
-   ```bash
-   supabase functions deploy welcome-mailer --no-verify-jwt
-   ```
-3. Secrets:
-   ```bash
-   supabase secrets set HELM_WELCOME_EMAIL_SECRET="$(openssl rand -hex 32)"
-   # optional: WELCOME_EMAIL_BATCH=25. RESEND_API_KEY / RESEND_FROM are shared with the
-   # other mailers (use a verified helm.events sender, e.g. "Helm <hello@helm.events>");
-   # without a key rows are marked status='skipped' (never sent later).
-   ```
-4. Schedule a POST every 5 minutes (pg_cron + pg_net):
-   ```sql
-   select cron.schedule('welcome-mailer', '*/5 * * * *', $$
-     select net.http_post('https://<project-ref>.supabase.co/functions/v1/welcome-mailer',
-       '{}'::jsonb, '{}'::jsonb, jsonb_build_object('x-helm-cron-secret', '<the secret>'), 15000) $$);
-   ```
-5. Turn it on LAST (after RESEND_API_KEY is set, or queued rows get marked skipped):
-   `supabase secrets set HELM_WELCOME_EMAILS_ENABLED=true`. Unset to go dormant again.
-6. Check: `select kind, status, count(*) from public.welcome_email_outbox group by 1, 2;`
+**Who sends them:** `comms-dispatch` (already scheduled on its own cron) sends them in every run through the SHARED
+mailer (`_shared/mailer.ts`: SMTP first when `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` are set, else Resend with
+`RESEND_API_KEY` + `RESEND_FROM`) - the same path as the invitation and trial-reminder e-mails. `welcome-mailer` is an
+optional second sender with its own cron (`HELM_WELCOME_EMAILS_ENABLED` + `HELM_WELCOME_EMAIL_SECRET`); you do not
+need it.
+
+**Safety (0327):** nothing is claimed while `helm_welcome_mail_settings.enabled` is false (the default). The claim only
+hands out rows queued in the last 48 hours (and at least 2 minutes old); older unsent rows are closed as
+`status = 'skipped'`, `skip_reason = 'expired'` (kept, never sent). Each row is re-checked: studio exists / not the
+sample master / trial not ended / person still an active member / one owner welcome per studio. A database without
+0327 has no switch, so the senders claim nothing.
+
+1. Apply `supabase/APPLY-0327.sql` (staging, then prod). Every VERIFY row must say `ok = true`.
+2. Redeploy `comms-dispatch` (no Supabase JWT: called by its cron with `HELM_COMMS_SECRET`):
+   `supabase functions deploy comms-dispatch --no-verify-jwt`
+3. Switch on: run `supabase/APPLY-0327-WELCOME-ON.sql`. Switch off again (next run, nothing to redeploy):
+   `update public.helm_welcome_mail_settings set enabled = false, updated_at = now() where id;`
+4. Check: `select kind, status, skip_reason, count(*) from public.welcome_email_outbox group by 1, 2, 3;`
    Failed sends retry every run (5 tries max, then `failed`).
 
-Tests: `tests/edge/welcome-mailer.test.ts` (dormant, secret, sends, marks, retry, no PII in logs)
-and `tests/db/welcome-email.sql` (enqueue once, no duplicates, org isolation, clients locked out).
+Tests: `tests/edge/welcome-mailer.test.ts`, `tests/edge/r119-welcome.test.ts` (switch, safe marker, shared mailer,
+trial content, comms-dispatch lane, billing re-check), `tests/db/welcome-email.sql` + `tests/db/r119-welcome-0327.sql`
+(48 h window, re-checks, dedupe, privileges), `test/r119-welcome-emails.test.mjs`.
 
 ## Invitation e-mails (`invite-mailer`, migration 0131) — ON as soon as it is deployed
 `invite-mailer` e-mails staff invitations: "<Admin> invited you to join <Studio> on Helm as <Role>"
