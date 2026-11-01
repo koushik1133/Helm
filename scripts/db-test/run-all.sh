@@ -78,6 +78,8 @@ run "r103-profile-payment-0314" "R103-PROFILE-PAYMENT-0314: ALL PASS \(13/13\)" 
 run "r105-signup-sales-0315" "R105-SIGNUP-SALES-0315: ALL PASS \(21/21\)" psql -q -f tests/db/r105-signup-sales-0315.sql
 # r108 (0318): a client cannot approve a quote with no price (total 0 / missing) - HL409 friendly message, no consent, code not used up; priced quote approves; public_quote_ready {priced, studio}; re-applies itself twice, rolled back
 run "r108-unpriced-approval-0318" "R108-UNPRICED-APPROVAL-0318: ALL PASS \(13/13\)" psql -q -f tests/db/r108-unpriced-approval-0318.sql
+# r112 (0321): a re-priced sent / approved quote keeps a new Q-version (never silent); payment schedule outstanding = closure balance; mismatch flag (template schedules); open payments re-split on re-approval / by Finance edit (audited, paid rows untouched, hand-made schedules left alone); re-applies itself twice, rolled back
+run "r112-reprice-money-0321" "R112-REPRICE-MONEY-0321: ALL PASS \(25/25\)" psql -q -f tests/db/r112-reprice-money-0321.sql
 run "crew-schedule-0161" "CREW-SCHEDULE-0161: ALL PASS \(14/14\)" psql -q -f tests/db/crew-schedule-0161.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
@@ -325,6 +327,8 @@ run "r67-definer-searchpath-0304" "R67-DEFINER-SEARCHPATH-0304: ALL PASS \(11/11
 run "r82-referral-pilot-0306" "R82-REFERRAL-PILOT-0306: ALL PASS \(14/14\)" psql -q -f tests/db/r82-referral-pilot-0306.sql
 # r87 (0309): referral_attach in pilot mode answers "unknown" for a real non-pilot / partner code like a missing code (no oracle); pilot code attaches; switch off/on unchanged; re-applies itself twice, rolled back
 run "r87-referral-attach-unknown-0309" "R87-REFERRAL-ATTACH-UNKNOWN-0309: ALL PASS \(8/8\)" psql -q -f tests/db/r87-referral-attach-unknown-0309.sql
+# r110 (0320): trial leads made from a quote are not lead slots; billing currency follows the country until the first payment (+ one-time USD -> INR fix); chat_directory sign-up name; re-applies 0236 / 0238 then itself twice, rolled back
+run "r110-trial-polish-0320" "R110-TRIAL-POLISH-0320: ALL PASS \(24/24\)" psql -q -f tests/db/r110-trial-polish-0320.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

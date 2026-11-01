@@ -125,8 +125,8 @@
 <link rel="stylesheet" href="venues.css?v=8">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="wa-proposal.css?v=3">
-<link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=4">
-<script src="/shell-proto.js?v=54" id="shellProto"></script>
+<link rel="stylesheet" href="quote-validity.css?v=3"><link rel="stylesheet" href="stage-history.css?v=1"><link rel="stylesheet" href="link-views.css?v=2"><link rel="stylesheet" href="payment-schedule.css?v=5">
+<script src="/shell-proto.js?v=55" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -463,13 +463,14 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=322"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=323"></script>
 <script src="page-tours.js?v=12"></script>
-<script src="tour.js?v=32"></script>
-<script src="payment-schedule.js?v=3"></script>
+<script src="tour.js?v=33"></script>
+<script src="payment-schedule.js?v=4"></script>
 <script src="booklet.js?v=31"></script>
 <script src="share-checklist.js?v=14"></script>
 <script src="flow-layout-sync.js?v=6"></script>
+<script src="reprice-guard.js?v=1"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=5"></script>
 <script src="flow-validate.js?v=5"></script>
@@ -538,6 +539,8 @@
   // edits (see the delegated input/change listener in wire()). `leaving` is set
   // right before an intentional navigation so beforeunload doesn't double-prompt.
   let dirty=false, loading=true, leaving=false, pendingLeave=null;
+  // r110 (QA B10b): an unsaved edit OUTSIDE the quotation card (Layout / Requirements...) - "Save quotation" doesn't save it
+  let dirtyOther=false;
   // r9 P0: client / discovery / venue / menu / proposal autosave (debounced, serialized, honest badge);
   // `dirty` now only tracks edits that are NOT autosaved (quotation numbers etc.)
   const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client", d_bmin:"client", d_bmax:"client" };   // flow-validation: the budget sits in step 1 and saves WITH step 1 (stored on the discovery row) - typing it never marks Discovery "Saved"
@@ -619,7 +622,8 @@
     const s=b?b.id.slice(3):null; return s&&AS&&AS.has(s)?s:null;
   }
   function unsaved(){ return dirty || !!(AS && (AS.pending() || AS.hasFailed())); }
-  function markDirty(e){ if(loading) return; const s=sectionOf(e&&e.target); if(s){ edited.add(s); AS.schedule(s); draftSoon(); return; } dirty=true; }
+  function markDirty(e){ if(loading) return; const s=sectionOf(e&&e.target); if(s){ edited.add(s); AS.schedule(s); draftSoon(); return; } dirty=true;
+    const t=e&&e.target, card=t&&t.closest?t.closest("section.card"):null; if(!(card && card.querySelector("#sv-quote"))) dirtyOther=true; }
   const draftSoon=debounce(draftSave,400);
   // ---- per-section load failures ----
   // If a section's data didn't load, its form shows placeholders/fallbacks
@@ -1003,7 +1007,7 @@
       catch(e){ ok=false; paintBadge(s,"error"); } };
     await one("client",()=>saveClient()); await one("discovery",()=>saveDiscovery(false)); await one("venue",()=>saveVenue(false));
     await one("menu",()=>saveMenuNotes(false)); await one("proposal",()=>saveProposal(false));
-    if(ok){ dirty=false; if(AS) AS.clearFailed(); draftSave(); }
+    if(ok){ dirty=false; dirtyOther=false; if(AS) AS.clearFailed(); draftSave(); }
     return ok;
   }
   const confirmLeaveAnyway=()=>BPUI.confirm(SAVE_FAIL_MSG,{title:"Some changes weren't saved",okLabel:"Leave anyway",cancelLabel:"Stay",danger:true});
@@ -1074,6 +1078,7 @@
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
       await relock();   // our own write bumped quotes.updated_at - refresh the lock base so the next client save isn't a false conflict
       ev.pricing=pricing; taxSwitched=false; lastSavedSig=sig; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
+      if(!dirtyOther) dirty=false;   // r110 (QA B10b): the quotation is saved - leaving right after no longer asks "Leave page?"
       $("#q_msg") && ($("#q_msg").textContent="Saved "+(r&&r.label||""));
     }catch(e){
       // REL-01: ONLY fall back when the versioning RPC is genuinely ABSENT
@@ -1404,8 +1409,16 @@
     const amt=Math.round(quoteTotal()*pct/100);
     if(document.activeElement!==$("#pay_amount")) $("#pay_amount").value=amt;
     // Display only: when the total grew after an advance was received, show what is already paid against it
-    const h=$("#pay_adv_note"); if(h){ const rem=Math.max(0,amt-PAID_SUM);
-      h.textContent = PAID_SUM>0 ? `Advance (${pct}%) ${inr(amt)} · Paid ${inr(PAID_SUM)} · Remaining ${inr(rem)}${rem>0.5?" (part paid)":""}` : ""; h.hidden=!(PAID_SUM>0); }
+    // R112: once a payment schedule exists, the hint reads the schedule's first payment (the server's figures) - it said
+    // "Remaining Rs 0" from the live 30% while the schedule row said "Rs 4,693 left"
+    const h=$("#pay_adv_note"); if(h){
+      let sd=null; try{ sd=PSCH&&PSCH.data; }catch(_){ sd=null; }
+      const r0=sd&&Array.isArray(sd.rows)?sd.rows.find(r=>r&&r.state!=="waived"):null;
+      if(r0 && PAID_SUM>0){ const rem=Math.max(0,Number(r0.remaining)||0);
+        h.textContent=`${r0.label||"First payment"} ${inr(r0.amount)} · Paid ${inr(Math.min(Number(r0.amount)||0, Number(r0.paid)||0))} · Remaining ${inr(rem)}${rem>0.5?" (part paid)":""} · Outstanding ${inr(sd.outstanding)}`;
+        h.hidden=false; }
+      else { const rem=Math.max(0,amt-PAID_SUM);
+        h.textContent = PAID_SUM>0 ? `Advance (${pct}%) ${inr(amt)} · Paid ${inr(PAID_SUM)} · Remaining ${inr(rem)}${rem>0.5?" (part paid)":""}` : ""; h.hidden=!(PAID_SUM>0); } }
   }
   let PAID_SUM=0;
   async function recordPayment(){
@@ -1535,7 +1548,7 @@
     $("#egBarNo").onclick=()=>{ bar.hidden=true; };
   }
   let PSCH=null;   // r23 (0264) payment schedule card
-  function renderSchedule(){ try{ if(!id || !window.HelmPaySchedule) return; if(PSCH) PSCH.reload(); else PSCH=HelmPaySchedule.mount($("#paySchedule"), id, { heading:"h3", onChange:()=>renderActivity() }); }catch(e){} }
+  function renderSchedule(){ try{ if(!id || !window.HelmPaySchedule) return; if(PSCH) PSCH.reload(); else PSCH=HelmPaySchedule.mount($("#paySchedule"), id, { heading:"h3", onChange:()=>{ renderActivity(); renderReceipts(); }, onLoad:()=>{ try{ updateAdvance(); }catch(_){ } } }); }catch(e){} }
   async function renderReceipts(){
     renderSchedule();
     let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
@@ -1810,7 +1823,7 @@
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); } }catch{}
     $("#remindAfter").checked = false;
     // prefill complete — genuine user edits from here on may mark the quote dirty
-    loading=false; dirty=false;
+    loading=false; dirty=false; dirtyOther=false;
     // flow-validation: honest start state - empty sections say "Not started", none says "Saved"
     ["client","discovery","venue","menu","proposal"].forEach(s=>{ if(!contentOf(s)) paintBadge(s,"empty"); });
     updateProgress();
@@ -1875,6 +1888,11 @@
       // r19 L2: say so when no layout version with objects exists (it used to read "Layout updated" over an empty plan)
       const noLayout=!layoutItems.length;
       if(!r.changed){ if(fromBuilder) BPUI.toast(noLayout?"Back from the floor builder — no floor layout is saved for this quote yet.":"Back from the floor builder — quotation is up to date.",{type:"info"}); return; }
+      // R112: a quote the client has (sent / approved / confirmed) is never re-priced on the way back from the builder -
+      // the builder already asked "Update quote (new version) / Keep quote"; a kept price stays exactly as it is
+      if(fromBuilder && window.HelmRepriceGuard && HelmRepriceGuard.committed(ev)){
+        BPUI.toast("Back from the floor builder — this quote was sent to the client, so its price is unchanged."+(r.otherChanged&&!r.otherHand?" The layout's objects come to "+inr(r.otherAuto)+" (Décor / setup is "+inr(pr.other||0)+")":"")+". To change it, edit the quotation and Save quotation (a new version).",{type:"info",timeout:12000});
+        return; }
       const before=BPStore.pricing.quoteTotal(currentInputs()).total;
       const wasLoading=loading; loading=true;
       if(r.chairsChanged) $("#q_chairs").value=r.chairs;
@@ -2108,7 +2126,7 @@
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });
     $("#lv_discard").addEventListener("click",()=>{
-      dirty=false; draftClear(); $("#leaveModal").hidden=true;
+      dirtyOther=false; dirty=false; draftClear(); $("#leaveModal").hidden=true;
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });
 

@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=54"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=55"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -3053,6 +3053,7 @@ window.HelmUrl = HelmUrl;
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
         eventDate: q.event_date || null, eventTime: q.event_time || null, tax_snapshot: q.tax_snapshot || null, currency: q.currency || null,
         capacityDecision: q.capacity_decision || null,   // 0197: over-capacity decision (set_quote_capacity_decision)
+        consentStale: !!q.consent_stale,   // R112: waiting for the client to approve a changed price again
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
@@ -10556,6 +10557,8 @@ window.HelmUrl = HelmUrl;
       : Promise.reject(new Error("Needs a signed-in studio."))),
     archiveTemplate: (id) => (supa ? rpc("payment_schedule_template_archive", { p_id: id }) : Promise.reject(new Error("Needs a signed-in studio."))),
     forQuote: (quoteId) => (supa ? rpc("payment_schedule_for_quote", { p_quote: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    // R112 (0321): re-split the OPEN payments so the schedule adds up to the current invoice total (Finance edit; audited)
+    resync: (quoteId) => (supa ? rpc("payment_schedule_resync", { p_quote: quoteId }) : Promise.reject(new Error("Needs a signed-in studio."))),
     apply: (quoteId, key, preview) => (supa ? rpc("payment_schedule_apply", { p_quote: quoteId, p_template: key || null, p_preview: !!preview })
       : Promise.reject(new Error("Needs a signed-in studio."))),
     pause: (quoteId, paused) => (supa ? rpc("payment_schedule_pause", { p_quote: quoteId, p_paused: !!paused }) : Promise.reject(new Error("Needs a signed-in studio."))),
@@ -11629,7 +11632,8 @@ window.HelmUrl = HelmUrl;
     ".bpui-toast-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpui-toast-title{font-weight:700;font-size:14px;color:var(--bpui-t-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
     ".bpui-toast-msg{font-size:13px;color:var(--bpui-t-ink2);overflow-wrap:anywhere}",
-    ".bpui-toast.has-title .bpui-toast-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // r110 (QA B6): a titled toast's message wraps (it was cut to one line: "Your free trial includes 2 new quotes and b...")
+    ".bpui-toast.has-title .bpui-toast-msg{white-space:normal;overflow-wrap:anywhere}",
     ".bpui-toast.no-title .bpui-toast-msg{color:var(--bpui-t-ink);font-size:13.5px;padding-top:5px}",
     ".bpui-toast-act{align-self:flex-start;margin-top:4px;background:transparent;border:0;padding:0;color:var(--bpui-t-c);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none}",
     ".bpui-toast-act:hover{text-decoration:underline}",
