@@ -77,7 +77,7 @@ t('1f APPLY-0327 (begin/commit, the migration, VERIFY item/ok) + APPLY-0327-WELC
   assert.match(ON, /update public\.helm_welcome_mail_settings set enabled = true, updated_at = now\(\) where id;/);
   assert.match(ON, /set enabled = false, updated_at = now\(\) where id;/, 'the OFF line is documented');
   assert.match(ON, /raise exception 'STOP: run APPLY-0327\.sql first'/);
-  assert.match(rd('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0327_r119_welcome_live_safe\.sql\n?$/);
+  assert.match(rd('supabase/migrations/MANIFEST'), /\nforward  supabase\/migrations\/0327_r119_welcome_live_safe\.sql\n/);   // R120: 0328 follows
   assert.match(rd('scripts/db-test/run-all.sh'), /run "r119-welcome-0327" "R119-WELCOME-0327: ALL PASS \\\(23\/23\\\)" psql -q -f tests\/db\/r119-welcome-0327\.sql/);
   assert.ok(existsSync(new URL('../tests/db/r119-welcome-0327.sql', import.meta.url)));
 });

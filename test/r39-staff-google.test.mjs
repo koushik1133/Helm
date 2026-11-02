@@ -72,7 +72,7 @@ await t('store-api (v298): exactly helm.events; password, sign-up and reset refu
   assert.match(SA, /if \(await staffGoogleOnlyFor\(email\)\) throw staffGoogleError\(\);   \/\/ r39 \(0288\): no reset link/);
   assert.match(SA, /if \(STAFF_GOOGLE_RE\.test\(m\)\) return staffGoogleError\(\);/);
   assert.match(SA, /isStaffEmail, STAFF_GOOGLE_MESSAGE, staffGoogleOnlyFor, staffGoogleSessionCheck,/);
-  assert.match(LG, /store-api\.js\?v=329/);
+  assert.match(LG, /store-api\.js\?v=330/);
 });
 
 // ---- login.html behaviour: the r39 block run against a tiny fake DOM ----
@@ -122,7 +122,7 @@ await t('hq.html: Owner-only switch card with a strong warning, the "Test my Goo
   assert.match(H, /<div class="gwarn" role="note"><b>Careful\.<\/b> If Google sign-in does not work for you, you are locked out of HQ\./);
   assert.match(H, /<h3>Test my Google sign-in first<\/h3>/);
   assert.match(H, /id="sgTested"/); assert.match(H, /id="btnSgOn"/); assert.match(H, /id="btnSgOff"/);
-  assert.match(H, /hq\.js\?v=31/);
+  assert.match(H, /hq\.js\?v=32/);
   assert.doesNotMatch(H.slice(H.indexOf('id="sgCard"'), H.indexOf('id="tmRolesH"')), /\son[a-z]+=|style=/);
 });
 await t('hq.js: switch needs the tick box + confirm (fresh code via call()), Owner-only card, Google gate before two-step set-up, textContent only', () => {

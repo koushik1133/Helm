@@ -21,13 +21,16 @@
 //                  early, reply-to or business e-mail, Razorpay keys / on-off, money access, admins added / removed,
 //                  two-step off, flags -> every studio admin (+ the owner). MASKED values only (last 4 characters):
 //                  the database never hands the full UPI ID / account number to this lane.
+//   plan_active    (0328) Helm HQ activated a plan for the studio (payment recorded) -> the owner + every admin: plan,
+//                  billing, paid period, next renewal; a studio that was on its free trial also hears that the trial
+//                  test mode is off (real e-mails to clients from now on) and what was chosen for the sample data.
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. Anything unexpected -> null and
 // comms-dispatch marks the row skipped (fails closed). Links are always APP_URL + a fixed path.
 const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 const block = (v, n) => String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, n);
 const base = (app) => String(app || "https://www.helm.events").replace(/\/+$/, "");
 
-export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion", "hq_staff", "team_safety", "studio_security"];
+export const NOTICE_KINDS = ["sales_request", "upgrade_ask", "close_request", "close_decision", "studio_identity", "inbox_digest", "sales_enquiry", "sales_enquiry_ack", "suggestion", "hq_staff", "team_safety", "studio_security", "plan_active"];
 // the footer reason for each kind (transactional: a service message about this account)
 export const NOTICE_TX_REASON = {
   sales_request: "a Helm studio asked Helm sales to activate a plan",
@@ -42,11 +45,17 @@ export const NOTICE_TX_REASON = {
   hq_staff: "you are on the Helm HQ team, or this change is about your Helm HQ access",
   team_safety: "you are an admin of a Helm studio, or this change is about your access to it",
   studio_security: "you are an admin of a Helm studio and a sensitive setting (payment details, e-mail, payments, money access or admins) changed",
+  plan_active: "you are an admin of a Helm studio and Helm activated your paid plan",
 };
 const PLAN_NAME = { starter: "Starter", studio: "Studio", enterprise: "Enterprise", not_sure: "Not sure yet" };
 const TEAM = { "1": "Just me", "2-5": "2-5 people", "6-15": "6-15 people", "16-50": "16-50 people", "51+": "51+ people" };
 const SLUG = /^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// "2026-12-01" -> "1 Dec 2026" ("" for anything else)
+const dayText = (v) => { const t = clip(v, 10); if (!DAY.test(t)) return ""; const [y, m, d] = t.split("-").map(Number);
+  return m >= 1 && m <= 12 && d >= 1 && d <= 31 ? d + " " + MON[m - 1] + " " + y : ""; };
 const closureLink = (app, q) => app + "/closure.html?quote=" + String(q).toLowerCase() + "#close-request";
 
 export function helmNoticeEmail(kind, data, appUrl) {
@@ -313,6 +322,25 @@ export function helmNoticeEmail(kind, data, appUrl) {
     if (!S) return null;
     return { subject: ("Helm security: " + S[0]).slice(0, 150),
       text: [S[1], S[2], S[3], "If you did not expect this, reply to this e-mail or contact security@helm.events.", "- The Helm team"].filter(Boolean).join("\n\n") };
+  }
+  if (kind === "plan_active") {
+    // r120 (0328): HQ activated the plan. Plan name, billing, period and renewal only - never the amount or invoice details.
+    const plan = clip(d.plan, 80), studio = clip(d.studio, 120) || "your studio";
+    const renews = dayText(d.renews_on), from = dayText(d.period_start), to = dayText(d.period_end);
+    if (!plan || !renews || (d.interval !== "monthly" && d.interval !== "yearly")) return null;
+    const iv = d.interval === "yearly" ? "Yearly" : "Monthly";
+    const lines = ["Hi,", "Thank you - the " + plan + " plan for " + studio + " is now active.",
+      ["Plan:          " + plan, "Billing:       " + iv, from && to ? "Paid period:   " + from + " - " + to : "", "Next renewal:  " + renews].filter(Boolean).join("\n")];
+    if (d.was_trial === true) {
+      lines.push("Your free trial is over, and so is its test mode: from now on Helm really sends e-mails (and WhatsApp messages, where set up) to your clients - approval links, booklets, invitations, payment links and reminders. Please check your clients' e-mail addresses and phone numbers before you send anything.");
+      const choice = { keep: "You chose to keep the sample data from the trial. It stays marked \"Sample\"; you can delete it any time in Settings.",
+        remove_sample: "You chose to remove the sample data from the trial. Everything you added yourself is untouched.",
+        clean: "You chose to start clean. Your own trial records are archived, not deleted - you can restore them in Settings." }[d.choice];
+      lines.push(choice || ((d.has_sample === true ? "The sample data from the trial is still in your studio. " : "")
+        + "The next time an admin opens the dashboard, Helm asks once what to do with the trial data: keep the sample data, remove only the sample data, or start completely clean (your own records are archived, never deleted). Dashboard: " + app + "/dashboard"));
+    }
+    lines.push("Plan and billing: " + app + "/checkout", "- The Helm team");
+    return { subject: ("Your Helm " + plan + " plan is active - thank you").slice(0, 150), text: lines.join("\n\n") };
   }
   if (kind === "sales_enquiry_ack") {
     const name = clip(d.name, 80);
