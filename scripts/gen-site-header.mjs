@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUB = join(ROOT, 'public');
-export const CSS_HREF = '/site-header.css?v=1';
+export const CSS_HREF = '/site-header.css?v=2';
 export const JS_SRC = '/site-header.js?v=1';
 export const MARK_START = '<!-- site-header: generated from index.html by scripts/gen-site-header.mjs - do not edit here -->';
 export const MARK_END = '<!-- /site-header -->';

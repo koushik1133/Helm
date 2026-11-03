@@ -75,3 +75,9 @@ body.sh-lock{overflow:hidden}
 @media (max-width:640px){ .sh-bar{padding:0 16px;gap:12px} }
 @media (max-width:479px){ .sh.sh-open .sh-grid{grid-template-columns:1fr} }
 @media (prefers-reduced-motion:reduce){ .sh *{transition:none!important} }
+/* R123b (responsiveness): on touch screens the public footer links and FAQ questions were ~21-25px tall - too small to
+   tap reliably. Grow the TAP AREA to ~40px with padding + a matching negative margin, so the layout looks the same. */
+@media (max-width:767px){
+  footer .flinks a,.cs-foot nav a{display:inline-block;padding:10px 0;margin:-10px 0}
+  details.q>summary{padding-block:8px;margin-block:-8px}
+}

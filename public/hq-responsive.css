@@ -1,0 +1,19 @@
+/* hq-responsive.css - R123b responsiveness pass for Helm HQ (hq.html). Loaded AFTER hq.html's own <style> so these
+   phone rules win; kept in its own file so HQ feature work (hq.html / hq.js) and layout fixes don't collide. */
+
+@media (max-width:719px){
+  /* Plans & prices (and every other HQ table): on phones the tables become label/value cards, but "mono" cells
+     (td.m - ids, codes) kept white-space:nowrap, so a long Razorpay id line pushed the page to ~630px wide. */
+  #vApp .rt td,#vApp .rt td.m{white-space:normal;min-width:0}
+  #vApp .rt td::before{font-family:var(--font)}
+  /* HQ team: the role matrix (roles x areas) is a real grid - keep it a table but let it scroll sideways inside its
+     card (the generic phone rule turns .scroll off), with the area names pinned on the left. */
+  #vApp .scroll:has(>.rmx){overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;margin:0 calc(-1 * var(--s4));padding:0 var(--s4)}
+  #vApp .rmx th:first-child,#vApp .rmx td:first-child{position:sticky;left:0;z-index:1;min-width:150px;background:var(--panel);box-shadow:1px 0 0 var(--line-2)}
+}
+
+/* The floating "? Tour" button (tour.js, bottom-left) sat ON the phone bottom bar, hiding its first item ("Overview").
+   Lift it just above the bar (bar = 6px + 50px item + 6px + the iPhone home-bar inset). */
+@media (max-width:719px){
+  html body .htour-fab{bottom:calc(74px + env(safe-area-inset-bottom,0px))}
+}
