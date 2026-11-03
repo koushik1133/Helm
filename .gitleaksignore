@@ -111,3 +111,5 @@ f6d0b766b24155e68a79c3b52a90c283e2e2afed:tests/db/r32b-round2-0282.sql:helm-seed
 c75c7878f1b7ac4691916124254e4dd3b3aff953:tests/db/r109-otp-verify-org-0319.sql:generic-api-key:131
 # r113: false positive - the trigger name 'ab0_r109_consent_org' in a SQL test array literal (not a credential)
 ae0d6625cafea40e597720682a3d59d5c1522121:tests/db/r113-trial-test-mode-0322.sql:generic-api-key:190
+# r122: false positive - a studio id (uuid) passed to pg_temp.newuser in a SQL test, not a password (fixed in the next commit with ::uuid)
+f3ce40606ce979b381820c124f087568b5a009ad:tests/db/r122-hq-review-0330.sql:helm-seed-account-credential:288

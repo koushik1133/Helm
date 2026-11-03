@@ -105,7 +105,7 @@ t('HQ Plans: a USD price next to INR (hq_upsert_plan_price, USD), optional, vali
   assert.throws(() => f('studio', '', '590'), /per month/); assert.throws(() => f('studio', '-1', ''), /0 or more/);
   assert.match(H, /<span>Price \/ month \(\$\)<\/span><input type="number" id="plUsdM"/); assert.match(H, /id="plUsdY"/);
   assert.match(H, /<th class="n">USD \/ month<\/th>/);
-  assert.match(JS, /\.then\(function \(\) \{ return u \? call\("hq_upsert_plan_price", u\) : null; \}\)/);
+  assert.match(JS, /if \(u\) st\.push\(\["the USD prices", function \(\) \{ return call\("hq_upsert_plan_price", u\); \}\]\)/);
 });
 
 console.log(`r25-currency: ${n} checks passed`);

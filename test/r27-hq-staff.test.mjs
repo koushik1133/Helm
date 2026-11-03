@@ -76,7 +76,7 @@ await t('hq.js: hq_me first, blocked states, permissions applied, re-auth retry,
   assert.match(J, /ME = await BPStore\.hq\("hq_me"\)/);
   assert.match(J, /ME\.status === "suspended"\) \{ blocked\(/);
   assert.match(J, /ME\.needs_2step\) \{ blocked\("Set up two-step first"/);
-  assert.match(J, /if \(k === "reauth"\) return askCode\(\)\.then\(function \(\) \{ return BPStore\.hq\(fn, args\); \}\);/);
+  assert.match(J, /if \(k === "reauth"\) return askCode\(\)\.then\(function \(\) \{ return BPStore\.hq\(fn, args\)(\.catch\(function \(e2\) \{ return mapCallErr\(e2, true\); \}\))?; \}\);/);
   assert.match(J, /BPStore\.auth\.mfa\.challenge\(/);
   assert.match(J, /BPStore\.hq\("hq_heartbeat", \{ p_page:/);
   assert.match(J, /if \(Date\.now\(\) - lastInput > idleMs\) \{ sessionOver/);

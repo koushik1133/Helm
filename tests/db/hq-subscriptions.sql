@@ -108,7 +108,7 @@ do $$ declare r jsonb; e text; begin
   -- 0159 may add a 'studio' plan on a database that had none: count only the plans made here
   perform pg_temp.res('06 plans upsert by code + list', (select count(*) from jsonb_array_elements(r) x where x->>'code' in ('starter', 'pro')) = 2
     and exists (select 1 from jsonb_array_elements(r) x where x->>'code' = 'pro' and x->>'name' = 'Pro plan'), r::text);
-  r := public.hq_set_subscription('a0000000-0000-4000-8000-000000000001', 'pro', 'active', null, current_date - 10, current_date + 20, 'note');
+  r := public.hq_set_subscription('a0000000-0000-4000-8000-000000000001', 'pro', 'active', null, current_date - 10, current_date + 20, 'note', 'r122: a reason is required');
   perform pg_temp.res('07 set subscription (A: pro, active)', r->>'status' = 'active', r::text);
   e := pg_temp.try('select public.hq_set_subscription(''a0000000-0000-4000-8000-000000000001'', null, ''suspended'')');
   perform pg_temp.res('08 set_subscription cannot suspend (needs suspend + reason)', e = '22023', e);
@@ -202,7 +202,9 @@ end $$;
 -- ---- 6) auto past-due + reminder queue -------------------------------------------------------------
 do $$ declare r jsonb; n int; s text; begin
   perform pg_temp.op();
-  perform public.hq_set_subscription('b0000000-0000-4000-8000-000000000001', 'starter', 'active', null, current_date - 40, current_date - 3);
+  perform public.hq_set_subscription('b0000000-0000-4000-8000-000000000001', 'starter', 'active', null, current_date - 40, current_date - 3, null, 'r122 test');
+  -- r122 (0330): the read page no longer refreshes; the HQ "Refresh past-due" (or the schedule) does
+  perform public.hq_refresh_billing_status(); perform public.hq_refresh_billing_status();
   r := public.hq_billing(null, null); r := public.hq_billing(null, null);
   perform pg_temp.su(); select status into s from public.studio_subscriptions where org_id = 'b0000000-0000-4000-8000-000000000001';
   select count(*) into n from public.billing_reminders where org_id = 'b0000000-0000-4000-8000-000000000001' and kind = 'past_due';
@@ -210,7 +212,7 @@ do $$ declare r jsonb; n int; s text; begin
   perform pg_temp.res('34 hq_billing lists the past-due studio', exists (select 1 from jsonb_array_elements(r->'past_due') x
     where x->>'name' = 'Studio B' and (x->>'days_overdue')::int = 3), r::text);
   perform pg_temp.op();
-  perform public.hq_set_subscription('a0000000-0000-4000-8000-000000000001', null, null, null, null, current_date - 1);
+  perform public.hq_set_subscription('a0000000-0000-4000-8000-000000000001', null, null, null, null, current_date - 1, null, 'r122 test');
   perform public.hq_record_payment('a0000000-0000-4000-8000-000000000001', 2999, current_date, 'bank', 'INR', current_date, current_date + 30);
   perform public.hq_refresh_billing_status();
   perform pg_temp.su(); select status into s from public.studio_subscriptions where org_id = 'a0000000-0000-4000-8000-000000000001';
@@ -220,7 +222,7 @@ do $$ declare r jsonb; n int; s text; begin
   select status into s from public.studio_subscriptions where org_id = 'b0000000-0000-4000-8000-000000000001';
   perform pg_temp.res('36 never auto-suspends', s = 'past_due', s);
   perform pg_temp.op();
-  perform public.hq_set_subscription('b0000000-0000-4000-8000-000000000001', null, 'active', null, current_date - 25, current_date + 5);
+  perform public.hq_set_subscription('b0000000-0000-4000-8000-000000000001', null, 'active', null, current_date - 25, current_date + 5, null, 'r122 test');
   perform public.hq_refresh_billing_status(); perform public.hq_refresh_billing_status();
   perform pg_temp.su(); select count(*) into n from public.billing_reminders where org_id = 'b0000000-0000-4000-8000-000000000001' and kind = 'due_soon';
   perform pg_temp.res('37 due-soon reminder queued once', n = 1, n::text);
@@ -372,7 +374,10 @@ do $$ declare r jsonb; e text; begin
   perform pg_temp.res('61 HQ reads account in detail + list', r#>>'{account,legal_business_name}' = 'Studio A LLP'
     and (select s.state from public.hq_studios('Studio A', null, 5, 0) s limit 1) = 'Telangana', r::text);
   r := public.hq_set_studio_account('a0000000-0000-4000-8000-000000000001', '{"secondary_contact_email":"Ops@A.test"}');
-  perform pg_temp.res('62 HQ edits account (audited)', r->>'secondary_contact_email' = 'ops@a.test'
+  perform pg_temp.su();   -- r122 (0330): the answer is masked - read the stored value as the owner of the table
+  r := r || jsonb_build_object('stored', (select secondary_contact_email from public.studio_account where org_id = 'a0000000-0000-4000-8000-000000000001'));
+  perform pg_temp.op();
+  perform pg_temp.res('62 HQ edits account (audited)', r->>'stored' = 'ops@a.test' and r->>'secondary_contact_email' <> 'ops@a.test'
     and exists (select 1 from jsonb_array_elements(public.hq_audit(current_date, current_date)->'rows') x where x->>'action' = 'hq.studio_account.set'), r::text);
 end $$;
 do $$ declare r jsonb; i1 jsonb; i2 jsonb; begin
@@ -385,7 +390,7 @@ do $$ declare r jsonb; i1 jsonb; i2 jsonb; begin
     and i1#>>'{buyer,legal_name}' = 'Studio A LLP' and i1#>>'{buyer,gstin}' = '36ABCDE1234F1Z5' and i1#>>'{buyer,state}' = 'Telangana'
     and i1#>>'{seller,state}' = 'Telangana', i1::text);
   perform public.hq_set_studio_account('a0000000-0000-4000-8000-000000000001', '{"state":"Karnataka"}');
-  i2 := public.hq_invoice((public.hq_record_payment('a0000000-0000-4000-8000-000000000001', 1180, current_date, 'upi')->>'id')::uuid);
+  i2 := public.hq_invoice((public.hq_record_payment('a0000000-0000-4000-8000-000000000001', 1180, current_date, 'upi', 'INR', null, null, 'r122-second')->>'id')::uuid);   -- r122: a second payment needs its own reference
   perform pg_temp.res('64 different state → IGST full (new payment); old invoice unchanged after the account change',
     i2#>>'{gst_split,type}' = 'IGST' and (i2#>>'{gst_split,igst}')::numeric = 180 and (i2#>>'{gst_split,cgst}')::numeric = 0
     and public.hq_invoice((r->>'id')::uuid) = i1, i2::text);
@@ -418,15 +423,18 @@ do $$ declare B uuid := 'b0000000-0000-4000-8000-000000000001'; r jsonb; i jsonb
     i#>>'{tax,regime}' = 'EXPORT_IGST_PAID' and (i->>'gst_amount')::numeric = 18 and (i#>>'{tax,refundable}')::boolean
     and i#>'{tax,components}'->0->>'name' = 'IGST', i::text);
   perform public.hq_set_studio_account(B, '{"country":"DE","state":"","is_business":"true","tax_id_type":"EU_VAT","tax_id":"de 123456789"}');
+  -- r122 (0330): HQ records a payment only in the studio's billing currency - this fake studio is now billed in EUR
+  perform pg_temp.su(); update public.studio_account set billing_currency = 'EUR' where org_id = B; perform pg_temp.op();
   i := public.hq_invoice((public.hq_record_payment(B, 100, current_date, 'bank', 'EUR', null, null, null, 90)->>'id')::uuid);
   perform pg_temp.res('70 EU business with VAT ID → reverse-charge note, buyer tax id snapshotted',
     i#>>'{tax,note}' like '%Reverse charge — VAT to be accounted for by the recipient%' and (i#>>'{tax,reverse_charge}')::boolean
     and i#>>'{buyer,tax_id}' = 'DE123456789' and i#>>'{buyer,tax_id_type}' = 'EU_VAT' and i#>>'{buyer,country}' = 'DE', i::text);
   perform public.hq_set_seller_tax('IN', 'Telangana', 'AD360325000001X', current_date - 100, current_date + 200);
-  i := public.hq_invoice((public.hq_record_payment(B, 100, current_date, 'bank', 'EUR', null, null, null, 90)->>'id')::uuid);
+  i := public.hq_invoice((public.hq_record_payment(B, 100, current_date, 'bank', 'EUR', null, null, 'r122-eur-2', 90)->>'id')::uuid);   -- r122: own reference (replay guard)
   perform pg_temp.res('71 EU business + LUT → REVERSE_CHARGE 0% with both notes', i#>>'{tax,regime}' = 'REVERSE_CHARGE'
     and (i->>'gst_amount')::numeric = 0 and i#>>'{tax,note}' like '%LUT%Reverse charge%', i::text);
   perform public.hq_set_studio_account(B, '{"country":"SG","tax_id_type":"","tax_id":""}');
+  perform pg_temp.su(); update public.studio_account set billing_currency = 'SGD' where org_id = B; perform pg_temp.op();   -- r122 (0330)
   perform public.hq_upsert_tax_rule('SG', null, 'LOCAL_REGISTERED', 9, 'GST registered in Singapore', date '2024-01-01', null, true);
   r := public.hq_record_payment(B, 109, current_date, 'card', 'SGD', null, null, null, 62);
   i := public.hq_invoice((r->>'id')::uuid);

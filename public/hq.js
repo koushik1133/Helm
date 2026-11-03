@@ -187,14 +187,37 @@
   function canTab(t) { return !ME || !S ? true : S.can(ME.perms, S.TAB_PERM[t] || "owner.only"); }
   // every HQ call: a refusal for a big change asks for a fresh two-step code once and retries; an ended / idle /
   // expired HQ sign-in shows "sign in again"; a role refusal gets a plain sentence
+  // r122 (I): the same plain-words mapping for the first try AND the retry after a fresh code (a second HQ_REAUTH on the
+  // retry is not asked again - it says so)
+  function mapCallErr(e, retried) {
+    var k = S ? S.errKind(e) : null;
+    if (k === "reauth" && retried) throw new Error("The fresh two-step code was not accepted for this change - try again.");
+    if (k === "idle" || k === "expired" || k === "ended") { sessionOver(S.friendly(k)); throw new Error(S.friendly(k)); }
+    if (k === "role" || k === "ip") throw new Error(S.friendly(k, ME && ME.role_label));
+    throw e;
+  }
   function call(fn, args) {
     return BPStore.hq(fn, args).catch(function (e) {
       var k = S ? S.errKind(e) : null;
-      if (k === "reauth") return askCode().then(function () { return BPStore.hq(fn, args); });
-      if (k === "idle" || k === "expired" || k === "ended") { sessionOver(S.friendly(k)); throw new Error(S.friendly(k)); }
-      if (k === "role" || k === "ip") throw new Error(S.friendly(k, ME && ME.role_label));
-      throw e;
+      if (k === "reauth") return askCode().then(function () { return BPStore.hq(fn, args).catch(function (e2) { return mapCallErr(e2, true); }); });
+      return mapCallErr(e, false);
     });
+  }
+  // r122 (I): Tab / Shift+Tab stay inside an open dialog (code dialog, studio drawer)
+  function trapTab(box, e) {
+    if (!box || !e || e.key !== "Tab" || typeof box.querySelectorAll !== "function") return;
+    var f = Array.prototype.slice.call(box.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"))
+      .filter(function (n) { return !n.disabled && !n.hidden && n.offsetParent !== null; });
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1], a = document.activeElement;
+    if (e.shiftKey && (a === first || !box.contains(a))) { e.preventDefault(); try { last.focus(); } catch (x) {} }
+    else if (!e.shiftKey && (a === last || !box.contains(a))) { e.preventDefault(); try { first.focus(); } catch (x) {} }
+  }
+  // r122 (G): a button stays disabled while its HQ call runs (no double submit); errors go to showErr unless onErr handles them
+  function busy(btn, run, onErr) {
+    if (btn && btn.disabled) return Promise.resolve(null);
+    if (btn) btn.disabled = true;
+    return Promise.resolve().then(run).catch(onErr || showErr).then(function (v) { if (btn) btn.disabled = false; return v; });
   }
   /* ---- r27: fresh two-step code (sudo mode) ---- */
   var codeWait = null;
@@ -203,16 +226,22 @@
     codeWait = new Promise(function (resolve, reject) {
       var box = $("#reauth"), inp = $("#raCode"), er = $("#raErr"), go = $("#raGo"), no = $("#raCancel");
       if (!box || !BPStore.auth.mfa || !BPStore.auth.mfa.challenge) { reject(new Error("Sign in again to make this change.")); return; }
-      er.textContent = ""; inp.value = ""; box.hidden = false; setTimeout(function () { try { inp.focus(); } catch (e) {} }, 30);
-      var done = function (ok, err) { box.hidden = true; go.onclick = null; no.onclick = null; inp.onkeydown = null; if (ok) resolve(true); else reject(err || new Error("Cancelled - nothing was changed.")); };
+      var back = document.activeElement;   // r122 (I): focus goes back where it was when the dialog closes
+      er.textContent = ""; inp.value = ""; go.disabled = false; box.hidden = false; setTimeout(function () { try { inp.focus(); } catch (e) {} }, 30);
+      var trap = function (e) { trapTab(box, e); };
+      box.addEventListener("keydown", trap);
+      var done = function (ok, err) { box.hidden = true; go.onclick = null; no.onclick = null; inp.onkeydown = null; box.removeEventListener("keydown", trap);
+        try { if (back && back.focus) back.focus(); } catch (x) {}
+        if (ok) resolve(true); else reject(err || new Error("Cancelled - nothing was changed.")); };
       go.onclick = function () {
+        if (go.disabled) return;   // r122 (G): Enter / click while the code is being checked does nothing
         go.disabled = true; er.textContent = "";
         Promise.resolve(BPStore.auth.mfa.challenge(String(inp.value || "").trim())).then(function () { done(true); })
           .catch(function (e) { er.textContent = (e && e.message) || "That code didn't work."; try { inp.select(); } catch (x) {} })
           .then(function () { go.disabled = false; });
       };
       no.onclick = function () { done(false); };
-      inp.onkeydown = function (e) { if (e.key === "Enter") go.onclick(); if (e.key === "Escape") done(false); };
+      inp.onkeydown = function (e) { if (e.key === "Enter" && !go.disabled) go.onclick(); if (e.key === "Escape") done(false); };
     }).then(function (v) { codeWait = null; return v; }, function (e) { codeWait = null; throw e; });
     return codeWait;
   }
@@ -287,10 +316,22 @@
     var t = Date.now(); if (!force && t - lastBeat < 120000) return; lastBeat = t;
     BPStore.hq("hq_heartbeat", { p_page: page || curTab }).catch(function (e) { var k = S && S.errKind(e); if (k === "idle" || k === "expired" || k === "ended") sessionOver(S.friendly(k)); });
   }
+  // r122 (E): the last input is shared by every open HQ tab (this browser): a tab left idle in the background does not
+  // sign out the tab the person is using. localStorage + the storage event; every access guarded (private mode etc.)
+  var LAST_KEY = "helm.hq.lastInput", lastShared = 0;
+  function sharedRead() { try { var v = Number(localStorage.getItem(LAST_KEY)); return isFinite(v) && v > 0 && v <= Date.now() + 60000 ? v : 0; } catch (e) { return 0; } }
+  function touchInput() {
+    lastInput = Date.now();
+    if (lastInput - lastShared < 5000) return;   // at most one write every 5 s
+    lastShared = lastInput; try { localStorage.setItem(LAST_KEY, String(lastInput)); } catch (e) {}
+  }
   function startWatch() {
-    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (ev) { document.addEventListener(ev, function () { lastInput = Date.now(); }, { passive: true }); });
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (ev) { document.addEventListener(ev, touchInput, { passive: true }); });
+    try { window.addEventListener("storage", function (e) { if (e && e.key === LAST_KEY) lastInput = Math.max(lastInput, sharedRead()); }); } catch (e) {}
+    touchInput();
     setInterval(function () {
       if (!ME || blockedNow) return;
+      lastInput = Math.max(lastInput, sharedRead());
       var idleMs = Math.max(5, Number(ME.idle_minutes) || 30) * 60000;
       if (Date.now() - lastInput > idleMs) { sessionOver(S ? S.friendly("idle") : ""); return; }
       if (MYS && MYS.hard_end_at && Date.now() > Date.parse(MYS.hard_end_at)) { sessionOver(S ? S.friendly("expired") : ""); return; }
@@ -323,11 +364,15 @@
     return el("span", { cls: "pill " + (tone || ""), text: words[s || "none"] || String(s).replace("_", " ") });
   }
   function ask(text, def) { var r = window.prompt(text, def || ""); return r == null ? null : String(r).trim(); }
+  // r122 (I): the print window opens in the click itself (never blocked as a pop-up), then the invoice is drawn into it;
+  // it closes again when the invoice can't be loaded
   function openInvoice(fn, id) {
-    call(fn, { p_payment_id: id }).then(function (data) {
-      if (window.HelmInvoice && typeof window.HelmInvoice.open === "function") window.HelmInvoice.open(data);
-      else showErr(new Error("Invoice viewer not loaded"));
-    }).catch(showErr);
+    var H = window.HelmInvoice;
+    if (!H || typeof H.open !== "function") { showErr(new Error("Invoice viewer not loaded")); return; }
+    var win = typeof H.openBlank === "function" ? H.openBlank() : null;
+    if (typeof H.openBlank === "function" && !win) return;   // pop-up blocked: the viewer already said so
+    call(fn, { p_payment_id: id }).then(function (data) { H.open(data, win); })
+      .catch(function (e) { try { if (win && !win.closed) win.close(); } catch (x) {} showErr(e); });
   }
 
   /* ---------------- tabs ---------------- */
@@ -684,7 +729,8 @@
         el("td", { text: [r.state, r.country].filter(Boolean).join(", ") || "—" }),
         el("td", null, [r.plan_name || "No plan", el("div", { cls: "muted", text: "billed in " + billCur(r) })]), el("td", null, [statusPill(r.status)]),
         el("td", { text: date(r.created_at) }), el("td", { cls: "n", text: int(r.users_count) }),
-        el("td", { cls: "n", text: num(r.total_paid) > 0 ? money(r.total_paid, r.paid_currency || "INR") : "—", title: moneyRaw(r.total_paid, r.paid_currency || "INR") }), el("td", { text: ago(r.last_activity) })]);
+        // r122 (B): total_paid is the INR equivalent of every payment (stored exchange rates), never a mixed-currency sum
+        el("td", { cls: "n", text: num(r.total_paid) > 0 ? money(r.total_paid, "INR") : "—", title: "INR equivalent of all payments: " + moneyRaw(r.total_paid, "INR") }), el("td", { text: ago(r.last_activity) })]);
       var open = function () { openStudio(r.org_id); };
       tr.addEventListener("click", open);
       tr.addEventListener("keydown", function (e) { if (e.key === "Enter") open(); });
@@ -699,15 +745,19 @@
   function paymentRows(tbody, list, withStudio, invoiceFn) {
     clear(tbody);
     (list || []).forEach(function (p) {
-      var inv = el("button", { cls: "btn sm", type: "button", text: "Invoice" });
-      inv.addEventListener("click", function () { openInvoice(invoiceFn || "hq_invoice", p.id); });
-      var acts = el("td", null, [inv]);
+      var acts = el("td");
+      if (can("billing.read")) {   // r122 (I): the invoice (buyer PAN / GSTIN / address) is for billing roles only
+        var inv = el("button", { cls: "btn sm", type: "button", text: "Invoice" });
+        inv.addEventListener("click", function () { openInvoice(invoiceFn || "hq_invoice", p.id); });
+        acts.appendChild(inv);
+      }
       if (!p.voided && can("billing.write")) {
         var v = el("button", { cls: "btn sm danger", type: "button", text: "Void" });
         v.addEventListener("click", function () {
+          if (v.disabled) return;
           var why = ask("Void payment " + (p.invoice_no || "") + " of " + moneyBoth(p.amount, p.currency) + "? The row and invoice number are kept. Reason:");
           if (!why) return;
-          call("hq_void_payment", { p_id: p.id, p_reason: why }).then(function () { okMsg("Payment voided."); refreshAfterWrite(p.org_id); }).catch(showErr);
+          busy(v, function () { return call("hq_void_payment", { p_id: p.id, p_reason: why }).then(function () { okMsg("Payment voided."); refreshAfterWrite(p.org_id); }); });
         });
         acts.appendChild(v);
       }
@@ -723,7 +773,14 @@
   var openOrg = null;
   function refreshAfterWrite(org) {
     if (org && openOrg === org) loadDetail(org, curDTab).catch(showErr);
-    loadStudios(sOff).catch(showErr); loadBilling().catch(showErr); loadOverview().catch(showErr);
+    // r122 (D): reload only the tabs this HQ role can see (no refused calls / error boxes for the others)
+    if (canTab("studios")) loadStudios(sOff).catch(showErr);
+    if (canTab("billing")) loadBilling().catch(showErr);
+    if (canTab("overview")) loadOverview().catch(showErr);
+  }
+  // r122 (I): "appears after SQL nnnn" only when the function really is missing (older database); any other failure says so
+  function partFailed(e, soonText) {
+    return meMissing(e) ? soonText : "Couldn't load this part: " + String((e && e.message) || "unknown error").slice(0, 200);
   }
 
   /* ---------------- r25: studio drawer (Overview · Plan & billing · People · Name & link · Activity) ---------------- */
@@ -740,6 +797,7 @@
   function openDrawer() {
     var dr = $("#studioDrawer"); if (!dr.hidden) return;
     lastFocus = document.activeElement; dr.hidden = false; $("#studioScrim").hidden = false;
+    if (!dr.dataset.trap) { dr.dataset.trap = "1"; dr.addEventListener("keydown", function (e) { trapTab(dr, e); }); }   // r122 (I): focus stays in the drawer
     try { $("#btnDClose").focus(); } catch (e) {}
   }
   function closeDrawer() {
@@ -762,8 +820,13 @@
     if (!dl.firstChild) dl.appendChild(el("dd", { cls: "muted", text: "Not filled in yet." }));
     return dl;
   }
+  // r122 (I): only the LAST opened studio paints the drawer (a slow earlier reply is dropped)
+  var detailSeq = 0;
   async function loadDetail(org, tab) {
-    var d = await call("hq_studio_detail", { p_org: org }); var box = clear($("#studioDetail"));
+    var my = ++detailSeq;
+    var d = await call("hq_studio_detail", { p_org: org });
+    if (my !== detailSeq) return;
+    var box = clear($("#studioDetail"));
     if (!d) return; openOrg = org;
     var sub = d.subscription || {}, acc = d.account || {};
     $("#dName").textContent = d.name || "Studio";
@@ -779,7 +842,8 @@
     wrap.appendChild(el("div", { cls: "facts" }, [
       fact("Plan", (sub.plan_name || "No plan") + " · billed in " + billCur({ billing_currency: acc.billing_currency || d.billing_currency, country: acc.country })),
       trialFact(sub),
-      fact("Paid to Helm", money(d.total_paid, d.paid_currency || "INR")),
+      // r122 (B): each currency on its own (hq_studio_detail paid_by_currency, 0330); older database: the INR total
+      fact("Paid to Helm", Array.isArray(d.paid_by_currency) && d.paid_by_currency.length ? moneyList(d.paid_by_currency) : money(d.total_paid, "INR")),
       fact("Team size", int(d.users_count) + " user" + (num(d.users_count) === 1 ? "" : "s")), fact("Last active", ago(d.last_active_at || lastIn)),
       fact("Created", date(d.created_at))]));
     // r28 (owner): use of Helm - numbers only (hq_studio_usage), filled when it answers
@@ -797,7 +861,7 @@
       ["Primary contact", acc.primary_contact_name], ["E-mail", masked(acc.primary_contact_email || d.owner_email, "email", "studio", org, "email")],
       ["Phone", masked(acc.primary_contact_phone, "phone", "studio", org, "phone")],
       ["Billing e-mail", masked(acc.billing_contact_email, "email", "studio", org, "billing_email")], ["Place", [acc.city, acc.state, acc.country].filter(Boolean).join(", ")],
-      ["Legal name", acc.legal_business_name], ["GSTIN", masked(acc.gstin, "id", "studio", org, "gstin")], ["PAN", masked(acc.pan, "id", "studio", org, "pan")],
+      ["Legal name", acc.legal_business_name], ["GSTIN", masked(acc.gstin, "id", "studio", org, "gstin")], ["PAN", can("billing.read") ? masked(acc.pan, "id", "studio", org, "pan") : null],
       ["Website", acc.website]]), el("p", { cls: "muted", text: "Masked details: press Show to see one. Each Show is recorded in Security & activity." })]));
 
     // account profile (business account data only)
@@ -854,43 +918,49 @@
     if (sub.status === "suspended") subCard.appendChild(el("div", { cls: "muted", text: "Suspended " + date(sub.suspended_at) + " — " + (sub.suspend_reason || "") }));
     var selPlan = el("select", { "aria-label": "Plan" }); selPlan.appendChild(el("option", { value: "", text: "(keep plan)" }));
     plans.filter(function (p) { return p.active; }).forEach(function (p) { selPlan.appendChild(el("option", { value: p.code, text: p.name + " · " + moneyBoth(p.price_monthly, p.currency) })); });
+    // r122 (0330): no "trial" status and no trial end date here (Free trial -> Extend trial does that, once, with a
+    // reason); "active" needs a period end; a written reason goes into the HQ log
     var selSt = el("select", { "aria-label": "Status" });
-    [["", "(keep status)"], ["trial", "trial"], ["active", "active"], ["past_due", "past due"], ["cancelled", "cancelled"]].forEach(function (o) { selSt.appendChild(el("option", { value: o[0], text: o[1] })); });
-    var ps = el("input", { type: "date" }), pe = el("input", { type: "date" }), te = el("input", { type: "date" });
+    [["", "(keep status)"], ["active", "active"], ["past_due", "past due"], ["cancelled", "cancelled"]].forEach(function (o) { selSt.appendChild(el("option", { value: o[0], text: o[1] })); });
+    var ps = el("input", { type: "date" }), pe = el("input", { type: "date" });
+    var subWhy = el("input", { type: "text", maxlength: "500", "aria-label": "Reason for the change", placeholder: "Why? (at least 5 characters, kept in the HQ log)" });
     var save = el("button", { cls: "btn", type: "button", text: "Save subscription" });
     save.addEventListener("click", function () {
-      var what = subscriptionChangeText({ plan: selPlan.value ? selPlan.options[selPlan.selectedIndex].text : "", status: selSt.value, periodStart: ps.value, periodEnd: pe.value, trialEnds: te.value });
-      if (!what) { showErr(new Error("Nothing to change - pick a plan, a status or a date first.")); return; }
-      if (!window.confirm("Change the subscription of " + (d.name || "this studio") + " by hand?\n\n" + what + "\n\nThe studio sees this at once. It is recorded in the HQ log.")) return;   // r118 (F-06)
-      save.disabled = true;
-      call("hq_set_subscription", { p_org: org, p_plan_code: selPlan.value || null, p_status: selSt.value || null, p_trial_ends_at: te.value || null,
-        p_period_start: ps.value || null, p_period_end: pe.value || null, p_notes: null })
-        .then(function () { okMsg("Subscription saved."); refreshAfterWrite(org); }).catch(showErr).then(function () { save.disabled = false; });
+      if (save.disabled) return;
+      var a; try { a = subscriptionArgs(org, selPlan.value, selSt.value, ps.value, pe.value, subWhy.value, sub.current_period_end); } catch (e) { showErr(e); return; }
+      var what = subscriptionChangeText({ plan: selPlan.value ? selPlan.options[selPlan.selectedIndex].text : "", status: selSt.value, periodStart: ps.value, periodEnd: pe.value });
+      if (!window.confirm("Change the subscription of " + (d.name || "this studio") + " by hand?\n\n" + what + "\nReason: " + a.p_reason + "\n\nThe studio sees this at once. It is recorded in the HQ log.")) return;   // r118 (F-06)
+      busy(save, function () { return call("hq_set_subscription", a).then(function () { okMsg("Subscription saved."); subWhy.value = ""; refreshAfterWrite(org); }); });
     });
     var adv = el("details", { cls: "more" }, [el("summary", { text: "Change plan or status by hand" }),
-      el("div", { cls: "form" }, [field("Plan", selPlan), field("Status", selSt), field("Period start", ps), field("Period end", pe), field("Trial ends", te), save])]);
+      el("div", { cls: "form" }, [field("Plan", selPlan), field("Status", selSt), field("Period start", ps), field("Period end", pe),
+        el("label", { cls: "fld wide" }, [el("span", { text: "Reason (required)" }), subWhy]), save]),
+      el("p", { cls: "muted", text: "To give more trial time use Free trial -> Extend trial below (trial dates are not changed here)." })]);
     if (can("billing.write")) subCard.appendChild(adv);
     var sus = el("button", { cls: "btn " + (sub.status === "suspended" ? "primary" : "danger"), type: "button", text: sub.status === "suspended" ? "Reactivate studio" : "Suspend (read-only)…" });
     sus.addEventListener("click", function () {
+      if (sus.disabled) return;   // r122 (G): one request at a time
       if (sub.status === "suspended") {
         if (!window.confirm("Reactivate " + (d.name || "this studio") + "? Members can create and change data again.")) return;
-        call("hq_reactivate_studio", { p_org: org }).then(function () { okMsg("Studio reactivated."); refreshAfterWrite(org); }).catch(showErr);
+        busy(sus, function () { return call("hq_reactivate_studio", { p_org: org }).then(function () { okMsg("Studio reactivated."); refreshAfterWrite(org); }); });
       } else {
         var why = ask("Suspend " + (d.name || "this studio") + "? Members can still sign in, view and export, but cannot create, change or delete anything. No data is touched. Reason:");
         if (!why) return;
-        call("hq_suspend_studio", { p_org: org, p_reason: why }).then(function () { okMsg("Studio suspended (read-only)."); refreshAfterWrite(org); }).catch(showErr);
+        busy(sus, function () { return call("hq_suspend_studio", { p_org: org, p_reason: why }).then(function () { okMsg("Studio suspended (read-only)."); refreshAfterWrite(org); }); });
       }
     });
     if (can("studios.suspend")) subCard.appendChild(el("div", { cls: "actions" }, [sus]));
 
     // r21 (0244): ONE step from trial (or ended trial) to a paying studio
-    if (sub.status !== "suspended" && can("billing.write")) wrap.appendChild(activateBox(org, d.name, sub));
+    var studioCur = billCur({ billing_currency: acc.billing_currency || d.billing_currency, country: acc.country });   // r122 (A)
+    if (sub.status !== "suspended" && can("billing.write")) wrap.appendChild(activateBox(org, d.name, sub, studioCur));
 
     // 0186: free trial — one extension per studio (1–7 days, reason required)
     var trialCard = el("div", { cls: "card" }, [el("h2", { text: "Free trial" })]); wrap.appendChild(trialCard);
     var trialBox = el("div", { id: "trialExt" }); trialCard.appendChild(trialBox);
-    loadTrialInfo(org, d.name, trialBox).catch(function () {
-      clear(trialBox).appendChild(el("div", { cls: "muted", text: "Trial details appear after migration 0186 is applied." }));
+    loadTrialInfo(org, d.name, trialBox, my).catch(function (e) {
+      if (my !== detailSeq) return;
+      clear(trialBox).appendChild(el("div", { cls: "muted", text: partFailed(e, "Trial details appear after migration 0186 is applied.") }));
     });
 
     // r28 (owner): referral info + credits (e.g. referral free months) - records kept by Helm HQ only
@@ -899,14 +969,15 @@
       ["Referred by", rf.referred_by || acc.referred_by], ["Studios they referred", rf.referred_count != null ? int(rf.referred_count) : null],
       ["Credits earned", rf.credits != null ? money(rf.credits, rf.credits_currency || "INR") : null]])]));
     var credBox = el("div", { cls: "card" }, [el("h2", { text: "Credits & free months" })]); wrap.appendChild(credBox);
-    loadCredits(org, d.name, credBox).catch(function () { credBox.appendChild(el("p", { cls: "muted", text: "Credits appear after SQL 0280 is applied." })); });
+    loadCredits(org, d.name, credBox).catch(function (e) { credBox.appendChild(el("p", { cls: "muted", text: partFailed(e, "Credits appear after SQL 0280 is applied.") })); });
 
     // payments
     var payCard = el("div", { cls: "card" }, [el("h2", { text: "Payments to Helm" })]); wrap.appendChild(payCard);
     var pt = el("tbody"); paymentRows(pt, d.payments, false);
     payCard.appendChild(el("div", { cls: "scroll" }, [el("table", { cls: "rt" }, [el("thead", null, [el("tr", null, ["Paid on", "Invoice", "Method", "Period", "Amount", "Status", ""].map(function (h) { return el("th", { text: h }); }))]), pt])]));
     var rec = el("button", { cls: "btn", type: "button", text: "Record a payment for this studio" });
-    rec.addEventListener("click", function () { closeDrawer(); showTab("billing"); $("#rOrg").value = org; $("#rOrgName").textContent = d.name || ""; });
+    rec.addEventListener("click", function () { closeDrawer(); showTab("billing"); $("#rOrg").value = org; $("#rOrgName").textContent = d.name || "";
+      $("#rCur").value = studioCur; $("#rFx").value = ""; });   // r122 (A): the studio's billing currency by default
     if (can("billing.write")) payCard.appendChild(el("div", { cls: "actions" }, [rec]));
 
     // ---- People (no phone, no client data)
@@ -932,8 +1003,8 @@
 
     // r33 (0283): the studio owner, its history, and "Recover studio owner" (owner gone: HQ Owner role, two-step, reason)
     var ownBox = el("div"); wrap.appendChild(ownBox);
-    loadOwner(org, ownBox, d.name).catch(function () { clear(ownBox).appendChild(el("div", { cls: "card" }, [el("h2", { text: "Studio owner" }),
-      el("div", { cls: "muted", text: "The studio owner appears after SQL 0283 is applied." })])); });
+    loadOwner(org, ownBox, d.name).catch(function (e) { clear(ownBox).appendChild(el("div", { cls: "card" }, [el("h2", { text: "Studio owner" }),
+      el("div", { cls: "muted", text: partFailed(e, "The studio owner appears after SQL 0283 is applied.") })])); });
 
     // ---- Name & link: r23 (0257) studio name + link are fixed for the studio; only Helm HQ changes them (two-step,
     // reason, audited, studio admins told by bell + e-mail, the old link keeps working)
@@ -945,7 +1016,7 @@
     // ---- Activity: numbers only + what HQ changed on this studio
     wrap = panes.activity;
     var actBox = el("div"); wrap.appendChild(actBox);
-    loadUsage(org, actBox, d, useBox).catch(function () { clear(actBox).appendChild(el("div", { cls: "card" }, [el("div", { cls: "empty", text: "Activity appears after SQL 0272 is applied." })])); });
+    loadUsage(org, actBox, d, useBox).catch(function (e) { clear(actBox).appendChild(el("div", { cls: "card" }, [el("div", { cls: "empty", text: partFailed(e, "Activity appears after SQL 0272 is applied.") })])); });
 
     dTab(tab || curDTab || "overview");
     openDrawer();
@@ -1126,8 +1197,10 @@
     return e.toISOString().slice(0, 10);
   }
   // pure: validated args for hq_activate_plan (exported for tests). The database checks the same.
-  function activateArgs(org, plan, interval, amount, method, start, paidOn, ref) {
+  // r122 (A): currency (default INR) + an exchange rate to INR for any other currency (> 0, up to 100000)
+  function activateArgs(org, plan, interval, amount, method, start, paidOn, ref, currency, fx) {
     var a = Number(amount), r = String(ref == null ? "" : ref).replace(/\s+/g, " ").trim();
+    var cur = String(currency == null || currency === "" ? "INR" : currency).trim().toUpperCase(), rate = null;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(org || ""))) throw new Error("Open a studio first");
     if (!/^[a-z0-9][a-z0-9_-]{1,39}$/.test(String(plan || ""))) throw new Error("Choose the plan");
     if (interval !== "monthly" && interval !== "yearly") throw new Error("Choose monthly or yearly");
@@ -1136,10 +1209,18 @@
     if (start && !/^\d{4}-\d{2}-\d{2}$/.test(start)) throw new Error("Period start must be a date");
     if (paidOn && !/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) throw new Error("Paid on must be a date");
     if (r.length > 120) throw new Error("Reference: up to 120 characters");
+    if (!/^[A-Z]{3}$/.test(cur)) throw new Error("Currency must be a 3-letter code such as INR or USD");
+    if (cur !== "INR") rate = fxRate(fx, cur);
     return { p_org: org, p_plan_code: plan, p_interval: interval, p_amount: Math.round(a * 100) / 100, p_method: method,
-      p_period_start: start || null, p_paid_on: paidOn || null, p_reference: r || null, p_currency: "INR", p_fx_rate_to_inr: null };
+      p_period_start: start || null, p_paid_on: paidOn || null, p_reference: r || null, p_currency: cur, p_fx_rate_to_inr: rate };
   }
-  function activateBox(org, name, sub) {
+  // pure (r122): the INR-per-unit exchange rate typed for a non-INR payment (exported for tests)
+  function fxRate(v, cur) {
+    var t = String(v == null ? "" : v).trim(), n = Number(t);
+    if (!t || !isFinite(n) || !(n > 0) || n > 100000) throw new Error("Type the exchange rate: rupees for 1 " + (cur || "unit") + " (more than 0, up to 100000)");
+    return n;
+  }
+  function activateBox(org, name, sub, billCurrency) {
     var box = el("div", { id: "activatePlan", cls: "card" });
     box.appendChild(el("h2", { text: "Activate plan" }));
     box.appendChild(el("div", { cls: "muted", text: "When the studio has paid (UPI / bank transfer): records the payment with a GST invoice, makes the plan active for the period and lifts the trial limits and read-only - in one step. The studio admin then chooses what happens to the sample data." }));
@@ -1158,16 +1239,26 @@
     var start = el("input", { type: "date", "aria-label": "Period start" }); start.value = today;
     var paid = el("input", { type: "date", "aria-label": "Paid on" }); paid.value = today;
     var ref = el("input", { type: "text", maxlength: "120", placeholder: "UTR / reference", "aria-label": "Payment reference" });
+    // r122 (A): paid in which currency (the studio's billing currency by default) + the rate to INR for any other one
+    var defCur = /^[A-Z]{3}$/.test(String(billCurrency || "")) ? billCurrency : "INR";
+    var selCur = el("select", { "aria-label": "Currency paid" });
+    ["INR", "USD", "AED", "EUR", "GBP"].concat(["INR", "USD", "AED", "EUR", "GBP"].indexOf(defCur) < 0 ? [defCur] : []).forEach(function (c) {
+      var o = el("option", { value: c, text: c }); if (c === defCur) o.selected = true; selCur.appendChild(o); });
+    var fxIn = el("input", { type: "number", min: "0", max: "100000", step: "0.000001", "aria-label": "Rupees for 1 unit of the currency paid" });
+    var fxFld = field("Rate: rupees for 1 " + defCur, fxIn);
+    var showFx = function () { fxFld.hidden = selCur.value === "INR"; var s = fxFld.querySelector ? fxFld.querySelector("span") : null; if (s) s.textContent = "Rate: rupees for 1 " + selCur.value; };
+    selCur.addEventListener("change", showFx); showFx();
     var endTxt = el("div", { cls: "muted" });
     var showEnd = function () { var e = periodEnd(start.value, selIv.value); endTxt.textContent = e ? "Plan period: " + date(start.value) + " – " + date(e) : ""; };
     selIv.addEventListener("change", showEnd); start.addEventListener("change", showEnd); showEnd();
     var go = el("button", { cls: "btn primary", type: "button", text: "Activate plan…" });
     if (!selPlan.options.length) { go.disabled = true; endTxt.textContent = "Add an active plan in Plans first."; }
     go.addEventListener("click", function () {
-      var a; try { a = activateArgs(org, selPlan.value, selIv.value, amt.value, meth.value, start.value, paid.value, ref.value); } catch (e) { showErr(e); return; }
+      if (go.disabled) return;
+      var a; try { a = activateArgs(org, selPlan.value, selIv.value, amt.value, meth.value, start.value, paid.value, ref.value, selCur.value, fxIn.value); } catch (e) { showErr(e); return; }
       var pe = periodEnd(a.p_period_start || today, a.p_interval);
       if (!window.confirm("Activate " + (selPlan.options[selPlan.selectedIndex] ? selPlan.options[selPlan.selectedIndex].text.split(" · ")[0] : a.p_plan_code) +
-        " (" + a.p_interval + ") for " + (name || "this studio") + "?\n\nPayment " + moneyBoth(a.p_amount) + " by " + a.p_method + (a.p_reference ? " (" + a.p_reference + ")" : "") +
+        " (" + a.p_interval + ") for " + (name || "this studio") + "?\n\nPayment " + moneyBoth(a.p_amount, a.p_currency) + (a.p_fx_rate_to_inr ? " at " + a.p_fx_rate_to_inr + " INR per " + a.p_currency : "") + " by " + a.p_method + (a.p_reference ? " (" + a.p_reference + ")" : "") +
         "\nPeriod " + date(a.p_period_start || today) + " – " + date(pe) + "\n\nThis records the payment with a GST invoice and makes the plan active now.")) return;
       go.disabled = true;
       call("hq_activate_plan", a).then(function (r) {
@@ -1180,7 +1271,7 @@
       }).catch(showErr).then(function () { go.disabled = false; });
     });
     box.appendChild(el("div", { cls: "form" }, [field("Plan", selPlan), field("Billing", selIv), field("Amount paid (incl. tax)", amt),
-      field("Paid by", meth), field("Paid on", paid), field("Period start", start), field("Reference (UTR)", ref), go]));
+      field("Currency", selCur), fxFld, field("Paid by", meth), field("Paid on", paid), field("Period start", start), field("Reference (UTR)", ref), go]));
     box.appendChild(endTxt);
     return box;
   }
@@ -1201,7 +1292,8 @@
     k.appendChild(kpi("New plan requests", int(REQ_NEW.plan), "from studios on a trial", REQ_NEW.plan ? "warn" : "", function () { reqTab("plan"); }));
     k.appendChild(kpi("New sales enquiries", int(REQ_NEW.sales), "from the Contact sales form", REQ_NEW.sales ? "warn" : "", function () { reqTab("sales"); }));
     k.appendChild(kpi("New suggestions", int(REQ_NEW.sugg), "from the app and the website", REQ_NEW.sugg ? "warn" : "", function () { reqTab("sugg"); }));
-    k.appendChild(kpi("Alerts go to", ALERT_TO || "—", "change in E-mail alerts", "mail", function () { reqTab("alerts"); }));
+    // r122 (I): the card opens the E-mail alerts form only for a role that may change it
+    k.appendChild(kpi("Alerts go to", ALERT_TO || "—", can("settings.write") ? "change in E-mail alerts" : "set by an HQ admin", "mail", can("settings.write") ? function () { reqTab("alerts"); } : null));
     var nb = $("#navReqCount"), n = REQ_NEW.plan + REQ_NEW.sales + REQ_NEW.sugg;
     if (nb) { nb.textContent = n > 99 ? "99+" : String(n); nb.hidden = !(n > 0); }
     paintBnav();
@@ -1293,10 +1385,11 @@
         ["contacted", "won", "lost"].filter(function (k) { return k !== x.status && can("inbox.write"); }).forEach(function (k) {
           var b = el("button", { cls: "btn", type: "button", text: "Mark " + REQ_STATUS[k][0].toLowerCase() });
           b.addEventListener("click", function () {
+            if (b.disabled) return;
             var note = ask("Mark this request " + REQ_STATUS[k][0].toLowerCase() + ". Note (optional):", x.hq_note || "");
             if (note == null) return;
-            call("hq_set_sales_request_status", { p_id: x.id, p_status: k, p_note: note || null })
-              .then(function () { okMsg("Request marked " + REQ_STATUS[k][0].toLowerCase() + "."); loadRequests().catch(showErr); }).catch(showErr);
+            busy(b, function () { return call("hq_set_sales_request_status", { p_id: x.id, p_status: k, p_note: note || null })
+              .then(function () { okMsg("Request marked " + REQ_STATUS[k][0].toLowerCase() + "."); loadRequests().catch(showErr); }); });
           });
           acts.push(b);
         });
@@ -1326,6 +1419,22 @@
     if (c.trialEnds) out.push("Trial ends: " + date(c.trialEnds));
     return out.join("\n");
   }
+  // pure (r122, 0330): validated args for hq_set_subscription - never a trial status / trial date (Extend trial does
+  // that), "active" needs a period end (typed, or the one the studio already has), a reason of 5+ characters (exported for tests)
+  function subscriptionArgs(org, plan, status, start, end, reason, curEnd) {
+    var r = String(reason == null ? "" : reason).replace(/\s+/g, " ").trim();
+    if (!plan && !status && !start && !end) throw new Error("Nothing to change - pick a plan, a status or a date first.");
+    if (status === "trial") throw new Error("A free trial is not set here - use Free trial -> Extend trial.");
+    if (status && ["active", "past_due", "cancelled"].indexOf(status) < 0) throw new Error("Choose active, past due or cancelled.");
+    if (start && !/^\d{4}-\d{2}-\d{2}$/.test(start)) throw new Error("Period start must be a date");
+    if (end && !/^\d{4}-\d{2}-\d{2}$/.test(end)) throw new Error("Period end must be a date");
+    if (start && end && end < start) throw new Error("Period end is before period start");
+    if (status === "active" && !end && !curEnd) throw new Error("A paying (active) plan needs a period end - type the date the paid period ends.");
+    if (r.length < 5) throw new Error("Write the reason for this change (at least 5 characters).");
+    if (r.length > 500) throw new Error("The reason can be up to 500 characters.");
+    return { p_org: org, p_plan_code: plan || null, p_status: status || null, p_trial_ends_at: null,
+      p_period_start: start || null, p_period_end: end || null, p_notes: null, p_reason: r };
+  }
   /* ---------------- r24 (0271) sales enquiries + suggestions + their e-mail settings ---------------- */
   var SE_STATUS = { new: ["New", "warn"], contacted: ["Contacted", ""], won: ["Won", "ok"], lost: ["Lost", "bad"] };
   var SG_STATUS = { new: ["New", "warn"], reviewed: ["Reviewed", ""], done: ["Done", "ok"] };
@@ -1340,16 +1449,17 @@
     Object.keys(map).filter(function (k) { return k !== "new" && k !== x.status; }).forEach(function (k) {
       var b = el("button", { cls: "btn", type: "button", text: "Mark " + map[k][0].toLowerCase() });
       b.addEventListener("click", function () {
-        call(fn, { p_id: x.id, p_status: k, p_note: null })
-          .then(function () { okMsg("Marked " + map[k][0].toLowerCase() + "."); reload().catch(showErr); }).catch(showErr);
+        busy(b, function () { return call(fn, { p_id: x.id, p_status: k, p_note: null })
+          .then(function () { okMsg("Marked " + map[k][0].toLowerCase() + "."); reload().catch(showErr); }); });
       });
       out.push(b);
     });
     var n = el("button", { cls: "btn", type: "button", text: x.hq_note ? "Edit note" : "Add note" });
     n.addEventListener("click", function () {
+      if (n.disabled) return;
       var note = ask("Note (leave empty to remove it):", x.hq_note || "");
       if (note == null) return;
-      call(fn, { p_id: x.id, p_status: null, p_note: note }).then(function () { okMsg("Note saved."); reload().catch(showErr); }).catch(showErr);
+      busy(n, function () { return call(fn, { p_id: x.id, p_status: null, p_note: note }).then(function () { okMsg("Note saved."); reload().catch(showErr); }); });
     });
     out.push(n);
     return out;
@@ -1413,8 +1523,8 @@
   function saveSalesSettings() {
     var em = $("#seEmail").value.trim();
     if (!/^[^\s@<>",;:]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/.test(em)) { showErr(new Error("Enter a valid e-mail address")); return; }
-    call("hq_set_sales_enquiry_settings", { p_notify_email: em, p_auto_reply: $("#seAck").checked, p_form_open: $("#seOpen").checked })
-      .then(function () { ALERT_TO = em; paintReqCounts(); okMsg("Saved. Alerts go to " + em + "."); }).catch(showErr);
+    busy($("#btnSeSet"), function () { return call("hq_set_sales_enquiry_settings", { p_notify_email: em, p_auto_reply: $("#seAck").checked, p_form_open: $("#seOpen").checked })
+      .then(function () { ALERT_TO = em; paintReqCounts(); okMsg("Saved. Alerts go to " + em + "."); }); });
   }
   function loadRequestsTab() { loadRequests().catch(showErr); loadSales().catch(showErr); loadSuggestions().catch(showErr); }
 
@@ -1439,7 +1549,8 @@
       box.appendChild(el("h4", { text: "People" }));
       us.forEach(function (u) {
         var b = el("button", { type: "button" }, [el("span", { text: maskEmail(u.email) || "—" }), el("span", { cls: "muted", text: [u.studio, u.role].filter(Boolean).join(" · ") })]);
-        b.addEventListener("click", function () { closeSearch(); if (!canTab("people")) return; showTab("people"); $("#qUsers").value = u.email || ""; loadUsers(0).catch(showErr); });
+        // r122 (C): the People search gets what was TYPED (the list e-mail is masked - searching for it finds nobody)
+        b.addEventListener("click", function () { closeSearch(); if (!canTab("people")) return; showTab("people"); $("#qUsers").value = q; loadUsers(0).catch(showErr); });
         box.appendChild(b);
       });
       if (!us.length) box.appendChild(el("div", { cls: "empty", text: "  Nobody matches." }));
@@ -1457,8 +1568,9 @@
     if (r.length > 500) throw new Error("The reason can be up to 500 characters");
     return { p_org: org, p_days: d, p_reason: r };
   }
-  async function loadTrialInfo(org, name, box) {
+  async function loadTrialInfo(org, name, box, seq) {
     var t = await call("hq_trial_info", { p_org: org }); t = t && !Array.isArray(t) ? t : {};
+    if (seq != null && seq !== detailSeq) return;   // r122 (I): another studio was opened meanwhile - never paint its trial days here
     clear(box);
     var x = t.extension || null, ended = t.trial_ends_at && new Date(t.trial_ends_at).getTime() <= Date.now(), tz = t.timezone || null;
     var subEnd = document.getElementById("subTrialEnd");
@@ -1568,9 +1680,12 @@
     ux.forEach(function (p) {
       var b = el("button", { cls: "btn sm", type: "button", text: "Mark realised" });
       b.addEventListener("click", function () {
+        if (b.disabled) return;
         var ref = ask("FIRA / FIRC reference for " + (p.invoice_no || "") + ":"); if (!ref) return;
         var on = ask("Realised on (YYYY-MM-DD):", istDay(Date.now())); if (!on) return;
-        call("hq_record_realisation", { p_id: p.id, p_fira_firc_ref: ref, p_realised_on: on }).then(function () { okMsg("Realisation recorded."); loadBilling().catch(showErr); }).catch(showErr);
+        var bad = realisedDateProblem(on, p.paid_on, istDay(Date.now()));   // r122 (I)
+        if (bad) { showErr(new Error(bad)); return; }
+        busy(b, function () { return call("hq_record_realisation", { p_id: p.id, p_fira_firc_ref: ref, p_realised_on: on }).then(function () { okMsg("Realisation recorded."); loadBilling().catch(showErr); }); });
       });
       ul.appendChild(el("li", null, [el("span", { text: (p.studio || "—") + " · " + (p.invoice_no || "") + " · " + money(p.amount, p.currency) }), el("span", { cls: "muted", text: (p.tax_regime || "") + " · " + date(p.paid_on) }), b]));
     });
@@ -1583,8 +1698,22 @@
     if (typeof v !== "number" && /^[\s\u00a0\u3000]*[=+\-@\t\r\uff1d\uff0b\uff0d\uff20]/.test(s)) s = "'" + s;
     return '"' + s.replace(/"/g, '""') + '"';
   }
+  // pure (r122): why a "realised on" day can't be used, or "" (a real YYYY-MM-DD day, not before the payment, not in the future) - exported for tests
+  function realisedDateProblem(v, paidOn, today) {
+    var s = String(v || "").trim(), m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return "Realised on must be a date like 2026-11-03.";
+    var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return "Realised on is not a real day.";
+    if (today && s > today) return "Realised on can't be in the future.";
+    if (paidOn && s < String(paidOn).slice(0, 10)) return "Realised on can't be before the payment date (" + String(paidOn).slice(0, 10) + ").";
+    return "";
+  }
+  // r122 (I): the export starts only after the HQ log row is written (no log - no file)
   function exportCsv() {
-    logReveal("billing", "payments", "csv_export").catch(function () {});   // r28: an export is recorded like a reveal
+    var btn = $("#btnCsv");
+    busy(btn, function () { return logReveal("billing", "payments", "csv_export").then(writeCsv); });
+  }
+  function writeCsv() {
     var r = lastBilling || {}, rows = [["paid_on", "studio", "invoice_no", "amount", "currency", "net_amount", "gst_amount", "method", "reference", "period_start", "period_end", "status", "void_reason"]];
     (r.payments || []).forEach(function (p) {
       rows.push([p.paid_on, p.studio, p.invoice_no, p.amount, p.currency, p.net_amount, p.gst_amount, p.method, p.reference, p.period_start, p.period_end, p.voided ? "void" : "paid", p.void_reason]);
@@ -1599,9 +1728,14 @@
     if (!org) { showErr(new Error("Open a studio (Studios tab) and choose “Record a payment”, or paste its id.")); return; }
     var amt = Number($("#rAmount").value);
     if (!(amt > 0)) { showErr(new Error("Amount must be more than 0")); return; }
-    var b = $("#btnRecord"); b.disabled = true;
+    // r122 (A): a 3-letter currency; any currency other than INR needs its rate to INR (the database refuses a currency
+    // other than the studio's billing currency, and the same payment twice within a day)
+    var cur = String($("#rCur").value || "INR").trim().toUpperCase(), fx = null;
+    if (!/^[A-Z]{3}$/.test(cur)) { showErr(new Error("Currency must be a 3-letter code such as INR or USD")); return; }
+    if (cur !== "INR") { try { fx = fxRate($("#rFx").value, cur); } catch (e) { showErr(e); return; } }
+    var b = $("#btnRecord"); if (b.disabled) return; b.disabled = true;
     call("hq_record_payment", { p_org: org, p_amount: amt, p_paid_on: $("#rPaidOn").value || istDay(Date.now()), p_method: $("#rMethod").value,
-      p_currency: ($("#rCur").value || "INR").toUpperCase(), p_fx_rate_to_inr: $("#rFx").value ? Number($("#rFx").value) : null, p_period_start: $("#rPs").value || null, p_period_end: $("#rPe").value || null, p_reference: $("#rRef").value || null })
+      p_currency: cur, p_fx_rate_to_inr: fx, p_period_start: $("#rPs").value || null, p_period_end: $("#rPe").value || null, p_reference: $("#rRef").value || null })
       .then(function (p) { okMsg("Payment recorded" + (p && p.invoice_no ? " — invoice " + p.invoice_no : "") + "."); $("#rAmount").value = ""; $("#rRef").value = ""; refreshAfterWrite(org); })
       .catch(showErr).then(function () { b.disabled = false; });
   }
@@ -1638,10 +1772,25 @@
   function saveSettings() {
     var rate; try { rate = requiredNumber($("#sRate").value, "GST rate (%)", 0, 50); } catch (e) { showErr(e); return; }
     if (rate === 0 && !window.confirm("GST rate 0%? New Helm invoices will charge NO GST. Press OK only if that is right (for example an export under LUT).")) return;
-    call("hq_set_billing_settings", { p_legal_name: $("#sName").value, p_gstin: $("#sGstin").value || null, p_address: $("#sAddr").value || null,
-      p_gst_rate: rate, p_invoice_prefix: $("#sPrefix").value })
-      .then(function () { return call("hq_set_seller_tax", { p_seller_country: $("#sCountry").value || "IN", p_seller_state: $("#sState").value || null,
-        p_lut_number: $("#sLut").value || null, p_lut_valid_from: $("#sLutFrom").value || null, p_lut_valid_to: $("#sLutTo").value || null }); }).then(function () { okMsg("Invoice settings saved — used for new payments."); }).catch(showErr);
+    // r122 (H): two saves - if the second fails, say the first one WAS saved
+    busy($("#btnSettings"), function () { return saveSteps([
+      ["invoice details (name, GSTIN, address, GST rate, prefix)", function () { return call("hq_set_billing_settings", { p_legal_name: $("#sName").value, p_gstin: $("#sGstin").value || null, p_address: $("#sAddr").value || null,
+        p_gst_rate: rate, p_invoice_prefix: $("#sPrefix").value }); }],
+      ["seller country / state / LUT", function () { return call("hq_set_seller_tax", { p_seller_country: $("#sCountry").value || "IN", p_seller_state: $("#sState").value || null,
+        p_lut_number: $("#sLut").value || null, p_lut_valid_from: $("#sLutFrom").value || null, p_lut_valid_to: $("#sLutTo").value || null }); }]
+    ]).then(function () { okMsg("Invoice settings saved — used for new payments."); }); });
+  }
+  // r122 (H): run save steps in order; a failure after the first step says which steps were saved and which one was not
+  function saveSteps(list) {
+    var done = [];
+    return list.reduce(function (pr, st) {
+      return pr.then(function () {
+        return Promise.resolve().then(st[1]).then(function (v) { done.push(st[0]); return v; }, function (e) {
+          if (!done.length) throw e;
+          throw new Error("Saved: " + done.join("; ") + ". NOT saved: " + st[0] + " - " + String((e && e.message) || "unknown error") + ". Fix it and press Save again (what was saved stays saved).");
+        });
+      });
+    }, Promise.resolve());
   }
 
   // r118 (F-02): "Refresh past-due" writes to real studios - say so first (the database then asks for a fresh two-step code)
@@ -1709,9 +1858,12 @@
     loadPlanCheckout().catch(showErr);
   }
   function saveTaxRule() {
-    call("hq_upsert_tax_rule", { p_country: $("#txCountry").value, p_region: $("#txRegion").value || null, p_regime: $("#txRegime").value,
-      p_rate: Number($("#txRate").value), p_invoice_note: $("#txNote").value || null, p_effective_from: $("#txFrom").value || null,
-      p_effective_to: $("#txTo").value || null, p_active: $("#txActive").checked }).then(function () { okMsg("Tax rule saved."); loadPlans().catch(showErr); }).catch(showErr);
+    // r122 (F): a blank rate is an error (never a silent 0); a typed 0 asks first
+    var rate; try { rate = requiredNumber($("#txRate").value, "Rate %", 0, 50); } catch (e) { showErr(e); return; }
+    if (rate === 0 && !window.confirm("Tax rate 0%? Invoices under this rule will charge NO tax. Press OK only if that is right (for example an export under LUT).")) return;
+    busy($("#btnTax"), function () { return call("hq_upsert_tax_rule", { p_country: $("#txCountry").value, p_region: $("#txRegion").value || null, p_regime: $("#txRegime").value,
+      p_rate: rate, p_invoice_note: $("#txNote").value || null, p_effective_from: $("#txFrom").value || null,
+      p_effective_to: $("#txTo").value || null, p_active: $("#txActive").checked }).then(function () { okMsg("Tax rule saved."); loadPlans().catch(showErr); }); });
   }
   /* ---------------- 0056 per-plan checkout details ---------------- */
   var planCo = [];
@@ -1772,11 +1924,13 @@
     if (String($("#pcDesc").value || "").trim() || String($("#pcFeat").value || "").trim() || $("#pcRzpM").value || $("#pcRzpY").value) {
       try { co = planCheckoutArgs(code, "INR", $("#pcDesc").value, $("#pcFeat").value, $("#pcRzpM").value, $("#pcRzpY").value); } catch (e) { showErr(e); return; }
     }
-    call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: pm, p_currency: "INR", p_active: $("#plActive").checked })
-      .then(function () { return u ? call("hq_upsert_plan_price", u) : null; })   // r25: the fixed USD price next to INR
-      .then(function () { return iy ? call("hq_upsert_plan_price", { p_plan_code: code, p_currency: "INR", p_price_monthly: pm, p_price_yearly: Number(iy) }) : null; })
-      .then(function () { return co ? call("hq_set_plan_checkout", co) : null; })
-      .then(function () { okMsg("Plan saved. Visible plans show on the website pricing page."); $("#planEditor").hidden = true; loadPlans().catch(showErr); }).catch(showErr);
+    // r122 (H): up to four saves - a later failure says which parts were saved
+    var st = [["the plan (name, ₹ per month, visible)", function () { return call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: pm, p_currency: "INR", p_active: $("#plActive").checked }); }]];
+    if (u) st.push(["the USD prices", function () { return call("hq_upsert_plan_price", u); }]);   // r25: the fixed USD price next to INR
+    if (iy) st.push(["the ₹ yearly price", function () { return call("hq_upsert_plan_price", { p_plan_code: code, p_currency: "INR", p_price_monthly: pm, p_price_yearly: Number(iy) }); }]);
+    if (co) st.push(["the website / checkout text", function () { return call("hq_set_plan_checkout", co); }]);
+    busy($("#btnPlan"), function () { return saveSteps(st).then(function () { okMsg("Plan saved. Visible plans show on the website pricing page."); $("#planEditor").hidden = true; loadPlans().catch(showErr); },
+      function (e) { loadPlans().catch(function () {}); throw e; }); });
   }
 
   /* ---------------- activity + operators ---------------- */
@@ -1820,7 +1974,9 @@
     "hq.sales_enquiry.update": "answered a sales enquiry", "hq.suggestion.update": "marked a suggestion", "hq.reveal": "showed a masked detail", "hq.credit.grant": "added a studio credit" };
   function actWord(a) { return ACT_WORDS[a] || String(a || "").replace(/^hq\./, "").replace(/[._]/g, " "); }
   function when(v) { return v ? ago2(v) : "never"; }
-  function teamAction(text, cls, fn) { var b = el("button", { cls: "btn sm" + (cls ? " " + cls : ""), type: "button", text: text }); b.addEventListener("click", fn); return b; }
+  // r122 (G): fn(run) - run(promiseFn) keeps the button disabled while the HQ call runs
+  function teamAction(text, cls, fn) { var b = el("button", { cls: "btn sm" + (cls ? " " + cls : ""), type: "button", text: text });
+    b.addEventListener("click", function () { if (b.disabled) return; fn(function (job) { return busy(b, job); }); }); return b; }
   function teamRow(x) {
     var st = S ? S.statusOf(x.status) : [x.status, ""];
     var nm = el("div", { cls: "nm" }, [el("span", { text: x.name ? x.name + " · " + x.email : x.email }),
@@ -1853,32 +2009,33 @@
         sel.addEventListener("change", function () {
           var to = sel.value;
           if (!window.confirm("Change " + x.email + " from " + (x.role_label || x.role) + " to " + (S ? S.roleLabel(to) : to) + "? They and every Owner get an e-mail.")) { sel.value = x.role; return; }
-          call("hq_staff_set_role", { p_email: x.email, p_role: to }).then(function () { okMsg("Role changed."); loadTeam().catch(showErr); }).catch(function (e) { sel.value = x.role; showErr(e); });
+          busy(sel, function () { return call("hq_staff_set_role", { p_email: x.email, p_role: to }).then(function () { okMsg("Role changed."); loadTeam().catch(showErr); }); },
+            function (e) { sel.value = x.role; showErr(e); });
         });
         acts.appendChild(sel);
       }
       if (can("staff.suspend") && (x.role !== "owner" || mine === "owner")) {
-        if (x.status === "active" || x.status === "invited") acts.appendChild(teamAction("Pause access", "danger", function () {
+        if (x.status === "active" || x.status === "invited") acts.appendChild(teamAction("Pause access", "danger", function (run) {
           var why = ask("Pause Helm HQ access for " + x.email + " now? They are signed out of HQ everywhere. Reason (kept in the HQ log):", "");
           if (!why) return;
-          call("hq_staff_suspend", { p_email: x.email, p_reason: why }).then(function () { okMsg("Access paused."); loadTeam().catch(showErr); }).catch(showErr);
+          run(function () { return call("hq_staff_suspend", { p_email: x.email, p_reason: why }).then(function () { okMsg("Access paused."); loadTeam().catch(showErr); }); });
         }));
-        if (sessions.length) acts.appendChild(teamAction("Sign out everywhere", "", function () {
+        if (sessions.length) acts.appendChild(teamAction("Sign out everywhere", "", function (run) {
           if (!window.confirm("Sign " + x.email + " out of Helm HQ on every device? They can sign in again.")) return;
-          call("hq_staff_signout", { p_email: x.email }).then(function (r) { okMsg("Signed out of " + int(r && r.sessions_ended) + " sign-in(s)."); loadTeam().catch(showErr); }).catch(showErr);
+          run(function () { return call("hq_staff_signout", { p_email: x.email }).then(function (r) { okMsg("Signed out of " + int(r && r.sessions_ended) + " sign-in(s)."); loadTeam().catch(showErr); }); });
         }));
       }
-      if (can("staff.manage") && x.status === "suspended") acts.appendChild(teamAction("Give access back", "", function () {
-        call("hq_staff_restore", { p_email: x.email }).then(function () { okMsg("Access given back."); loadTeam().catch(showErr); }).catch(showErr);
+      if (can("staff.manage") && x.status === "suspended") acts.appendChild(teamAction("Give access back", "", function (run) {
+        run(function () { return call("hq_staff_restore", { p_email: x.email }).then(function () { okMsg("Access given back."); loadTeam().catch(showErr); }); });
       }));
-      if (can("staff.manage")) acts.appendChild(teamAction("Remove", "danger", function () {
+      if (can("staff.manage")) acts.appendChild(teamAction("Remove", "danger", function (run) {
         if (!window.confirm("Remove " + x.email + " from Helm HQ? Their HQ access ends now. Nothing is deleted - you can add them again later.")) return;
         var why = ask("Reason (optional, kept in the HQ log):", ""); if (why == null) return;
-        call("hq_staff_remove", { p_email: x.email, p_reason: why || null }).then(function () { okMsg("Removed from HQ."); loadTeam().catch(showErr); }).catch(showErr);
+        run(function () { return call("hq_staff_remove", { p_email: x.email, p_reason: why || null }).then(function () { okMsg("Removed from HQ."); loadTeam().catch(showErr); }); });
       }));
     }
-    if (x.status === "removed" && can("staff.manage")) acts.appendChild(teamAction("Add back", "", function () {
-      call("hq_staff_restore", { p_email: x.email }).then(function () { okMsg("Added back - they get access at their next sign-in."); loadTeam().catch(showErr); }).catch(showErr);
+    if (x.status === "removed" && can("staff.manage")) acts.appendChild(teamAction("Add back", "", function (run) {
+      run(function () { return call("hq_staff_restore", { p_email: x.email }).then(function () { okMsg("Added back - they get access at their next sign-in."); loadTeam().catch(showErr); }); });
     }));
     return el("div", { cls: "tm" }, [el("div", { cls: "av", "aria-hidden": "true", text: S ? S.initials(x.name, x.email) : "?" }), body, acts]);
   }
@@ -1923,10 +2080,10 @@
     var e = String($("#tmEmail").value || "").trim().toLowerCase(), role = $("#tmRole").value, nm = String($("#tmName").value || "").trim();
     if (!/^[^\s@<>",;:]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/.test(e)) { showErr(new Error("Enter a valid e-mail address.")); return; }
     if (!window.confirm("Add " + e + " to Helm HQ as " + (S ? S.roleLabel(role) : role) + "?\n\nThey sign in with exactly this address, set up two-step, and see only what this role allows. They and every Owner get an e-mail.")) return;
-    call("hq_staff_invite", { p_email: e, p_role: role, p_name: nm || null }).then(function () {
+    busy($("#btnTmAdd"), function () { return call("hq_staff_invite", { p_email: e, p_role: role, p_name: nm || null }).then(function () {
       $("#tmEmail").value = ""; $("#tmName").value = "";
       okMsg("Added. " + e + " can now sign in at helm.events/login with this address and set up two-step."); loadTeam().catch(showErr);
-    }).catch(showErr);
+    }); });
   }
   /* ---- r39 (0288): Google-only sign-in for Helm staff (Owner). The database decides; this shows the switch + checklist ---- */
   var sgData = null;
@@ -1963,11 +2120,17 @@
       loadGoogleOnly().catch(showErr); loadTeam().catch(showErr);
     }).catch(showErr);
   }
+  // pure (r122 F): the sign-in rules, checked against the same limits as the database (idle 5-240 min, longest sign-in
+  // 1-24 h, fresh code 5-240 min) - a blank or out-of-range value is an error, never a silent default (exported for tests)
+  function teamSettingsArgs(idle, maxH, reauth, ipOn, ips) {
+    var whole = function (v, label, lo, hi) { var n = requiredNumber(v, label, lo, hi); if (Math.floor(n) !== n) throw new Error(label + " must be a whole number"); return n; };
+    return { p_idle_minutes: whole(idle, "Sign out after (minutes idle)", 5, 240), p_max_hours: whole(maxH, "Longest sign-in (hours)", 1, 24),
+      p_reauth_minutes: whole(reauth, "Fresh code (minutes)", 5, 240), p_ip_allowlist_on: !!ipOn, p_ip_allowlist: ips || [] };
+  }
   function saveTeamSettings() {
-    var ips = S ? S.ipList($("#tmIps").value) : [];
-    call("hq_set_staff_settings", { p_idle_minutes: Number($("#tmIdle").value) || 30, p_max_hours: Number($("#tmMax").value) || 12,
-      p_reauth_minutes: Number($("#tmReauth").value) || 15, p_ip_allowlist_on: $("#tmIpOn").checked, p_ip_allowlist: ips })
-      .then(function (st) { paintTeamSettings(st || {}); okMsg("Sign-in rules saved."); }).catch(showErr);
+    var ips = S ? S.ipList($("#tmIps").value) : [], a;
+    try { a = teamSettingsArgs($("#tmIdle").value, $("#tmMax").value, $("#tmReauth").value, $("#tmIpOn").checked, ips); } catch (e) { showErr(e); return; }
+    busy($("#btnTmSet"), function () { return call("hq_set_staff_settings", a).then(function (st) { paintTeamSettings(st || {}); okMsg("Sign-in rules saved."); }); });
   }
 
   /* ---------------- staff access (0248): reserved e-mail domains + staff allowlist ---------------- */
@@ -2018,14 +2181,14 @@
   }
   function addStaff() {
     var e = String($("#stEmail").value || "").trim().toLowerCase(); if (!e) return;
-    call("hq_staff_allow_add", { p_email: e, p_note: String($("#stNote").value || "").trim() || null })
-      .then(function () { $("#stEmail").value = ""; $("#stNote").value = ""; okMsg("Added to the staff allowlist — this address can now be given a login."); loadStaff().catch(showErr); }).catch(showErr);
+    busy($("#btnStAdd"), function () { return call("hq_staff_allow_add", { p_email: e, p_note: String($("#stNote").value || "").trim() || null })
+      .then(function () { $("#stEmail").value = ""; $("#stNote").value = ""; okMsg("Added to the staff allowlist — this address can now be given a login."); loadStaff().catch(showErr); }); });
   }
   function addDomain() {
     var d = String($("#stDomain").value || "").trim().toLowerCase(); if (!d) return;
     if (!window.confirm("Reserve " + d + " (and its sub-domains)? Nobody outside the staff allowlist will be able to sign up with it.")) return;
-    call("hq_reserved_domain_add", { p_domain: d, p_note: String($("#stDomNote").value || "").trim() || null })
-      .then(function () { $("#stDomain").value = ""; $("#stDomNote").value = ""; okMsg("Domain reserved."); loadStaff().catch(showErr); }).catch(showErr);
+    busy($("#btnStDom"), function () { return call("hq_reserved_domain_add", { p_domain: d, p_note: String($("#stDomNote").value || "").trim() || null })
+      .then(function () { $("#stDomain").value = ""; $("#stDomNote").value = ""; okMsg("Domain reserved."); loadStaff().catch(showErr); }); });
   }
 
   /* ---------------- r21 (0249): HQ two-step readiness ---------------- */
@@ -2099,7 +2262,7 @@
   }
   function loadDemo() {
     return new Promise(function (resolve, reject) {
-      var sc = document.createElement("script"); sc.src = "hq-demo.js?v=1";
+      var sc = document.createElement("script"); sc.src = "hq-demo.js?v=2";
       sc.addEventListener("load", resolve); sc.addEventListener("error", reject); document.head.appendChild(sc);
     });
   }
@@ -2221,7 +2384,8 @@
     on("#tmRemoved", "change", function () { loadTeam().catch(showErr); });
     on("#btnStAdd", "click", addStaff);
     on("#btnStDom", "click", addDomain);
-    on("#btnRefreshBilling", "click", function () { if (!window.confirm(REFRESH_PAST_DUE_CONFIRM)) return; call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }).catch(showErr); });
+    on("#btnRefreshBilling", "click", function () { var rb = $("#btnRefreshBilling"); if (rb.disabled || !window.confirm(REFRESH_PAST_DUE_CONFIRM)) return;
+      busy(rb, function () { return call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }); }); });
     on("#fStatus", "change", function () { loadStudios(0).catch(showErr); });
     on("#qStudios", "input", function () { clearTimeout(sTimer); sTimer = setTimeout(function () { loadStudios(0).catch(showErr); }, 300); });
     on("#qUsers", "input", function () { clearTimeout(uTimer); uTimer = setTimeout(function () { loadUsers(0).catch(showErr); }, 300); });

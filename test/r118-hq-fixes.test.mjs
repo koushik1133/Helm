@@ -62,7 +62,7 @@ t('F-01 hq.js: the owner card shows masked e-mails with Show (hq_reveal member),
   assert.match(body(J, 'ownerRealEmail'), /revealValue\("member", a\.user_id, "email", v\)/);
 });
 t('F-02 Refresh past-due: a confirm that says it marks studios past due and queues reminders, before the call', () => {
-  const i = J.indexOf('on("#btnRefreshBilling"'); const line = J.slice(i, J.indexOf('\n', i));
+  const i = J.indexOf('on("#btnRefreshBilling"'); const line = J.slice(i, J.indexOf('refreshAfterWrite(null)', i));   // r122: two lines (busy button)
   assert.ok(line.indexOf('window.confirm(REFRESH_PAST_DUE_CONFIRM)') > 0 && line.indexOf('window.confirm') < line.indexOf('call("hq_refresh_billing_status")'));
   assert.match(J, /var REFRESH_PAST_DUE_CONFIRM = "[^"]*PAST DUE[^"]*reminder e-mails \+ bell notices[^"]*"/);
 });
@@ -97,7 +97,7 @@ t('F-06 Save subscription: a confirm that lists the change; nothing picked = not
   const s = cx.f({ plan: 'Studio · ₹2,999', status: 'cancelled', periodEnd: '2026-12-31' });
   assert.match(s, /Plan: Studio/); assert.match(s, /Status: Cancelled - the studio's access changes/); assert.match(s, /Period end: 31 Dec 2026/);
   const i = J.indexOf('call("hq_set_subscription"'); const pre = J.slice(J.lastIndexOf('save.addEventListener("click"', i), i);
-  assert.match(pre, /subscriptionChangeText\(/); assert.match(pre, /if \(!what\)[^\n]*return;/); assert.match(pre, /if \(!window\.confirm\("Change the subscription of "[^\n]*return;/);
+  assert.match(pre, /subscriptionChangeText\(/); assert.match(pre, /(if \(!what\)|subscriptionArgs\()[^\n]*return;/);   // r122: subscriptionArgs refuses "nothing to change" assert.match(pre, /if \(!window\.confirm\("Change the subscription of "[^\n]*return;/);
 });
 t('F-07 / F-15 first-load failure: "couldn\'t load" + Retry (not 404); hq_me failure fails closed; notFound hides the other screens', () => {
   assert.match(H, /<main id="vLoadErr" class="blk" hidden>[\s\S]*id="leRetry"[\s\S]*id="leOut"[\s\S]*<\/main>/);

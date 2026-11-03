@@ -36,7 +36,7 @@ t('HQ: studio page reads hq_trial_info and grants through hq_extend_trial only (
   assert.match(JS, /a = trialExtendArgs\(org, sel\.value, why\.value\)/);
   assert.match(JS, /window\.confirm\("Extend the free trial of "/);
   assert.match(JS, /call\("hq_extend_trial", a\)/);
-  assert.match(JS, /loadTrialInfo\(org, d\.name, trialBox\)/);
+  assert.match(JS, /loadTrialInfo\(org, d\.name, trialBox(, my)?\)/);
   assert.match(JS, /Only one extension is allowed per studio\./);
   assert.doesNotMatch(JS, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
   // the HQ call wrapper only lets hq_* names through - both new RPCs qualify
@@ -44,7 +44,7 @@ t('HQ: studio page reads hq_trial_info and grants through hq_extend_trial only (
   assert.ok(/^hq_[a-z_]+$/.test('hq_trial_info') && /^hq_[a-z_]+$/.test('hq_extend_trial'));
 });
 t('HQ page loads the new hq.js (cache pin bumped), no inline handlers / styles', () => {
-  assert.match(HTML, /<script src="hq\.js\?v=33"><\/script>/);
+  assert.match(HTML, /<script src="hq\.js\?v=34"><\/script>/);
   assert.doesNotMatch(HTML, /\sstyle="/); assert.doesNotMatch(HTML, /\son[a-z]+="/i);
 });
 t('"already used" messages are friendly sentences the app shows as-is (login: friendlyError r9 rule; checkout: 160 chars)', () => {
