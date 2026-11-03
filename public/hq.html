@@ -443,6 +443,7 @@
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><button type="button" class="tab" id="tab-staff" aria-pressed="false">HQ team</button></div>
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1"/></svg><button type="button" class="tab" id="tab-settings" aria-pressed="false">Settings</button></div>
       <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4"/></svg><button type="button" class="tab" id="tab-privacy" aria-pressed="false">Data &amp; privacy</button></div>
+      <div class="navi"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h12v9H3zM7 18h4M9 14v4M17 8h4v12h-4z"/></svg><button type="button" class="tab" id="tab-account" aria-pressed="false">Your devices</button></div>
     </nav>
     <div class="foot">
       <span class="who" id="who"></span>
@@ -864,7 +865,7 @@
         <tr><td><b>Payments to Helm, invoices, UTR</b></td><td>Accounts and GST returns</td><td>Owner, Admin (Billing)</td><td>About 8 years (confirm with the CA)</td></tr>
         <tr><td><b>Logins: e-mail, role, last sign-in, two-step on/off</b></td><td>Security and support</td><td>People roles &mdash; e-mail masked</td><td>While the account exists</td></tr>
         <tr><td><b>Sales enquiries and suggestions</b></td><td>Answering the person</td><td>Requests roles &mdash; contact masked</td><td>24 months</td></tr>
-        <tr><td><b>HQ staff sessions, devices, short IP</b></td><td>Protecting HQ</td><td>Owner, Admin, Security</td><td>12&ndash;18 months</td></tr>
+        <tr><td><b>HQ staff sessions, devices, short IP, rough location</b></td><td>Protecting HQ</td><td>Owner, Admin, Security; each person sees their own (Your devices)</td><td>12&ndash;18 months</td></tr>
         <tr><td><b>HQ activity log (views, changes, reveals)</b></td><td>Accountability (DPDP Rules: logs at least 1 year)</td><td>Owner, Admin, Security</td><td>At least 1 year, better 2&ndash;3 years</td></tr>
       </tbody></table></div>
       <p class="muted gap-t">Breaches: tell the Data Protection Board and each affected person without delay, with a detailed report to the Board within 72 hours; certain cyber incidents go to CERT-In within 6 hours. Details and sources: HQ-SUPERADMIN-RESEARCH.md.</p>
@@ -878,6 +879,18 @@
         <a class="btn" href="/dpa" target="_blank" rel="noopener">Data Processing Agreement</a>
         <a class="btn" href="/subprocessors" target="_blank" rel="noopener">Sub-processors</a>
       </div>
+    </section>
+  </section>
+
+  <!-- r123a (0332): Where you're logged in - my own HQ sign-ins (every HQ person; the database lists only your own) -->
+  <section id="pane-account" hidden>
+    <section class="card" aria-labelledby="dvH">
+      <div class="hd"><h2 id="dvH">Where you’re logged in</h2><span class="muted" id="dvCount"></span></div>
+      <p class="hint">Every device signed in to Helm HQ with your account in the last 30 days. If you don’t recognise one, sign it out and change your password.</p>
+      <div class="scroll"><table class="rt" id="dvTable"><thead><tr><th>Device</th><th>Location</th><th>Signed in</th><th>Last active</th><th>IP address</th><th>Action</th></tr></thead><tbody id="tDevices"></tbody></table></div>
+      <div class="pager" id="pgDevices"></div>
+      <div class="actions"><button class="btn danger" id="btnDvAll" type="button">Log out of all other devices</button></div>
+      <p class="muted gap-t">Location is approximate (from the network, shown only when known) and the IP address is shortened. Signing out another device ends its Helm HQ sign-in at once; this device stays signed in.</p>
     </section>
   </section>
     </div>
@@ -902,13 +915,13 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=331"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=332"></script>
 <script src="auth-ui.js?v=58"></script>
 <script src="hq-invoice.js?v=3"></script>
 <script src="hq-mfa.js?v=1"></script>
-<script src="hq-staff.js?v=2"></script>
-<script src="hq.js?v=34"></script>
-<script src="page-tours.js?v=18"></script>
-<script src="tour.js?v=38"></script>
+<script src="hq-staff.js?v=3"></script>
+<script src="hq.js?v=35"></script>
+<script src="page-tours.js?v=19"></script>
+<script src="tour.js?v=39"></script>
 </body>
 </html>
