@@ -114,7 +114,7 @@ t('F-07 / F-15 first-load failure: "couldn\'t load" + Retry (not 404); hq_me fai
   assert.match(RJ, /blocked\("Referrals & partners couldn't load"/);
 });
 t('F-04 / F-09 Data & privacy: Admin sees HQ sessions; sign-in rules read from hq_me (no fixed 30 min / 12 h)', () => {
-  assert.match(H, /HQ staff sessions, devices, short IP<\/b><\/td><td>Protecting HQ<\/td><td>Owner, Admin, Security<\/td>/);
+  assert.match(H, /HQ staff sessions, devices, short IP(, rough location)?<\/b><\/td><td>Protecting HQ<\/td><td>Owner, Admin, Security(; each person sees their own \(Your devices\))?<\/td>/);   // r123a: + own devices
   assert.doesNotMatch(H, /sign-out after 30 minutes idle, sign-ins end after 12 hours/);
   assert.match(H, /<span id="pvIdle">the set idle time<\/span>[\s\S]{0,80}<span id="pvMax">the set number of hours<\/span>/);
   const pr = body(J, 'paintPrivacyRules'); assert.match(pr, /ME\.idle_minutes/); assert.match(pr, /ME\.max_hours/);

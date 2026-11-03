@@ -15,7 +15,10 @@
    e-mails / phones / PAN / GSTIN are MASKED by default and "Show" is logged first (hq_log_reveal, 0278; a database
    without 0278 logs a throttled hq_heartbeat('reveal') tick instead); phones get a slide-in menu + bottom bar and
    tables turn into cards (data-label from the column headings). ?demo=1 on localhost only = made-up data in the
-   browser (hq-demo.js, never deployed - .vercelignore). */
+   browser (hq-demo.js, never deployed - .vercelignore).
+   r123a (0332): "Where you're logged in" (Team & safety) - my own HQ sign-ins (device, location, masked IP, signed in,
+   last active, Current), 10 a page, "Sign out" per other device + "Log out of all other devices" (hq_my_sessions,
+   hq_sign_out_my_session, hq_sign_out_my_other_sessions); the HQ team list shows device + location per sign-in. */
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
@@ -354,7 +357,7 @@
     Array.prototype.slice.call(document.querySelectorAll("[data-perm]")).forEach(function (n) { if (!can(n.getAttribute("data-perm"))) n.hidden = true; });
     TABS.forEach(function (t) { var b = $("#tab-" + t); if (b && b.parentNode) b.parentNode.hidden = !canTab(t); });
     $("#navgBiz").hidden = !["overview", "studios", "requests", "billing", "plans"].some(canTab);
-    $("#navgTeam").hidden = !["people", "activity", "staff", "settings", "privacy"].some(canTab);
+    $("#navgTeam").hidden = !["people", "activity", "staff", "settings", "privacy", "account"].some(canTab);
     if (!can("studios.read") && !can("people.read")) { var gs = document.querySelector(".gs"); if (gs) gs.hidden = true; }
     var rc = $("#whoRole"); if (rc && ME) { rc.textContent = ME.role_label || ""; rc.hidden = !ME.role_label; }
   }
@@ -376,16 +379,18 @@
   }
 
   /* ---------------- tabs ---------------- */
-  var TABS = ["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff", "settings", "privacy"];
+  var TABS = ["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff", "settings", "privacy", "account"];
   var TITLES = { overview: "Overview", studios: "Studios", billing: "Billing", requests: "Requests", plans: "Plans & prices",
-    people: "People", activity: "Security & activity", staff: "HQ team", settings: "Settings", privacy: "Data & privacy" };
+    people: "People", activity: "Security & activity", staff: "HQ team", settings: "Settings", privacy: "Data & privacy",
+    account: "Where you’re logged in" };
   var SUBS = { overview: "Studios, people and Helm subscriptions. Never a studio’s clients, quotes or prices.",
     studios: "Every studio on Helm: plan, status, people and what they paid Helm.", billing: "Money studios paid Helm, invoices, past due and settings.",
     requests: "Plan requests, sales enquiries and suggestions in one inbox.", plans: "The plans studios can buy, their prices and tax rules.",
     people: "Everyone with a Helm login, their studio and two-step.", activity: "What the HQ team did, and security events across studios.",
     staff: "Who can use Helm HQ, what they can do, and when they last used it.",
     settings: "Money display, Helm addresses, invoice and checkout settings.",
-    privacy: "What HQ stores and shows about studios and people, why, for how long, and who can see it." };
+    privacy: "What HQ stores and shows about studios and people, why, for how long, and who can see it.",
+    account: "Every device signed in to Helm HQ with your account. Sign out the ones you don’t recognise." };
   function showTab(name) {
     if (!canTab(name)) return;
     curTab = name; beat(name, true);
@@ -707,14 +712,15 @@
   }
 
   /* ---------------- studios ---------------- */
-  function pager(node, off, total, go) {
+  function pager(node, off, total, go, size) {
     clear(node);
-    var from = total ? off + 1 : 0, to = Math.min(off + PAGE, total);
+    var n = size > 0 ? size : PAGE;   // r123a: an optional page size (default 25)
+    var from = total ? off + 1 : 0, to = Math.min(off + n, total);
     node.appendChild(el("span", { text: from + "–" + to + " of " + total }));
     var prev = el("button", { cls: "btn", type: "button", text: "‹ Prev" }); prev.disabled = off <= 0;
-    var next = el("button", { cls: "btn", type: "button", text: "Next ›" }); next.disabled = off + PAGE >= total;
-    prev.addEventListener("click", function () { go(Math.max(0, off - PAGE)); });
-    next.addEventListener("click", function () { go(off + PAGE); });
+    var next = el("button", { cls: "btn", type: "button", text: "Next ›" }); next.disabled = off + n >= total;
+    prev.addEventListener("click", function () { go(Math.max(0, off - n)); });
+    next.addEventListener("click", function () { go(off + n); });
     node.appendChild(prev); node.appendChild(next);
   }
   async function loadStudios(off) {
@@ -1971,7 +1977,8 @@
     "hq.studio.suspend": "paused a studio", "hq.studio.reactivate": "restarted a studio", "hq.studio.identity": "changed a studio name / link",
     "hq.subscription.activate": "activated a plan", "hq.payment.record": "recorded a payment", "hq.payment.void": "voided a payment",
     "hq.trial.extend": "extended a trial", "hq.mfa.reset": "reset someone's two-step", "hq.sales_request.status": "answered a plan request",
-    "hq.sales_enquiry.update": "answered a sales enquiry", "hq.suggestion.update": "marked a suggestion", "hq.reveal": "showed a masked detail", "hq.credit.grant": "added a studio credit" };
+    "hq.sales_enquiry.update": "answered a sales enquiry", "hq.suggestion.update": "marked a suggestion", "hq.reveal": "showed a masked detail", "hq.credit.grant": "added a studio credit",
+    "hq.self.signout_others": "logged out of all other devices", "hq.self.signout_one": "signed out one of their devices" };
   function actWord(a) { return ACT_WORDS[a] || String(a || "").replace(/^hq\./, "").replace(/[._]/g, " "); }
   function when(v) { return v ? ago2(v) : "never"; }
   // r122 (G): fn(run) - run(promiseFn) keeps the button disabled while the HQ call runs
@@ -1983,7 +1990,8 @@
       el("span", { cls: "pill", text: x.role_label || x.role }), el("span", { cls: "pill " + st[1], text: st[0] }),
       el("span", { cls: "pill " + (x.has_2step ? "ok" : "warn"), text: x.has_2step ? "2-step on" : "2-step not set up" }),
       x.is_me ? el("span", { cls: "pill", text: "you" }) : null]);
-    var meta = [x.has_login ? "Last sign-in " + when(x.last_sign_in_at) : "No login yet", "Last active in HQ " + when(x.last_active_at),
+    var lastDev = Array.isArray(x.sessions) && x.sessions.length ? sessDevice(x.sessions[0]) + (x.sessions[0].location && x.sessions[0].location !== "Unknown" ? ", " + x.sessions[0].location : "") : "";
+    var meta = [x.has_login ? "Last sign-in " + when(x.last_sign_in_at) : "No login yet", "Last active in HQ " + when(x.last_active_at) + (lastDev && x.last_active_at ? " on " + lastDev : ""),
       int(x.views_7d) + " page view" + (num(x.views_7d) === 1 ? "" : "s") + " this week"];
     var body = el("div", { cls: "sp-1" }, [nm, el("div", { cls: "meta", text: meta.join(" · ") })]);
     if (x.status === "invited") body.appendChild(el("div", { cls: "meta", text: "Added " + date(x.invited_at || x.added_at) + (x.invited_by ? " by " + x.invited_by : "") + " - waiting for their first sign-in." }));
@@ -1992,8 +2000,8 @@
     var sl = el("ul", { cls: "mini" });
     sessions.forEach(function (z) {
       var tset = TEAM_SET || {}, ends = sessionEnds(z.since, z.hq_last || z.seen, tset.idle_minutes, tset.max_hours);
-      sl.appendChild(el("li", null, [el("span", null, [z.sid ? el("span", { cls: "m", text: z.sid + " " }) : null, (S ? S.deviceName(z.device) : "Device") + (z.current ? " (this one)" : "")]),
-        el("span", { cls: "muted", text: [z.ip, "started " + date(z.since) + " " + hhmm(z.since), "seen " + when(z.seen), ends ? (Date.parse(ends) < Date.now() ? "expired" : "ends " + hhmm(ends)) : ""].filter(Boolean).join(" · ") })]));
+      sl.appendChild(el("li", null, [el("span", null, [z.sid ? el("span", { cls: "m", text: z.sid + " " }) : null, sessDevice(z) + (z.current ? " (this one)" : "")]),
+        el("span", { cls: "muted", text: [z.location && z.location !== "Unknown" ? z.location : "", z.ip, "started " + date(z.since) + " " + hhmm(z.since), "seen " + when(z.seen), ends ? (Date.parse(ends) < Date.now() ? "expired" : "ends " + hhmm(ends)) : ""].filter(Boolean).join(" · ") })]));
     });
     if (!sl.firstChild) sl.appendChild(el("li", { cls: "muted", text: "Not signed in anywhere right now." }));
     var rl = el("ul", { cls: "mini" });
@@ -2039,6 +2047,8 @@
     }));
     return el("div", { cls: "tm" }, [el("div", { cls: "av", "aria-hidden": "true", text: S ? S.initials(x.name, x.email) : "?" }), body, acts]);
   }
+  // r123a (0332): the server's device name ("Chrome (Mac OS X)"); older databases send only the raw browser text
+  function sessDevice(z) { return (z && z.device_label) || (S ? S.deviceName(z && z.device) : "Device"); }
   function paintMatrix() {
     var t = clear($("#tmMatrix")); if (!S) return;
     t.appendChild(el("thead", null, [el("tr", null, [el("th", { text: "Can…" })].concat(S.ROLES.map(function (r) { return el("th", { text: r.label, title: r.blurb }); })))]));
@@ -2075,6 +2085,44 @@
         el("span", { cls: "muted", text: (e.by && e.by !== e.email ? "by " + e.by + " · " : "") + when(e.at) })]));
     });
     if (!ev.firstChild) ev.appendChild(el("li", { cls: "empty", text: "No changes yet." }));
+  }
+  /* ---------------- r123a (0332): Where you're logged in - my own HQ sign-ins ----------------
+     hq_my_sessions gives ONLY the caller's own sign-ins (the database decides). Device + location + masked IP come from
+     the server; "Sign out" ends one other device, "Log out of all other devices" every other one (this one stays). */
+  var DV_PAGE = 10, dvOff = 0;
+  // when (date + India time), e.g. "3 Nov 2026, 7:05 pm"
+  function dateTime(v) { var d = date(v); return d === "—" ? d : d + ", " + hhmm(v); }
+  function deviceRow(x) {
+    var st = S ? S.sessionStatus(x.status) : [String(x.status || ""), ""];
+    var dev = el("td", null, [el("b", { text: x.device || "Unknown device" }), " ",
+      x.is_current ? el("span", { cls: "pill ok", text: "Current" }) : (x.status !== "active" ? el("span", { cls: "pill " + st[1], text: st[0] }) : null)]);
+    var act = el("td", { cls: "n", "data-label": "" });   // phones: the button needs no "Action" label
+    if (x.can_sign_out && x.sid) act.appendChild(teamAction("Sign out", "", function (run) {
+      if (!window.confirm("Sign out " + (x.device || "this device") + (x.location && x.location !== "Unknown" ? " (" + x.location + ")" : "") + " from Helm HQ? It has to sign in again.")) return;
+      run(function () { return call("hq_sign_out_my_session", { p_sid: x.sid }).then(function (r) {
+        okMsg(num(r && r.sessions_ended) ? "Signed out that device." : "That device was already signed out."); return loadDevices(dvOff); }); });
+    }));
+    return el("tr", null, [dev, el("td", { text: x.location || "Unknown" }), el("td", { text: dateTime(x.signed_in) }),
+      el("td", { text: x.is_current ? "Now" : when(x.last_active) }), el("td", { text: x.ip || "—" }), act]);
+  }
+  async function loadDevices(off) {
+    dvOff = Math.max(0, num(off));
+    var r = await call("hq_my_sessions", { p_limit: DV_PAGE, p_offset: dvOff }); r = r && !Array.isArray(r) ? r : {};
+    var rows = Array.isArray(r.rows) ? r.rows : [], total = num(r.total);
+    if (!rows.length && dvOff > 0 && total > 0) return loadDevices(Math.max(0, dvOff - DV_PAGE));   // the last page emptied
+    var tb = clear($("#tDevices"));
+    rows.forEach(function (x) { tb.appendChild(deviceRow(x)); });
+    if (!rows.length) tb.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "No Helm HQ sign-ins in the last 30 days." })]));
+    var on = num(r.other_active);
+    $("#dvCount").textContent = int(total) + " sign-in" + (total === 1 ? "" : "s") + " · " + (on ? int(on) + " other device" + (on === 1 ? "" : "s") + " signed in" : "no other device signed in");
+    pager($("#pgDevices"), dvOff, total, function (o) { loadDevices(o).catch(showErr); }, DV_PAGE);
+  }
+  function signOutOthers() {
+    var b = $("#btnDvAll"); if (!b || b.disabled) return;
+    if (!window.confirm("Log out of Helm HQ on every other device?\n\nThis device stays signed in. The others have to sign in again (with two-step).")) return;
+    busy(b, function () { return call("hq_sign_out_my_other_sessions").then(function (r) {
+      var n = num(r && r.sessions_ended);
+      okMsg(n ? "Logged out of " + int(n) + " other sign-in" + (n === 1 ? "" : "s") + "." : "No other device was signed in."); return loadDevices(0); }); });
   }
   function addTeamMember() {
     var e = String($("#tmEmail").value || "").trim().toLowerCase(), role = $("#tmRole").value, nm = String($("#tmName").value || "").trim();
@@ -2262,7 +2310,7 @@
   }
   function loadDemo() {
     return new Promise(function (resolve, reject) {
-      var sc = document.createElement("script"); sc.src = "hq-demo.js?v=2";
+      var sc = document.createElement("script"); sc.src = "hq-demo.js?v=3";
       sc.addEventListener("load", resolve); sc.addEventListener("error", reject); document.head.appendChild(sc);
     });
   }
@@ -2321,10 +2369,11 @@
       if (t === "settings" && can("billing.read")) loadSettings().catch(showErr);
       if (t === "requests") loadRequestsTab();
       if (t === "staff") { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
+      if (t === "account") loadDevices(0).catch(showErr);
     }); });
     if (askTab && askTab !== "requests" && canTab(askTab)) { var tb0 = $("#tab-" + askTab); if (tb0) tb0.click(); }
     on("#btnRefresh", "click", function () { loadAll().catch(showErr); if (!$("#pane-requests").hidden) loadRequestsTab(); if (!$("#pane-staff").hidden) { loadTeam().catch(showErr); loadStaff().catch(showErr); loadGoogleOnly().catch(showErr); }
-      if (!$("#pane-activity").hidden) { loadAudit().catch(showErr); loadSecurity().catch(showErr); } if (!$("#pane-settings").hidden && can("billing.read")) loadSettings().catch(showErr); });
+      if (!$("#pane-activity").hidden) { loadAudit().catch(showErr); loadSecurity().catch(showErr); } if (!$("#pane-account").hidden) loadDevices(dvOff).catch(showErr); if (!$("#pane-settings").hidden && can("billing.read")) loadSettings().catch(showErr); });
     // r28: phone menu + bottom bar + Settings shortcuts
     on("#btnMenu", "click", function () { var va = $("#vApp"); navOpen(!(va && va.classList && va.classList.contains("nav-open"))); });
     on("#navScrim", "click", function () { navOpen(false); });
@@ -2378,6 +2427,7 @@
     on("#btnAudit", "click", function () { loadAudit().catch(showErr); loadSecurity().catch(showErr); });
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });
     on("#btnTmAdd", "click", addTeamMember);
+    on("#btnDvAll", "click", signOutOthers);
     on("#btnTmSet", "click", saveTeamSettings);
     on("#btnSgOn", "click", function () { setGoogleOnly(true); });
     on("#btnSgOff", "click", function () { setGoogleOnly(false); });

@@ -347,6 +347,8 @@ run "r82-referral-pilot-0306" "R82-REFERRAL-PILOT-0306: ALL PASS \(14/14\)" psql
 run "r87-referral-attach-unknown-0309" "R87-REFERRAL-ATTACH-UNKNOWN-0309: ALL PASS \(8/8\)" psql -q -f tests/db/r87-referral-attach-unknown-0309.sql
 # r110 (0320): trial leads made from a quote are not lead slots; billing currency follows the country until the first payment (+ one-time USD -> INR fix); chat_directory sign-up name; re-applies 0236 / 0238 then itself twice, rolled back
 run "r110-trial-polish-0320" "R110-TRIAL-POLISH-0320: ALL PASS \(24/24\)" psql -q -f tests/db/r110-trial-polish-0320.sql
+# r123a (0332): HQ "Where you're logged in" - only my own sign-ins (another HQ person never sees mine), masked IP + Cloudflare location recorded at most once a minute (never the full IP), device names, paging, sign out one / all other devices (current kept + still works, refresh tokens revoked, signed-out sign-in refused HQ_SESSION_ENDED, no fresh code, HQ log, no e-mail), anon / non-HQ / aal1 refused, team list device + location; runs late (r27 / r42 re-apply 0277 / 0280 bodies), re-applies itself twice, rolled back
+run "r123a-hq-devices-0332" "R123A-HQ-DEVICES-0332: ALL PASS \(32/32\)" psql -q -f tests/db/r123a-hq-devices-0332.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 
