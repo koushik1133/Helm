@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=60"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=61"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -1544,7 +1544,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "20";
+  const TRIAL_BANNER_VERSION = "21";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;
@@ -5770,6 +5770,9 @@ window.HelmUrl = HelmUrl;
         const str = (v, n) => String(v == null ? "" : v).slice(0, n);
         if (res.status === 400 && j && j.code === "invalid_invite")
           return { invalid: true, reason: /^(expired|used|revoked)$/.test(String(j.reason || "")) ? j.reason : "", studio: str(j.studio, 120) };
+        // R121 (0329): the inviting studio's free trial ended - the invitation is paused (no login is made)
+        if (res.status === 409 && j && j.code === "trial_paused")
+          return { invalid: true, reason: "trial_ended", studio: str(j.studio, 120), message: str(j.error, 300) };
         if (!(res.ok && j && typeof j.email === "string" && j.email)) return null;
         return { email: j.email, account: /^(new|needs_link|unconfirmed|existing)$/.test(String(j.account || "")) ? j.account : null,
           studio: str(j.studio, 120), inviter: str(j.inviter, 60), role: str(j.role, 40), role_label: str(j.role_label, 60) };
@@ -8824,6 +8827,7 @@ window.HelmUrl = HelmUrl;
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder" && d.source === "r29_referral") return "refer.html";   // r29 (0279): referral notices
     if (k === "trial_reminder") return "checkout.html";
+    if (k === "plan_active") return "checkout.html";   // r121 (0329): HQ activated the plan - its own kind, opens the plan page
     // r21 (0250): security notices are Helm HQ only - an HQ notice opens HQ (Activity log -> Security)
     if (k === "security_alert") return d.hq === true ? (/^(sales_enquiry|suggestion)$/.test(String(d.alert || "")) ? "hq.html#requests" : "hq.html") : "control.html#users";
     // 0078: low stock -> the event's inventory page, the item row highlighted
@@ -8896,6 +8900,7 @@ window.HelmUrl = HelmUrl;
          "client_link_viewed", "client_view_followup", "studio_security"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
+    if (k === "plan_active") return "plan_active";   // r121 (0329): muted on its own (catalog type plan_active)
     if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
     if (/^task_(accept|reject|start|complete)$/.test(k)) return "task_update";
     if (k.indexOf("design_") === 0) return "design_update";
@@ -8910,7 +8915,7 @@ window.HelmUrl = HelmUrl;
     task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
     chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
-    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts (Helm HQ only)", billing_trial: "Free trial reminders",
+    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts (Helm HQ only)", billing_trial: "Free trial reminders", plan_active: "Plan active",
     inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups",
     client_link_viewed: "Client opened their link", client_view_followup: "Viewed but not approved", other: "Other updates" };
   // A4: a chat row's read key carries its newest message time, so marking a conversation read
@@ -8930,7 +8935,7 @@ window.HelmUrl = HelmUrl;
       const k = String(n.kind || "").toLowerCase();
       if (k === "security_alert") return "security";
       if (k.indexOf("task_") === 0) return "task";
-      if (/payment|advance_paid|trial_reminder/.test(k)) return "billing";
+      if (/payment|advance_paid|trial_reminder|plan_active/.test(k)) return "billing";
       return "other";
     };
     const inFilter = (f, g) => f === "all" || (f === "mentions" && g === "mention") || (f === "tasks" && g === "task")
@@ -9064,7 +9069,7 @@ window.HelmUrl = HelmUrl;
     const since = String(seen.t || "");
     const fresh = list.filter((n) => (n.__chat || n.unread) && String(n.created_at || "") > since && ids.indexOf(keyOf(n)) === -1)
       .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 3);
-    const typeOf = (k) => (k === "security_alert" || k === "studio_security") ? "security" : k === "trial_reminder" ? "warning" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
+    const typeOf = (k) => (k === "security_alert" || k === "studio_security") ? "security" : k === "trial_reminder" ? "warning" : /^(payment_received|advance_paid|task_complete|task_accept|plan_active)$/.test(k) ? "success"
       : /^(payment_reconcile|task_reject|task_due)$/.test(k) ? "warning" : "info";
     const toasts = fresh.map((n) => {
       if (n.__chat) {
@@ -9075,7 +9080,7 @@ window.HelmUrl = HelmUrl;
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
-        message: k === "trial_reminder" ? ((n.detail && n.detail.source === "r29_referral") ? "Open Refer a studio" : "Choose a plan to keep using Helm") : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
+        message: k === "plan_active" ? "Open your plan" : k === "trial_reminder" ? ((n.detail && n.detail.source === "r29_referral") ? "Open Refer a studio" : "Choose a plan to keep using Helm") : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
         href: notifHref(n), rk: "n:" + (n.id || "") };
     });
     return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
@@ -9226,6 +9231,8 @@ window.HelmUrl = HelmUrl;
       // r120 (0328): HQ activated the studio's plan (source r120_plan_active) - same admin-only kind, opens the plan page
       trial_reminder: [d.source === "r29_referral" ? "🎁" : d.source === "r120_plan_active" ? "🎉" : "⏳",
         String(d.label || (d.source === "r29_referral" ? "Referral update" : d.source === "r120_plan_active" ? "Your plan is active - thank you" : "Free trial update"))],
+      // r121 (0329): the plan-active notice has its own kind (admins only, muted separately from trial reminders)
+      plan_active: ["🎉", String(d.label || "Your plan is active - thank you")],
       // 0129: "event is coming up" (studio-wide; never forwarded)
       event_reminder: ["📅", String(d.label || "An event is coming up")],
       // r23 (0257): Helm support changed the studio name / link (old links keep working)
@@ -11203,7 +11210,8 @@ window.HelmUrl = HelmUrl;
           return !!(r[0] && r[0].is_trial_org === true && r[1] && r[1].state === "trial");
         } catch (e) { return false; }
       },
-      // 0126 — {is_trial_org, ends_at, ended, locked, is_owner, blocked}; works for a member blocked after an unpaid trial ends.
+      // 0126 / 0183 — {is_trial_org, ends_at, ended, locked, is_owner, blocked}; blocked is always false since 0183 (an ended
+      // trial is read-only for everyone - teammates included - never locked out).
       access: () => (supa ? rpc("my_trial_access", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       // 0119 — the ONE self-serve trial: {name (blank -> "Demo N")}. 0180: always the sample data on
       // INR / Asia/Kolkata (any mode / time zone / currency passed in is ignored; the server does the same).

@@ -306,6 +306,8 @@ do $$ declare a uuid := 'c0000000-0000-4000-8000-000000000290'; s time; v_exp ti
   -- one day left in the studio's own calendar ("ends tomorrow", d7), ending at 15:00 studio time tomorrow
   update public.organizations set trial_ends_at = (((now() at time zone v_tz)::date + 1) + time '15:00') at time zone v_tz,
          business_email = 'owner.sw@c.test' where id = a;
+  -- r121 (0329): trial e-mails use studio_billing_email (a CONFIRMED studio e-mail, else the current owner)
+  update public.organizations set business_email_confirmed = true where id = a;
   s := pg_temp.close_window(a);
   v_exp := public.send_window_next(a, 'staff', now());
   perform public.trial_reminders_tick();

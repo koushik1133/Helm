@@ -817,9 +817,13 @@
     asave.addEventListener("click", function () {
       if (Object.keys(real).some(function (k) { return isMasked(real[k]); })) { showErr(new Error("Open the form again to load the details.")); return; }
       var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (real[f[0]] == null ? "" : String(real[f[0]]))) patch[f[0]] = v; });
-      call("hq_set_studio_account", { p_org: org, p_account: patch }).then(function () { okMsg("Business details saved."); refreshAfterWrite(org); }).catch(showErr);
+      // r121 (0329): a fresh two-step code is asked (HQ_REAUTH -> call() asks for the code and retries), like Extend trial
+      asave.disabled = true;
+      call("hq_set_studio_account", { p_org: org, p_account: patch }).then(function () { okMsg("Business details saved."); refreshAfterWrite(org); })
+        .catch(showErr).then(function () { asave.disabled = false; });
     });
     af.appendChild(asave);
+    af.appendChild(el("div", { cls: "muted", text: "Saving asks for a fresh two-step code (like Extend trial)." }));
     // r28: the form shows every value unmasked, so it fills only after the reveal is logged
     // r57 (0298): the real values come from hq_reveal('studio', org, 'business_details') - logged in the same step
     var filled = false;
@@ -1070,7 +1074,7 @@
   function identityBox(org, d) {
     var box = el("div", { cls: "card hq-ident" });
     box.appendChild(el("h2", { text: "Change studio name & link" }));
-    box.appendChild(el("div", { cls: "muted", text: "Studios can't change these themselves. Change them only when the studio asks (confirm who is asking). Old links keep working; the studio's admins get a bell notice and an e-mail." }));
+    box.appendChild(el("div", { cls: "muted", text: "Studios can't change these themselves. Change them only when the studio asks (confirm who is asking). Old links keep working; the studio's admins get a bell notice and an e-mail. Asks for a fresh two-step code (like Extend trial)." }));
     var nm = el("input", { type: "text", maxlength: "120", "aria-label": "Studio name" }); nm.value = d.name || "";
     var sl = el("input", { type: "text", maxlength: "40", spellcheck: "false", autocomplete: "off", "aria-label": "Studio link" }); sl.value = d.slug || "";
     var why = el("input", { type: "text", maxlength: "500", "aria-label": "Reason", placeholder: "Who asked, and how you confirmed it (10+ characters)" });
@@ -1099,6 +1103,7 @@
       if (l !== (d.slug || "")) lines.push("Link: helm.events/" + (d.slug || "-") + " -> helm.events/" + l + " (old links keep working)");
       if (!window.confirm("Change this studio?\n\n" + lines.join("\n") + "\n\nThe studio's admins are told by bell and e-mail.")) return;
       go.disabled = true;
+      // r121 (0329): needs a fresh two-step code - call() asks for it on HQ_REAUTH and retries (same as Extend trial)
       call("hq_set_studio_identity", { p_org: org, p_name: n !== (d.name || "") ? n : null, p_slug: l !== (d.slug || "") ? l : null, p_reason: r })
         .then(function () { okMsg("Studio name / link changed."); refreshAfterWrite(org); }).catch(showErr).then(function () { go.disabled = false; });
     });

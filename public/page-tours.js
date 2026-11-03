@@ -312,7 +312,7 @@
       { sel: "#closeBtn", title: "Close & archive", desc: "Once all equipment is returned, close the event. It moves to the Archive tab with a clean P&L." },
     ],
     "event.html": [
-      { sel: "#evHead", title: "This event", desc: "The event code, status, client approval and total at a glance." },
+      { sel: "#evHead", title: "This event", desc: "The event code, status, client approval and total at a glance. Free trial: the approval link is a preview - nothing is sent to the client." },
       { sel: "#nextStepBar", title: "What to do next", desc: "Helm tells you the next step and why. Tap it to go straight there." },
       { sel: "#steps", title: "The event lifecycle", desc: "Every stage of this event, from proposal to settlement. Click a step to jump straight to it." },
       { sel: "#advBtn", title: "Advance the stage", desc: "Move the event forward — discovery → proposal → quote → confirmed → planning, and on." },

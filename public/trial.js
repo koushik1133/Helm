@@ -202,16 +202,10 @@
     return { tone: "", text: "Trial: when the trial ends" + (when ? " on " + when : "") +
       ", your staff keep read-only access until you upgrade. Invite your real team now; if you choose a plan, they keep working without being re-invited." };
   }
-  // my_trial_access() answer -> full-page "trial ended" screen for a blocked (non-owner) member, or null.
-  // 0183: the server no longer blocks anyone (blocked is always false); kept for a database without 0183.
-  function blockedSpec(a) {
-    if (!a || typeof a !== "object" || a.is_trial_org !== true || a.blocked !== true || a.is_owner === true) return null;
-    return { title: "This studio's trial has ended",
-      body: "Ask the studio owner to subscribe" + (a.name ? " to " + a.name : "") + ". Nothing has been deleted, and your access comes back automatically as soon as they choose a plan.",
-      cta: "Sign out" };
-  }
+  // R121: the old 0126 "trial ended - ask the owner to subscribe" full-page screen for teammates is gone: since 0183
+  // nobody is locked out (an ended trial is read-only for everyone, teammates included), so it could never show.
 
-  var api = { RETENTION_PROMISE: RETENTION_PROMISE, talkHref: talkHref, askResultText: askResultText, subscriptionStrip: subscriptionStrip, staffNoteSpec: staffNoteSpec, blockedSpec: blockedSpec, bannerSpec: bannerSpec, planHref: planHref, nextDemoNumber: nextDemoNumber, reminderMilestone: reminderMilestone,
+  var api = { RETENTION_PROMISE: RETENTION_PROMISE, talkHref: talkHref, askResultText: askResultText, subscriptionStrip: subscriptionStrip, staffNoteSpec: staffNoteSpec, bannerSpec: bannerSpec, planHref: planHref, nextDemoNumber: nextDemoNumber, reminderMilestone: reminderMilestone,
               reminderSpec: reminderSpec, endsLabel: endsLabel, ymdIn: ymdIn, REMINDER_TITLES: REMINDER_TITLES,
               endDay: endDay, daysLeft: daysLeft, endDayText: endDayText };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
@@ -243,14 +237,9 @@
     ".htrm-a a:focus-visible,.htrm-a button:focus-visible{outline:2px solid var(--ink,#1b1930);outline-offset:2px}",
     "html[data-theme=dark] .htrm-c{background:#1f1a33;color:#f3f0ff}html[data-theme=dark] .htrm-c p{color:#cfc8e8}html[data-theme=dark] .htrm-a button{color:#f3f0ff;border-color:#4a4363}",
     "html[data-theme=dark] .htr{background:#2a2340;color:#f3f0ff}html[data-theme=dark] .htr span{color:#cfc8e8}html[data-theme=dark] .htr.soon{background:#3a2d12}html[data-theme=dark] .htr.ended{background:#3d1c1c}",
-    ".htb{position:fixed;inset:0;z-index:2147483001;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--bg,#f7f5f1)}",
-    ".htb-c{max-width:460px;width:100%;background:var(--card,#fff);color:var(--ink,#1b1930);border-radius:16px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.18);font-size:15px;line-height:1.55;text-align:center}",
-    ".htb-c h2{margin:0 0 10px;font-size:21px}.htb-c p{margin:0 0 18px;color:var(--ink-2,#4b475f)}",
-    ".htb-c button{padding:9px 18px;border-radius:999px;border:0;background:var(--accent,#047857);color:#fff;font-weight:600;cursor:pointer}",
-    ".htb-c button:focus-visible{outline:2px solid var(--ink,#1b1930);outline-offset:2px}",
     ".htsn{margin:0 0 14px;padding:10px 14px;border-radius:10px;font-size:13.5px;line-height:1.45;background:var(--accent-soft,#e3f4ed);color:var(--ink,#1b1930);border:1px solid var(--line,#e8e3db)}",
     ".htsn.ended{background:#fde8e8}",
-    "html[data-theme=dark] .htb{background:#14111f}html[data-theme=dark] .htb-c{background:#1f1a33;color:#f3f0ff}html[data-theme=dark] .htb-c p{color:#cfc8e8}html[data-theme=dark] .htsn{background:#2a2340;color:#f3f0ff;border-color:#4a4363}html[data-theme=dark] .htsn.ended{background:#3d1c1c}"
+    "html[data-theme=dark] .htsn{background:#2a2340;color:#f3f0ff;border-color:#4a4363}html[data-theme=dark] .htsn.ended{background:#3d1c1c}"
   ].join("");
 
   function page() { try { return (location.pathname.split("/").pop() || "dashboard").replace(/\.html$/, "") || "dashboard"; } catch (e) { return "dashboard"; } }
@@ -348,25 +337,7 @@
     runAccess(st);
   }
 
-  // 0126: blocked member -> "trial ended" screen; owner/staff on the Staff page -> access note
-  function renderBlocked(spec, st) {
-    if (!spec || doc.getElementById("helmTrialBlocked")) return;
-    if (typeof global.__helmAdoptCss === "function") global.__helmAdoptCss(doc, CSS);
-    var wrap = doc.createElement("div"); wrap.id = "helmTrialBlocked"; wrap.className = "htb";
-    var card = doc.createElement("div"); card.className = "htb-c";
-    card.setAttribute("role", "alertdialog"); card.setAttribute("aria-modal", "true"); card.setAttribute("aria-labelledby", "helmTrialBlockedT");
-    var h = doc.createElement("h2"); h.id = "helmTrialBlockedT"; h.textContent = spec.title; card.appendChild(h);
-    var p = doc.createElement("p"); p.textContent = spec.body; card.appendChild(p);
-    var b = doc.createElement("button"); b.type = "button"; b.textContent = spec.cta;
-    b.addEventListener("click", function () {
-      var go = function () { location.href = "login.html"; };
-      try { var r = st.auth.signOut && st.auth.signOut(); if (r && r.then) r.then(go, go); else go(); } catch (e) { go(); }
-    });
-    card.appendChild(b); wrap.appendChild(card);
-    doc.body.appendChild(wrap);
-    doc.documentElement.classList.add("helm-trial-blocked");
-    try { b.focus(); } catch (e) {}
-  }
+  // 0126 / 0183: owner / staff on the Staff page -> the read-only access note
   function renderStaffNote(spec) {
     if (!spec || doc.getElementById("helmTrialStaffNote")) return;
     var main = doc.getElementById("main");
@@ -380,8 +351,6 @@
   function runAccess(st) {
     if (!st.trialOrg.access) return;
     st.trialOrg.access().then(function (a) {
-      var blk = blockedSpec(a);
-      if (blk) { renderBlocked(blk, st); return; }
       if (page() !== "staff") return;
       // the owner wording ("Invite your real team now...") is for the studio admin only
       var roleP; try { roleP = Promise.resolve(st.auth.role ? st.auth.role() : null); } catch (e) { roleP = Promise.resolve(null); }

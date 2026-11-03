@@ -36,6 +36,7 @@ const CASES = [
   ['nurture_greeting', ['nurture_birthday'], 'nurture.html'],
   ['security_alert', ['security_alert'], 'control.html#users'],
   ['billing_trial', ['trial_reminder'], 'checkout.html'],
+  ['plan_active', ['plan_active'], 'checkout.html'],   // r121 (0329)
   ['chat_message', ['chat_message'], 'chat.html'],
   ['pkg_selected', ['pkg_selected'], `event.html?id=${Q}#pkg-selections`],
   ['pkg_accepted', ['pkg_accepted'], `event.html?id=${Q}#pkg-selections`],
