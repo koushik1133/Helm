@@ -60,7 +60,7 @@ t('reveal: logged FIRST (hq_log_reveal, fallback heartbeat tick), role refusal =
   assert.doesNotMatch(J, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(/);
 });
 t('IA: nine pages incl. Settings; tab ids kept; roles unchanged (Sales / Support / Viewer never see Settings)', () => {
-  assert.match(J, /var TABS = \["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff", "settings", "privacy"\];/);
+  assert.match(J, /var TABS = \["overview", "studios", "billing", "requests", "plans", "people", "activity", "staff", "settings", "privacy", "account"\];/);
   assert.match(H, /<button type="button" class="tab" id="tab-settings" aria-pressed="false">Settings<\/button>/);
   assert.match(H, /id="tab-activity" aria-pressed="false">Security &amp; activity</); assert.match(H, /id="tab-staff" aria-pressed="false">HQ team</);
   assert.equal(S.TAB_PERM.settings, 'settings.read');
@@ -83,7 +83,7 @@ t('demo: localhost + ?demo=1 only, checked twice; never deployed; no network; ch
   for (const [h, q, ok] of [['127.0.0.1', '?demo=1', true], ['localhost', '?x=1&demo=1', true], ['[::1]', 'demo=1', true], ['www.helm.events', '?demo=1', false],
     ['helm-v01.vercel.app', '?demo=1', false], ['127.0.0.1.evil.com', '?demo=1', false], ['localhost', '?demo=10', false], ['localhost', '', false]])
     assert.equal(cx.demoWanted(h, q), ok, h + q);
-  assert.match(J, /sc\.src = "hq-demo\.js\?v=2"/);
+  assert.match(J, /sc\.src = "hq-demo\.js\?v=3"/);
   assert.match(D, /if \(!\/\^\(localhost\|127\\\.0\\\.0\\\.1\|\\\[::1\\\]\)\$\/i\.test\(host\)\) return;/);
   assert.doesNotMatch(D, /fetch\(|XMLHttpRequest|supabase|createClient|localStorage|sendBeacon/);
   assert.match(D, /Demo mode - nothing is saved/);

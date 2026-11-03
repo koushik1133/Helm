@@ -231,7 +231,18 @@
         allowlist: [{ email: "admin@helm.events", is_platform_admin: true, has_login: true }, { email: "sales@helm.events", is_platform_admin: true, has_login: true }, { email: "support@helm.events", is_platform_admin: true, has_login: false, note: "Support (Owner, invited)" }],
         accounts: [{ email: "admin@helm.events", studio: null, created_at: ago(300), last_sign_in_at: ago(0.02), allowlisted: true, is_platform_admin: true }, { email: "test@helm.events", studio: "Demo Studio", role: "admin", created_at: ago(200), last_sign_in_at: ago(90), allowlisted: false }] };
     },
-    hq_operators: function () { return []; }
+    hq_operators: function () { return []; },
+    // r123a (0332): Where you're logged in - made-up sign-ins of this demo person (12 rows -> two pages)
+    hq_my_sessions: function (a) {
+      var dv = ["Chrome (Mac OS X)", "Safari (iPhone)", "Claude Desktop (Mac OS X)", "Edge (Windows)", "Firefox (Linux)", "Safari (iPad)"],
+        loc = ["Hyderabad, Telangana, India", "Mumbai, India", "Dubai, United Arab Emirates", "India", "Unknown", "Bengaluru, India"],
+        st = ["active", "active", "active", "expired", "signed_out", "ended"], all = [];
+      for (var k = 0; k < 12; k++) all.push({ sid: ("a1b2c3d" + k).slice(-8), device: dv[k % 6], location: loc[k % 6], ip: "49.36." + (10 + k) + ".x",
+        signed_in: ago(0.03 + k), last_active: ago(k === 0 ? 0.001 : 0.1 * k), is_current: k === 0, status: k === 0 ? "current" : st[k % 6],
+        revoked: st[k % 6] === "signed_out", can_sign_out: k !== 0 && (st[k % 6] === "active" || st[k % 6] === "expired") });
+      var lim = (a && a.p_limit) || 10, off = (a && a.p_offset) || 0;
+      return { rows: all.slice(off, off + lim), total: all.length, limit: lim, offset: off, other_active: 4, current_sid: all[0].sid, idle_minutes: 30, max_hours: 12 };
+    }
   };
   function refuse() { return Promise.reject(new Error("Demo mode - nothing is saved. On the real HQ this change would be made now.")); }
   function hq(fn, args) {

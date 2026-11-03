@@ -494,6 +494,8 @@
       { sel: "#attList", title: "Needs attention", desc: "Studios and requests waiting on HQ." },
       { sel: "#tab-requests", side: "right", title: "Requests", desc: "Plan requests, sales enquiries and suggestions from studios." },
       { sel: "#tab-staff", side: "right", title: "Staff access", desc: "Who on the Helm team can use HQ, and with which rights." },
+      // r123a (0332): every HQ person - their own sign-ins
+      { sel: "#tab-account", side: "right", title: "Where you're logged in", desc: "Every device signed in to HQ with your account: device, rough location, last active. Sign out one, or log out of all other devices." },
       // r39 (0288): owner-only card on the Staff access tab (shown there only)
       { sel: "#sgCard", title: "Google-only sign-in", desc: "Owner only: make every Helm staff member sign in to HQ with their helm.events Google account. Read the warning first and keep the emergency undo handy." },
     ],

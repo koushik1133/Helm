@@ -23,7 +23,8 @@
   ];
   // which permission opens which HQ page
   var TAB_PERM = { overview: "overview.read", studios: "studios.read", requests: "inbox.read", billing: "billing.read", plans: "plans.read",
-    people: "people.read", activity: "security.read", staff: "staff.read", settings: "settings.read", privacy: "self" };   // r28: Data & privacy (every HQ person)   // r28: Settings (invoice, checkout, data handling)
+    people: "people.read", activity: "security.read", staff: "staff.read", settings: "settings.read", privacy: "self",
+    account: "self" };   // r123a (0332): Where you're logged in (every HQ person, own sign-ins only)   // r28: Data & privacy (every HQ person)   // r28: Settings (invoice, checkout, data handling)
   // the rows of "What each role can do" (plain words)
   var MATRIX = [
     ["Overview numbers", "overview.read"], ["See studios", "studios.read"], ["Change a studio's name, details, trial", "studios.edit"],
@@ -68,6 +69,10 @@
       : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "";
     return o ? b + " on " + o : b;
   }
+  // r123a (0332): a sign-in's state from hq_my_sessions -> [words, pill tone]
+  var SESSION_STATUS = { current: ["Current", "ok"], active: ["Signed in", ""], expired: ["Expired", "warn"],
+    signed_out: ["Signed out", "bad"], ended: ["Ended", ""] };
+  function sessionStatus(s) { return SESSION_STATUS[s] || [String(s || "-"), ""]; }
   var STATUS = { active: ["Active", "ok"], invited: ["Invited", "warn"], suspended: ["Paused", "bad"], removed: ["Removed", ""] };
   function statusOf(s) { return STATUS[s] || [String(s || "-"), ""]; }
   var EVENT_WORDS = { invited: "added to HQ", role_changed: "role changed", suspended: "paused", restored: "access given back",
@@ -83,7 +88,7 @@
     return String(text || "").split(/[\s,]+/).map(function (s) { return s.trim(); }).filter(function (s) { return /^[0-9a-fA-F:.\/]{2,49}$/.test(s); }).slice(0, 50);
   }
   var api = { ROLE_PERMS: ROLE_PERMS, ROLES: ROLES, TAB_PERM: TAB_PERM, MATRIX: MATRIX, can: can, roleLabel: roleLabel, allowedTabs: allowedTabs,
-    errKind: errKind, friendly: friendly, deviceName: deviceName, statusOf: statusOf, EVENT_WORDS: EVENT_WORDS, initials: initials, ipList: ipList };
+    errKind: errKind, friendly: friendly, deviceName: deviceName, statusOf: statusOf, sessionStatus: sessionStatus, EVENT_WORDS: EVENT_WORDS, initials: initials, ipList: ipList };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.HelmHqStaff = api;
 })(typeof window !== "undefined" ? window : this);
