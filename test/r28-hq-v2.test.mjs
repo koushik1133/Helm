@@ -83,7 +83,7 @@ t('demo: localhost + ?demo=1 only, checked twice; never deployed; no network; ch
   for (const [h, q, ok] of [['127.0.0.1', '?demo=1', true], ['localhost', '?x=1&demo=1', true], ['[::1]', 'demo=1', true], ['www.helm.events', '?demo=1', false],
     ['helm-v01.vercel.app', '?demo=1', false], ['127.0.0.1.evil.com', '?demo=1', false], ['localhost', '?demo=10', false], ['localhost', '', false]])
     assert.equal(cx.demoWanted(h, q), ok, h + q);
-  assert.match(J, /sc\.src = "hq-demo\.js\?v=1"/);
+  assert.match(J, /sc\.src = "hq-demo\.js\?v=2"/);
   assert.match(D, /if \(!\/\^\(localhost\|127\\\.0\\\.0\\\.1\|\\\[::1\\\]\)\$\/i\.test\(host\)\) return;/);
   assert.doesNotMatch(D, /fetch\(|XMLHttpRequest|supabase|createClient|localStorage|sendBeacon/);
   assert.match(D, /Demo mode - nothing is saved/);
@@ -112,7 +112,7 @@ t('owner round 2: money in US dollars (display only, marked), studio facts, user
   assert.deepEqual(JSON.parse(JSON.stringify(c2.toUsd(119, 'USD', { cur: 'USD', rate: 84 }))), { usd: 119, approx: false });
   assert.equal(c2.toUsd(100, 'INR', { cur: 'ORIG', rate: 84 }), null);
   assert.equal(c2.toUsd(100, 'EUR', { cur: 'USD', rate: 84 }), null, 'unknown rate: shown as it is');
-  assert.match(J, /function moneyRaw\(v, cur\)/); assert.match(J, /"\?\\n\\nPayment " \+ moneyBoth\(a\.p_amount\)/);
+  assert.match(J, /function moneyRaw\(v, cur\)/); assert.match(J, /"\?\\n\\nPayment " \+ moneyBoth\(a\.p_amount(, a\.p_currency)?\)/);
   assert.match(H, /<th>Plan &amp; currency<\/th><th>Status<\/th><th>Created<\/th><th class="n">Team<\/th>/);
   for (const s of ['fact("Team size"', 'fact("Last active"', 'fact("Created"', '"Using Helm"', '"Active days (last 30)"', '"Sign-ins (last 30 days)"', 'el("h2", { text: "Credits & free months" })',
     'el("h2", { text: "Referrals" })', '["Studios they referred"', '["Credits earned"']) assert.ok(J.includes(s), s);
@@ -122,7 +122,7 @@ t('round 2: full studio page, credits (0280), plan editor, sessions, info@, Data
   assert.match(H, /<aside id="studioDrawer" class="drawer full"/);
   assert.ok(H.indexOf('id="dt-people"') < H.indexOf('id="dt-plan"'), 'tabs: Overview, People, Billing & plan, Name & link, Activity');
   assert.match(J, /call\("hq_grant_studio_credit", \{ p_org: org, p_kind: kind\.value, p_months: Number\(months\.value\), p_reason: rs \}\)/);
-  assert.match(J, /\.then\(function \(\) \{ return co \? call\("hq_set_plan_checkout", co\) : null; \}\)/);
+  assert.match(J, /if \(co\) st\.push\(\["the website \/ checkout text", function \(\) \{ return call\("hq_set_plan_checkout", co\); \}\]\)/);
   for (const id of ['planEditor', 'btnPlanNew', 'plInrY', 'sessInfo', 'seEmailList', 'pane-privacy', 'tab-privacy', 'dispCur']) assert.ok(H.includes(`id="${id}"`), id);
   assert.match(H, /<option value="info@helm\.events">/);
   assert.match(J, /blocked\("Session expired — sign in again"/);

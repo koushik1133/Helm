@@ -660,7 +660,7 @@
       <div class="form" data-perm="billing.write">
         <label class="fld"><span>Country</span><input type="text" id="txCountry" maxlength="2" placeholder="SG"></label>
         <label class="fld"><span>Region (optional)</span><input type="text" id="txRegion" maxlength="80"></label>
-        <label class="fld"><span>Regime</span><select id="txRegime"><option>LOCAL_REGISTERED</option><option>NO_TAX</option><option>IN_GST_INTRA</option><option>IN_GST_INTER</option></select></label>
+        <label class="fld"><span>Regime</span><select id="txRegime"><option value="LOCAL_REGISTERED">Local tax (registered seller)</option><option value="NO_TAX">No tax</option><option value="IN_GST_INTRA">India GST - same state (CGST + SGST)</option><option value="IN_GST_INTER">India GST - other state (IGST)</option><option value="EXPORT_LUT_ZERO">Export under LUT - 0% (no GST)</option><option value="EXPORT_IGST_PAID">Export with IGST paid (refund claimed)</option><option value="REVERSE_CHARGE">Reverse charge (the buyer pays the tax)</option></select></label>
         <label class="fld"><span>Rate %</span><input type="number" id="txRate" min="0" max="50" step="0.01"></label>
         <label class="fld"><span>Invoice note</span><input type="text" id="txNote" maxlength="300"></label>
         <label class="fld"><span>From</span><input type="date" id="txFrom"></label>
@@ -904,10 +904,10 @@
 <script src="event-name.js?v=9"></script>
 <script src="country-profile.js?v=7"></script><script src="store-api.js?v=331"></script>
 <script src="auth-ui.js?v=58"></script>
-<script src="hq-invoice.js?v=2"></script>
+<script src="hq-invoice.js?v=3"></script>
 <script src="hq-mfa.js?v=1"></script>
 <script src="hq-staff.js?v=2"></script>
-<script src="hq.js?v=33"></script>
+<script src="hq.js?v=34"></script>
 <script src="page-tours.js?v=18"></script>
 <script src="tour.js?v=38"></script>
 </body>

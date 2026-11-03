@@ -138,7 +138,7 @@
     hq_studio_detail: function (a) {
       var s = BY_ORG[a.p_org]; if (!s) return null; var p = PLAN_BY[s.plan_code] || null;
       return { org_id: s.org_id, name: s.name, slug: s.slug, created_at: s.created_at, users_count: s.users_count, owner_email: s.owner_email, total_paid: s.total_paid, status: s.status,
-        billing_currency: s.billing_currency, paid_currency: s.paid_currency, last_active_at: s.last_activity, referral: s.referral,
+        billing_currency: s.billing_currency, paid_currency: s.paid_currency, paid_by_currency: s.total_paid > 0 ? [{ currency: s.paid_currency, amount: s.total_paid }] : [], last_active_at: s.last_activity, referral: s.referral,
         subscription: { status: s.status, plan_name: s.plan_name, plan_code: s.plan_code, price_monthly: p ? p.price_monthly : null, currency: "INR", current_period_end: s.current_period_end,
           trial_ends_at: s.trial_ends_at, suspended_at: s.status === "suspended" ? ago(3.5) : null, suspend_reason: s.status === "suspended" ? "Payment pending for 30 days - studio asked for time" : null },
         account: { primary_contact_name: s.primary_contact_name, primary_contact_email: s.primary_contact_email, primary_contact_phone: s.primary_contact_phone,

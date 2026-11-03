@@ -105,7 +105,7 @@ t('2a SQL 0328: _hq_wgate = kept 0277 gate + a fresh code for the listed actions
   assert.match(g, /'not authorized: HQ_REAUTH enter a fresh two-step code to confirm this change' using errcode = '42501'/);
 });
 t('2b /hq: Extend trial goes through call(), which asks for the code on HQ_REAUTH and retries', () => {
-  assert.match(HQ, /if \(k === "reauth"\) return askCode\(\)\.then\(function \(\) \{ return BPStore\.hq\(fn, args\); \}\);/);
+  assert.match(HQ, /if \(k === "reauth"\) return askCode\(\)\.then\(function \(\) \{ return BPStore\.hq\(fn, args\)(\.catch\(function \(e2\) \{ return mapCallErr\(e2, true\); \}\))?; \}\);/);
   assert.match(HQ, /call\("hq_extend_trial", a\)/);
 });
 t('3a SQL 0328: event_activity marks only trial previews of this event / studio', () => {

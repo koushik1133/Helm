@@ -44,22 +44,30 @@
       if (!A || !A.mfa || !A.mfa.challenge) { reject(new Error("Sign in to Helm HQ again to make this change.")); return; }
       er.textContent = ""; inp.value = ""; $("mScrim").hidden = false; box.hidden = false; setTimeout(function () { try { inp.focus(); } catch (e) {} }, 30);
       function done(ok, e) { box.hidden = true; $("mScrim").hidden = true; $("fRe").onsubmit = null; $("reNo").onclick = null; if (ok) resolve(true); else reject(e || new Error("Cancelled - nothing was changed.")); }
+      var sending = false;   // r122 (G): Enter / Confirm while the code is being checked does nothing
       $("fRe").onsubmit = function (ev) {
-        ev.preventDefault(); er.textContent = "";
+        ev.preventDefault(); if (sending) return; sending = true; er.textContent = "";
         Promise.resolve(A.mfa.challenge(String(inp.value || "").trim())).then(function () { done(true); })
-          .catch(function (e) { er.textContent = (e && e.message) || "That code didn't work."; });
+          .catch(function (e) { er.textContent = (e && e.message) || "That code didn't work."; })
+          .then(function () { sending = false; });
       };
       $("reNo").onclick = function () { done(false); };
     }).then(function (v) { codeWait = null; return v; }, function (e) { codeWait = null; throw e; });
     return codeWait;
   }
+  // r122: the retry after a fresh code goes through the same plain-words mapping (a second HQ_REAUTH is not asked again)
+  function mapCallErr(e, retried) {
+    var k = S ? S.errKind(e) : null;
+    if (k === "reauth" && retried) throw new Error("The fresh two-step code was not accepted for this change - try again.");
+    if (k === "idle" || k === "expired" || k === "ended") { sessionOver(S.friendly(k)); throw new Error(S.friendly(k)); }
+    if (k === "role" || k === "ip") throw new Error(S.friendly(k, ME && ME.role_label));
+    throw e;
+  }
   function call(fn, args) {
     return BPStore.hq(fn, args).catch(function (e) {
       var k = S ? S.errKind(e) : null;
-      if (k === "reauth") return askCode().then(function () { return BPStore.hq(fn, args); });
-      if (k === "idle" || k === "expired" || k === "ended") { sessionOver(S.friendly(k)); throw new Error(S.friendly(k)); }
-      if (k === "role" || k === "ip") throw new Error(S.friendly(k, ME && ME.role_label));
-      throw e;
+      if (k === "reauth") return askCode().then(function () { return BPStore.hq(fn, args).catch(function (e2) { return mapCallErr(e2, true); }); });
+      return mapCallErr(e, false);
     });
   }
   /* ---- r118 (F-13): the same idle / absolute sign-out as /hq (hq.js startWatch): HQ's idle minutes + the session's hard
@@ -82,13 +90,25 @@
     var t = Date.now(); if (!force && t - lastBeat < 120000) return; lastBeat = t;
     BPStore.hq("hq_heartbeat", { p_page: "referrals" }).catch(function (e) { var k = S && S.errKind(e); if (k === "idle" || k === "expired" || k === "ended") sessionOver(S.friendly(k)); });
   }
+  // r122: the last input is shared with every open HQ tab (same key as hq.js), so an idle background tab never signs
+  // out the tab in use; every storage access guarded
+  var LAST_KEY = "helm.hq.lastInput", lastShared = 0;
+  function sharedRead() { try { var v = Number(localStorage.getItem(LAST_KEY)); return isFinite(v) && v > 0 && v <= Date.now() + 60000 ? v : 0; } catch (e) { return 0; } }
+  function touchInput() {
+    lastInput = Date.now();
+    if (lastInput - lastShared < 5000) return;
+    lastShared = lastInput; try { localStorage.setItem(LAST_KEY, String(lastInput)); } catch (e) {}
+  }
   function startWatch() {
     if (!REAL) return;
-    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (ev) { document.addEventListener(ev, function () { lastInput = Date.now(); }, { passive: true }); });
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (ev) { document.addEventListener(ev, touchInput, { passive: true }); });
+    try { window.addEventListener("storage", function (e) { if (e && e.key === LAST_KEY) lastInput = Math.max(lastInput, sharedRead()); }); } catch (e) {}
+    touchInput();
     BPStore.hq("hq_my_session").then(function (r) { MYS = r && !Array.isArray(r) ? r : null; }).catch(function () { MYS = null; });
     beat(true);
     setInterval(function () {
       if (!ME || blockedNow) return;
+      lastInput = Math.max(lastInput, sharedRead());
       var out = sessionOut(Date.now(), lastInput, ME.idle_minutes, MYS && MYS.hard_end_at);
       if (out) { sessionOver(S ? S.friendly(out) : ""); return; }
       if (Date.now() - lastInput < 120000 && document.visibilityState === "visible") beat(false);
@@ -355,6 +375,7 @@
   function closeAll() { $("mScrim").hidden = true; $("mCode").hidden = true; $("mSign").hidden = true; editing = null; }
   function save(e) {
     e.preventDefault();
+    if ($("fc_save").disabled) return;   // r122 (G): Enter while the code is being saved does nothing
     var er = $("fc_code_err"), rawCode = val("fc_code").trim(), code = R.normalizeCode(rawCode);
     function bad(t) { er.textContent = t; er.hidden = false; $("fc_code").focus(); }
     if (!editing && rawCode && !code) return bad("Use 3-24 letters, numbers, - or _ (or leave it blank).");
@@ -422,9 +443,11 @@
     [["st_hold", "hold_days"], ["st_pay", "pay_within_days"], ["st_link", "link_days"], ["st_late", "late_code_days"], ["st_cap", "cap_per_year"],
      ["st_held", "held_months"], ["st_frozen", "frozen_months"], ["st_exp", "expiry_months"], ["st_vel", "velocity_per_day"]]
       .forEach(function (x) { var v = parseInt($(x[0]).value, 10); if (isFinite(v)) body[x[1]] = v; });
+    var sv = $("st_save"); if (sv && sv.disabled) return;   // r122 (G): one save at a time
+    if (sv) sv.disabled = true;
     $("st_msg").textContent = "";
     call("hq_referral_settings_set", { p: body }).then(function () { $("st_msg").textContent = "Saved."; return loadReal(); })
-      .catch(function (x) { $("st_msg").textContent = msg(x); });
+      .catch(function (x) { $("st_msg").textContent = msg(x); }).then(function () { if (sv) sv.disabled = false; });
   }
   // r118 (F-03): the daily job writes to real studios - say what it does first (the database then asks for a fresh code)
   var TICK_CONFIRM = "Run the referral daily job now?\n\nIt is not a preview. It confirms referrals whose hold has ended, applies earned free months to studios' bills, marks unpaid ones as not qualified, expires old rewards and sends the notices to those studios.\n\nIt also runs on its own every day.";

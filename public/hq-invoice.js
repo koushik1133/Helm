@@ -285,19 +285,29 @@
     return m;
   }
 
-  function open(data) {
+  // r122: open the empty print window SYNCHRONOUSLY inside the click (pop-up blockers allow it), show "Loading", and
+  // render into it once the invoice data arrives (open(data, win)). null when the browser blocked the pop-up.
+  function openBlank() {
     if (typeof window === 'undefined') return null;
     var win = window.open('', '_blank');           // about:blank → same origin, inherits CSP
     if (!win || !win.document) { alert('Allow pop-ups for this site to print the invoice.'); return null; }
     try { win.opener = null; } catch (_) { /* ignore */ }
+    try { var d0 = win.document; if (!d0.body) { d0.open(); d0.close(); } d0.title = 'Invoice'; if (d0.body) d0.body.textContent = 'Loading the invoice...'; } catch (_) { /* ignore */ }
+    return win;
+  }
+  function open(data, win) {
+    if (typeof window === 'undefined') return null;
+    if (!win || win.closed) win = openBlank();
+    if (!win || !win.document) return null;
     var doc = win.document;
+    if (doc.body) doc.body.textContent = '';
     if (!doc.body) { doc.open(); doc.close(); }
     render(doc, data);
     setTimeout(function () { try { win.focus(); win.print(); } catch (_) { /* ignore */ } }, 50);
     return win;
   }
 
-  var api = { open: open, render: render, helpers: { formatMoney: formatMoney, formatDate: formatDate, formatPeriod: formatPeriod, normalize: normalize, deriveSplit: deriveSplit } };
+  var api = { open: open, openBlank: openBlank, render: render, helpers: { formatMoney: formatMoney, formatDate: formatDate, formatPeriod: formatPeriod, normalize: normalize, deriveSplit: deriveSplit } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.HelmInvoice = api;
 })(typeof window !== 'undefined' ? window : null);

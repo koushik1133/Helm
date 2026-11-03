@@ -304,7 +304,7 @@ do $$ declare a uuid := pg_temp.get('A')::uuid; b uuid := pg_temp.get('B')::uuid
     coalesce(pg_temp.st(f), ''));
   -- 21 cancel before the hold ends
   g := pg_temp.referred('rg@r29g.test', c); perform pg_temp.pay(g, 1999, 'monthly', 'starter');
-  perform pg_temp.op(); perform public.hq_set_subscription(g, null, 'cancelled', null, null, null, 'test cancel'); perform pg_temp.su();
+  perform pg_temp.op(); perform public.hq_set_subscription(g, null, 'cancelled', null, null, null, 'test cancel', 'r122: reason needed'); perform pg_temp.su();
   perform pg_temp.endhold(g); perform pg_temp.tick();
   perform pg_temp.res('21 cancelled before the hold ends -> not qualified (cancelled)', pg_temp.st(g) = 'not_qualified' and pg_temp.rsn(g) = 'cancelled',
     coalesce(pg_temp.st(g), ''));
@@ -405,12 +405,12 @@ do $$ declare cz uuid; z1 uuid; z2 uuid; c text; begin
   z1 := pg_temp.referred('rz1@r29z1.test', c); perform pg_temp.pay(z1, 1999, 'monthly', 'starter'); perform pg_temp.endhold(z1);
   z2 := pg_temp.referred('rz2@r29z2.test', c); perform pg_temp.pay(z2, 1999, 'monthly', 'starter'); perform pg_temp.endhold(z2);
   perform pg_temp.tick();
-  perform pg_temp.op(); perform public.hq_set_subscription(cz, null, 'cancelled', null, null, null, 'test'); perform pg_temp.su();
+  perform pg_temp.op(); perform public.hq_set_subscription(cz, null, 'cancelled', null, null, null, 'test', 'r122: reason needed'); perform pg_temp.su();
   perform pg_temp.res('28a the referrer cancels -> unused months frozen', pg_temp.rw(cz, 'frozen') = 2 and pg_temp.rw(cz, 'scheduled') = 0);
   update public.referral_rewards set frozen_at = now() - interval '7 months'
    where id = (select id from public.referral_rewards where studio_id = cz and state = 'frozen' order by earned_at limit 1);
   perform pg_temp.tick();
-  perform pg_temp.op(); perform public.hq_set_subscription(cz, null, 'active', null, null, null, 'came back'); perform pg_temp.su();
+  perform pg_temp.op(); perform public.hq_set_subscription(cz, null, 'active', null, null, null, 'came back', 'r122: reason needed'); perform pg_temp.su();
   perform pg_temp.res('28b frozen more than 6 months -> expired; the studio comes back -> the other month is upcoming again',
     pg_temp.rw(cz, 'expired') = 1 and pg_temp.rw(cz, 'scheduled') = 1 and pg_temp.rw(cz, 'frozen') = 0);
 exception when others then perform pg_temp.su(); insert into _rr values ('28x', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
