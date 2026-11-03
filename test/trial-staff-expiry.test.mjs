@@ -55,12 +55,9 @@ t('staff note: active trial shows end date; ended says read-only for everyone (0
   assert.equal(trial.staffNoteSpec({ is_trial_org: false }), null); assert.equal(trial.staffNoteSpec(null), null);
   assert.equal(trial.staffNoteSpec({ is_trial_org: true, ended: true, locked: true }).tone, 'ended');
 });
-t('blocked screen only for blocked non-owners', () => {
-  const s = trial.blockedSpec({ is_trial_org: true, blocked: true, is_owner: false, name: 'Demo 3' });
-  assert.equal(s.title, "This studio's trial has ended"); assert.match(s.body, /Ask the studio owner to subscribe to Demo 3/);
-  assert.equal(trial.blockedSpec({ is_trial_org: true, blocked: true, is_owner: true }), null);
-  assert.equal(trial.blockedSpec({ is_trial_org: true, blocked: false }), null);
-  assert.equal(trial.blockedSpec(null), null);
+t('R121: the dead post-trial "blocked teammate" screen is gone (0183: nobody is locked out, read-only instead)', () => {
+  assert.equal(trial.blockedSpec, undefined);
+  assert.ok(!/renderBlocked|helmTrialBlocked|helm-trial-blocked/.test(TJS));
 });
 t('trial.js stays CSP-safe', () => {
   assert.ok(!/innerHTML|insertAdjacentHTML|\.style\.|setAttribute\("style"/.test(TJS));

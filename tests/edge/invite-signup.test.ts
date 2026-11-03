@@ -343,3 +343,28 @@ Deno.test("R32 AUTH-1: 0282 not applied (no mail_key_hash column) -> fallback, n
     assertEquals(auth().filter((a) => a.auth === "createUser").length, 0);
   } finally { f(); r(); }
 });
+
+// R121 (0329): the inviting studio's free trial ended -> the invitation is paused: no login, no link, every mode
+Deno.test("R121: trial ended (invitation_preview trial_paused) -> 409 trial_paused with the owner sentence, no createUser, no link", async () => {
+  const MSG = "This studio's free trial has ended. Ask Priya Owner to choose a plan, then open this invitation again.";
+  for (const [label, body] of [
+    ["create", { token: TOK, email: "shagantikoushik+test@gmail.com", password: PW, k: KEY }],
+    ["peek", { token: TOK, peek: true }],
+    ["resend", { token: TOK, resend: true }],
+  ] as const) {
+    resetSupaMock(); db();
+    const base = g.__supaRpc;
+    g.__supaRpc = (name: string, args: unknown) => name === "invitation_preview"
+      ? { data: { valid: true, status: "pending", trial_paused: true, owner_name: "Priya Owner", message: MSG }, error: null } : base(name, args);
+    const r = setEnv(ENV); const f = noFetch();
+    try {
+      const h = await loadHandler(FN);
+      const res = await h(post(body));
+      assertEquals(res.status, 409, label);
+      const j = await res.json();
+      assertEquals(j.code, "trial_paused", label); assertEquals(j.error, MSG, label);
+      assertEquals(auth().length, 0, label + ": no login made, no link sent");
+    } finally { f(); r(); }
+  }
+});
+

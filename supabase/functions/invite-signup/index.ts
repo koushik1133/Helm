@@ -54,6 +54,8 @@
 //   account_exists  — this e-mail already has a real account → sign in instead
 //   weak_password   — fails Helm's password rule (same rule as the browser + 0030)
 //   rate_limited / send_failed — resend only
+//   trial_paused    — R121 (0329): the inviting studio's free trial ended (409, every mode): no login, no link;
+//                     the invitation stays valid and works again once the studio chooses a plan
 //
 // Secrets / env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injected), APP_URL (base of the link,
 //   default https://www.helm.events). Kill switch: HELM_INVITE_DIRECT_SIGNUP="false" →
@@ -145,6 +147,20 @@ export function lookupAnswer(row: unknown): { invited: boolean } {
   const r = (row && typeof row === "object") ? row as Record<string, unknown> : null;
   if (!r || r.found !== true || typeof r.token !== "string" || !TOKEN.test(r.token)) return { invited: false };
   return { invited: true };
+}
+
+// R121 (0329): invitation_preview's trial_paused -> the sentence to show ("This studio's free trial has ended. Ask
+// <owner> to choose a plan, then open this invitation again."), or null (not paused / 0329 not applied / lookup failed).
+export function pauseMessage(row: unknown): string | null {
+  const r = (row && typeof row === "object") ? row as Record<string, unknown> : null;
+  if (!r || r.trial_paused !== true) return null;
+  const m = typeof r.message === "string" ? r.message.trim() : "";
+  return (m && m.length <= 300) ? m : "This studio's free trial has ended. Ask the studio owner to choose a plan, then open this invitation again.";
+}
+// deno-lint-ignore no-explicit-any
+async function pausedOf(admin: any, token: string): Promise<string | null> {
+  try { const { data, error } = await admin.rpc("invitation_preview", { p_token: token }); return error ? null : pauseMessage(data); }
+  catch (_) { return null; }
 }
 
 // 0210: { email_lookup } / { email_send } - see the header. `email` is already trimmed + lower case.
@@ -273,6 +289,14 @@ Deno.serve(async (req) => {
         : reason === "expired" ? `This invitation link has expired or was already used — ask ${who} to resend it.`
         : "This invitation is no longer valid — ask your studio to send a new one.";
       return json({ error: msg, code: "invalid_invite", ...(reason ? { reason } : {}), ...(studio ? { studio } : {}) }, 400);
+    }
+    // R121 (0329): the inviting studio's free trial has ended (read-only) -> the invitation is PAUSED, not expired.
+    // No login is made, no link is sent, nothing is joined: every mode (peek / resend / create) gets the same plain
+    // answer naming the owner. invitation_preview decides (trial_paused); before 0329 it has no such key -> unchanged.
+    const paused = await pausedOf(admin, token);
+    if (paused) {
+      const studio = (await contextOf()).studio;
+      return json({ error: paused, code: "trial_paused", ...(studio ? { studio } : {}) }, 409);
     }
     const bound = String(inv.email ?? "").trim().toLowerCase();
     if (!bound) return json({ fallback: true });          // no e-mail bound → normal confirm-by-e-mail sign-up

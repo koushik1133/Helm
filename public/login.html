@@ -524,7 +524,7 @@
      been drawn); config.js stays a normal script (it may add config.staging.js before them). The page script below
      runs at DOMContentLoaded, i.e. right after them - the same order as before, without blocking the first paint. -->
 <script src="event-name.js?v=9" defer></script>
-<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=330" defer></script>
+<script src="country-profile.js?v=7" defer></script><script src="store-api.js?v=331" defer></script>
 <script src="auth-ui.js?v=58" defer></script>
 <script src="/auth-visual.js?v=1" defer></script>
 <script src="/trial-facts.js?v=8" defer></script>
@@ -1074,6 +1074,7 @@ document.addEventListener("DOMContentLoaded", function(){
       if(x&&x.code==="needs_link"){ showInviteLink(email, x.reason==="unconfirmed"); return "done"; }   // 0205: no password yet → new link, never "sign in"
       if(x&&x.code==="account_exists"){ showSignInForInvite(email); return "done"; }
       if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email|reserved_domain)$/.test(x.code||"")){ showErr($("#err"),x.message); return "done"; }
+      if(x&&x.code==="trial_paused"){ showErr($("#err"),x.message); return "done"; }   // R121 (0329): the studio's free trial ended - no login made
       throw x;
     }
     if(d&&d.ok){
@@ -1095,6 +1096,8 @@ document.addEventListener("DOMContentLoaded", function(){
   function inviteRefusalText(err){
     const raw=String((err&&err.message)||""), m=raw.toLowerCase(), who=INVITE_ORG||"the studio";
     if(err&&err.inviteMsg) return err.inviteMsg;
+    // R121 (0329): the studio's free trial ended - the server's sentence names the owner ("Ask <owner> to choose a plan")
+    if(err&&(err.hint==="trial_paused"||/free trial has ended\. Ask /.test(raw))) return raw.slice(0,300);
     if(err&&err.hint==="seat_limit") return who+"'s free trial already has all its seats in use (the admin + 2 people). Ask the studio admin to free a seat or choose a plan, then open this invitation again.";
     if(err&&err.hint==="plan_seat_limit") return who+" has used all the team invites its plan allows. Ask the studio admin to free a seat or contact Helm sales to add more, then open this invitation again.";
     if(/invitation is revoked/.test(m)) return "This invitation was cancelled — ask "+who+" if you should still join.";
@@ -1177,13 +1180,19 @@ document.addEventListener("DOMContentLoaded", function(){
     if(invP) return invP;
     const tok=pendingInvite(); if(!tok) return Promise.resolve(null);
     invP=(async()=>{
+      // R121 (0329): the anon preview also says whether the studio's free trial has ended (trial_paused) - asked
+      // alongside the peek, so the paused card shows even before invite-signup is redeployed
+      const pv=(BPStore.invitations.preview?BPStore.invitations.preview(tok):Promise.resolve(null)).catch(()=>null);
       let p=null; try{ if(BPStore.invitations.peek) p=await BPStore.invitations.peek(tok); }catch(e){}
-      if(p && p.invalid) INV={ valid:false, reason:String(p.reason||""), studio:String(p.studio||"") };
+      const pre=await pv;
+      if(p && p.invalid) INV={ valid:false, reason:String(p.reason||""), studio:String(p.studio||""), message:String(p.message||"") };
+      else if(pre && pre.valid && pre.trial_paused===true) INV={ valid:false, reason:"trial_ended", studio:String((p&&p.studio)||pre.org_name||""), message:String(pre.message||"") };
       else if(p) INV={ valid:true, email:p.email, account:p.account||null, studio:String(p.studio||""), inviter:String(p.inviter||""), role:String(p.role_label||ROLE_NAMES[p.role]||"") };
       else {   // invite-signup not deployed yet: the anon preview (studio + role only)
-        try{ const info=await BPStore.invitations.preview(tok);
+        try{ const info=pre;   // R121: the preview asked above (once per page)
           if(info) INV={ valid:!!info.valid, reason:info.valid?"":(info.status==="accepted"?"used":info.status==="revoked"?"revoked":(info.status==="not_found"?"":"expired")),
                          studio:String(info.org_name||""), inviter:"", role:ROLE_NAMES[info.role]||String(info.role||"") };
+          if(INV && INV.valid && info.trial_paused===true) INV={ valid:false, reason:"trial_ended", studio:INV.studio, message:String(info.message||"") };
         }catch(e){}
       }
       if(INV && INV.studio) INVITE_ORG=INV.studio.slice(0,120);
@@ -1221,6 +1230,8 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#ilTitle").textContent=inviteTitle(); $("#ilLine").hidden=true; $("#ilHas").hidden=true;
     const w=$("#ilWhy"), b=$("#ilSend");
     if(r==="revoked"){ w.textContent="This invitation was cancelled — ask "+who+" if you should still join."; b.hidden=true; }
+    // R121 (0329): the studio's free trial ended - the invitation is paused (not expired): no login is made here
+    else if(r==="trial_ended"){ w.textContent=String((INV&&INV.message)||"This studio's free trial has ended. Ask the studio owner to choose a plan, then open this invitation again.").slice(0,300); b.hidden=true; }
     else if(r==="used"||r==="expired"){ w.textContent="This invitation link has expired or was already used — ask "+who+" to resend it."+(r==="used"?" Already joined but never chose a password? We'll e-mail you a link to set one.":""); b.hidden=false; b.textContent=IL_DEAD_LABEL; }
     else { w.textContent="This invitation link isn't valid — ask your studio to resend it."; b.hidden=true; }
     $("#ilOk").hidden=true; $("#ilErr").hidden=true;

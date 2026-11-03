@@ -84,7 +84,10 @@ do $$ begin
   perform pg_temp.res('03 accept_invitation wrapped once (pre0316 -> 0156 wrapper)',
     to_regprocedure('public.accept_invitation__pre0316(text)') is not null
     and position('audit-p2-0156' in (select prosrc from pg_proc where oid = 'public.accept_invitation__pre0316(text)'::regprocedure)) > 0
-    and position('_r316_accept_invitation' in (select prosrc from pg_proc where oid = 'public.accept_invitation(text)'::regprocedure)) > 0);
+    and (position('_r316_accept_invitation' in (select prosrc from pg_proc where oid = 'public.accept_invitation(text)'::regprocedure)) > 0
+         -- r121 (0329) wraps it once more (paused invitations of an ended trial): the 0316 body is then __pre0329
+         or (position('r121-0329' in (select prosrc from pg_proc where oid = 'public.accept_invitation(text)'::regprocedure)) > 0
+             and position('_r316_accept_invitation' in (select prosrc from pg_proc where oid = to_regprocedure('public.accept_invitation__pre0329(text)'))) > 0)));
 end $$;
 
 -- ---- 1) client images: off in a trial ---------------------------------------------------------------------------------
