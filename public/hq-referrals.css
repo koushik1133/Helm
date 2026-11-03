@@ -121,6 +121,8 @@ td.empty{text-align:center;color:var(--ink-3);padding:var(--s6) 0}
   .scroll{margin:0;padding:0;overflow:visible}
   .card input[type=search]{width:100%}
   .btn{height:40px} .btn.sm{height:34px}
+  .chip{height:40px;padding:0 14px} /* r123b: filter chips were 30px - a 40px tap target on phones */
+  .rt td{white-space:normal}
   .form{grid-template-columns:1fr}
   .kv{grid-template-columns:1fr;gap:2px} .kv dd{margin-bottom:var(--s3)}
   .rt thead{display:none}

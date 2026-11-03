@@ -184,7 +184,7 @@ t('B6 set-up = 2 numbered steps: QR image beside the key + Copy + otpauth link; 
   assert.match(img.attrs.alt, /QR code/);
   assert.equal(u.cls(grid, 'hau-qr-miss').length, 0);
   // the key + Copy
-  assert.equal(u.doc.getElementById('hauEnrollKey')._text, 'JBSWY3DPEHPK3PXP');
+  assert.equal(u.doc.getElementById('hauEnrollKey')._text, 'JBSW Y3DP EHPK 3PXP');
   u.buttons(grid, 'Copy')[0].click(); await flush();
   assert.deepEqual(u.calls.find((c) => c[0] === 'copy'), ['copy', 'JBSWY3DPEHPK3PXP']);
   assert.equal(u.cls(grid, 'hau-copy')[0]._text, 'Copied ✓');

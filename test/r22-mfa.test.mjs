@@ -285,7 +285,7 @@ t('B1 Account -> Two-step (off): Turn on -> QR + key -> wrong code shows the err
   assert.match(text(box), /Off\. Turn it on so a stolen password alone/);
   u.buttons(box, 'Turn on')[0].click(); await flush();
   assert.ok(u.all(box).some((n) => n.tagName === 'IMG' && /^data:image\/svg\+xml/.test(n.attrs.src)), 'QR image shown');
-  assert.match(text(box), /JBSWY3DPEHPK3PXP/, 'the key for manual entry is shown');
+  assert.match(text(box), /JBSW Y3DP EHPK 3PXP/, 'the key for manual entry is shown');
   const code = inputs(u, box)[0];
   code.value = '000000'; u.buttons(box, 'Verify & turn on')[0].click(); await flush();
   assert.match(text(box), /That code didn't work/);

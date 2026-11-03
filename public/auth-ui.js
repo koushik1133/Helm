@@ -322,8 +322,14 @@
       ".hau-enr-side{min-width:0;display:flex;flex-direction:column;gap:8px}",
       ".bpui-dialog .hau-enr-side p{margin:0}",
       ".hau-key{display:flex;align-items:stretch;gap:8px;min-width:0}",
-      ".hau-code{flex:1 1 auto;min-width:0;display:flex;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:600;letter-spacing:.08em;word-break:break-all;line-height:1.45;color:var(--ha-ink,#141b2e);background:var(--ha-bg,#fff);border:1px dashed color-mix(in srgb,var(--ha-acc,#047857) 45%,transparent);padding:8px 10px;border-radius:10px;user-select:all}",
+      ".hau-code{flex:1 1 auto;min-width:0;display:flex;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:600;letter-spacing:.06em;word-spacing:.2em;word-break:normal;overflow-wrap:break-word;line-height:1.5;color:var(--ha-ink,#141b2e);background:var(--ha-bg,#fff);border:1px dashed color-mix(in srgb,var(--ha-acc,#047857) 45%,transparent);padding:8px 10px;border-radius:10px;user-select:all}",
       ".hau-copy{flex:0 0 auto;min-width:84px}",
+      /* r123b: the QR + key block sits in a narrow card (sign-in two-step set-up, ~340px inside): the key column was squeezed
+         to one character per line beside the QR. The block's parent is a size container; below 480px the QR goes ABOVE the
+         key, and the key + Copy wrap instead of crushing the key. */
+      ":where(:has(>.hau-enr)){container-type:inline-size}",
+      ".hau-key{flex-wrap:wrap}.hau-code{flex:1 1 180px}.hau-copy{align-self:flex-start;min-height:40px}",
+      "@container (max-width:479px){.hau-enr{grid-template-columns:minmax(0,1fr);justify-items:center;gap:14px}.hau-enr-side{width:100%}.hau-open{align-self:stretch;justify-content:center}}",
       ".hau-open{align-self:flex-start;display:inline-flex;align-items:center;text-decoration:none}",
       ".hau-coderow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}",
       ".hau-input.hau-otp,.bpui-dialog input.hau-otp{flex:0 1 230px;width:230px;max-width:100%;min-height:52px;padding:8px 12px;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:26px;font-weight:650;letter-spacing:.42em;text-indent:.42em;font-variant-numeric:tabular-nums;border:1.5px solid var(--ha-line,#cfc9d6);border-radius:12px;background:var(--ha-bg,#fff);color:var(--ha-ink,#141b2e)}",
@@ -494,6 +500,7 @@
     inp.addEventListener("input", function () { var v = String(inp.value || "").replace(/\D+/g, "").slice(0, 6); if (v !== inp.value) inp.value = v; });
     return inp;
   }
+  function groupKey(k) { return String(k || "").replace(/\s+/g, "").replace(/(.{4})(?=.)/g, "$1 "); }
   function copyText(txt) {
     try { if (global.navigator && global.navigator.clipboard && global.navigator.clipboard.writeText) return global.navigator.clipboard.writeText(txt); } catch (e) {}
     return Promise.reject(new Error("no clipboard"));
@@ -517,7 +524,8 @@
     var side = el("div", { class: "hau-enr-side" });
     side.appendChild(el("p", { class: "hau-lbl2", id: pfx + "KeyLbl" }, "Can't scan? Type this key into the app instead:"));
     var keyRow = el("div", { class: "hau-key" });
-    keyRow.appendChild(el("code", { class: "hau-code", id: pfx + "Key", "aria-labelledby": pfx + "KeyLbl" }, r.secret || ""));
+    // r123b: shown in groups of 4 (easier to type; authenticator apps ignore the spaces) - Copy still copies the raw key
+    keyRow.appendChild(el("code", { class: "hau-code", id: pfx + "Key", "aria-labelledby": pfx + "KeyLbl" }, groupKey(r.secret)));
     var copy = el("button", { type: "button", class: "hau-btn hau-copy", "aria-label": "Copy the set-up key" }, "Copy");
     var copied = el("span", { class: "hau-sr", role: "status", "aria-live": "polite" });
     copy.addEventListener("click", function () {

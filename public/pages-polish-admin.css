@@ -42,3 +42,6 @@ main .kpi :is(b,strong,.v){font-variant-numeric:tabular-nums}
   main .btn{min-height:40px}
 }
 @media (prefers-reduced-motion:reduce){main .btn{transition:none}}
+/* R123b: the plain top links (Dashboard · Settings · ...) on these pages were ~16px tall on phones - give each a
+   ~40px tap area (padding + equal negative margin, so the header looks the same). */
+@media (max-width:767px){.wrap>header>.nav a{display:inline-block;padding:12px 2px;margin:-12px 0}}

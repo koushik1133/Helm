@@ -143,7 +143,7 @@ t('A5 guided set-up from the banner: install app -> scan / key -> 6-digit code -
   u.buttons(ov, 'I have the app')[0].click(); await flush();
   assert.match(text(ov), /Step 2 of 3/); assert.match(text(ov), /Scan the QR code/);
   assert.equal(u.cls(ov, 'hau-qr').length, 1, 'QR image');
-  assert.equal(u.doc.getElementById('hauTsKey')._text, 'JBSWY3DPEHPK3PXP', 'typed key');
+  assert.equal(u.doc.getElementById('hauTsKey')._text, 'JBSW Y3DP EHPK 3PXP', 'typed key');
   assert.equal(u.buttons(ov, 'Copy').length, 1);
   u.buttons(ov, 'Back')[0].click(); await flush(); assert.match(text(ov), /Step 1 of 3/);
   u.buttons(ov, 'I have the app')[0].click(); await flush();
@@ -249,8 +249,8 @@ t('B4 store-api: Team status RPC (null when 0291 is missing / not allowed), bell
   assert.match(API, /if \(error\.code === "PGRST202" \|\| error\.code === "42883" \|\| error\.code === "42501"\) return null;/);
   assert.match(API, /out\[r\.user_id\] = r\.two_step === true/);
   assert.match(API, /if \(ev === "two_step_intro"\) return "dashboard\.html#two-step-setup";/);
-  assert.match(API, /const AUTH_UI_VERSION = "58";/);
-  assert.match(read('public/dashboard.html'), /store-api\.js\?v=332/); assert.match(CC, /store-api\.js\?v=332/);
+  assert.match(API, /const AUTH_UI_VERSION = "59";/);
+  assert.match(read('public/dashboard.html'), /store-api\.js\?v=333/); assert.match(CC, /store-api\.js\?v=333/);
 });
 
 /* ------------------------------------------------------------------ C. Settings -> Team badge */
