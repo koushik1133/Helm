@@ -285,7 +285,7 @@ do $$ declare r jsonb; u uuid; e text; ch jsonb; begin
   perform pg_temp.res('29 the stored rows are NOT rewritten (masked on read only)',
     exists (select 1 from public.audit_log where entity_id = 'r122-old' and changed ->> 'pan' = 'ZZZZZ9999Z'));
   -- two-step reset of an account with no two-step: refused nothing, but the log row is written (masked e-mail)
-  u := pg_temp.newuser('r122.nomfa.person@studio.test', 'a0000000-0000-4000-8000-000000000001', 'sales');
+  u := pg_temp.newuser('r122.nomfa.person@studio.test', 'a0000000-0000-4000-8000-000000000001'::uuid, 'sales');
   perform pg_temp.op();
   r := public.hq_mfa_reset('r122.nomfa.person@studio.test', 'called them back on the registered number');
   perform pg_temp.su();
