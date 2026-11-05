@@ -403,6 +403,14 @@ function serveStatic(req, res) {
     }
   }
 
+  // R125 (0334): the real client pages inside the free-trial preview pop-up. Same rewrites as vercel.json; framing rules of
+  // the invite page (same-origin only). No token in the address: outside the pop-up the page shows "This link isn't available".
+  { const tp = /^\/trial-preview-(approve|portal|booklet|proposal|invite|work|vendor|enquiry)$/.exec(rel);
+    if (tp) {
+      const page = { proposal: 'proposal-view', vendor: 'vendor-request' }[tp[1]] || tp[1];
+      return fs.readFile(path.join(PUBLIC_DIR, page + '.html'), (e, buf) => (e ? sendNotFound(res, req) : sendFileRes(res, path.join(PUBLIC_DIR, 'invite.html'), buf, req)));
+    } }
+
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which
   // reads the slug from the path and fetches ONLY the published display fields.
   // Guard: only treat it as a slug when there's no file extension, so asset

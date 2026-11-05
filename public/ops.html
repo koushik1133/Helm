@@ -127,7 +127,7 @@
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="crew-shifts.css?v=4">
-<script src="/shell-proto.js?v=63" id="shellProto"></script>
+<script src="/shell-proto.js?v=64" id="shellProto"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -277,7 +277,7 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=335"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=336"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -424,7 +424,7 @@
         const clash=await BPStore.calendar.wouldClash({date:quote.eventDate, crewId:c.id, excludeQuote:quoteId}).catch(()=>({clash:false}));
         if(clash.clash && !(await BPUI.confirm(c.name+" is "+clash.detail+". Assign anyway?",{title:"Scheduling clash",okLabel:"Assign anyway",danger:true}))){ return; }
         const r=await BPStore.ops.assignTasks(quoteId, activeCat, titles, c.id, c.name, c.phone);
-        setMsg("ok", `Assigned ${r.tasks_created} ${activeCat} task(s) to ${c.name}. Worker link ready below.`);
+        setMsg("ok", `Assigned ${r.tasks_created} ${activeCat} task(s) to ${c.name}.${window.HelmTrialPreview?"":" Worker link ready below."}`);
       }
       $("#selAll").checked=false; await refresh(); await renderTasks();
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"assign the tasks"})); }

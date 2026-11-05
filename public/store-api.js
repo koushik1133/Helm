@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=63"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=64"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
@@ -8,7 +8,7 @@
 /* r126: never on Helm HQ (hq, hq-referrals): it is not a studio, and my_trial_status is refused for HQ staff. */
 (function () { try { if (/^\/(hq|hq-referrals)(\.html)?\/?$/.test(location.pathname || "")) return; if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
-  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8"; document.head.appendChild(l); } } } catch (e) {} })();
+  if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=9"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (/^\/(hq|hq-referrals)(\.html)?\/?$/.test(location.pathname || "")) return; if (!document.getElementById("trialLock")) {
   var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=9"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
@@ -10751,6 +10751,14 @@ window.HelmUrl = HelmUrl;
     sendTest: (channel) => (supa && fnUrl("integrations-test") ? callFn("integrations-test", { action: "test", channel: channel }) : Promise.reject(new Error("Needs a signed-in studio."))),
   };
 
+  // R125 (0334): the free-trial preview pop-up (trial-preview.js). Signed-in staff of the studio only; no token is ever made.
+  const trialPreview = {
+    bundle: (kind, quoteId, opts) => rpc("trial_preview_bundle", { p_kind: kind, p_quote: quoteId || null, p_opts: opts || {} }),
+    testApprove: (quoteId, code, name, terms, consent) => rpc("trial_member_test_approve", { p_quote: quoteId, p_code: code, p_client_name: name || null,
+      p_phone: null, p_terms_version: terms || null, p_consent_text: consent || null, p_user_agent: (typeof navigator !== "undefined" && navigator.userAgent) || null }),
+    simulatePayment: (quoteId, name) => rpc("trial_member_simulate_payment", { p_quote: quoteId, p_client_name: name || null,
+      p_user_agent: (typeof navigator !== "undefined" && navigator.userAgent) || null }),
+  };
   const BPStore = {
     reservedEmailDomain, RESERVED_EMAIL_MESSAGE, preauthorisedHqEmail,
     isStaffEmail, STAFF_GOOGLE_MESSAGE, staffGoogleOnlyFor, staffGoogleSessionCheck,
@@ -11470,6 +11478,7 @@ window.HelmUrl = HelmUrl;
       catch (e) { if (rpcMissing(e)) { const er = new Error("Stage rules need database update 0263 (ask your admin to run APPLY-0263.sql)."); er.code = "stage_machine_missing"; throw er; } throw e; }
     },
   };
+  BPStore.trialPreview = trialPreview;
   global.BPStore = BPStore;
   BPStore.sampleName = sampleDisplayName;   // r20: shared sample-name display (see sampleDisplayName)
   /* ---- 0067 pretty studio URLs: studio check + ref resolution (HelmUrl.get) ----

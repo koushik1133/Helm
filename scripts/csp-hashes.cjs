@@ -194,7 +194,9 @@ function scriptSrcProblem(csp, route) {
 // share checklist). Every other page — builder.html included — must stay frame-ancestors 'none'.
 const FRAME_SELF_ROUTES = new Set(['/invite', '/invite\\.html', '/invite.html', '/i', '/i/(.*)', '/i/*',
   '/([a-z0-9-]+)/invite/([^/]+)', '/:studio/invite/:ref', '/capture', '/capture\\.html', '/capture.html', '/(capture|capture\\.html)',
-  '/(invite|invite\\.html|i|i/.*|[a-z0-9-]+/invite/[^/]+)']);   // r83: the merged invite rule (same routes as above)
+  '/(invite|invite\\.html|i|i/.*|[a-z0-9-]+/invite/[^/]+)',   // r83: the merged invite rule (same routes as above)
+  // R125: + the free-trial preview pop-up's frames (no token in these addresses)
+  '/(invite|invite\\.html|i|i/.*|[a-z0-9-]+/invite/[^/]+|trial-preview-approve|trial-preview-portal|trial-preview-booklet|trial-preview-proposal|trial-preview-invite|trial-preview-work|trial-preview-vendor|trial-preview-enquiry)']);
 function frameAncestorsProblem(value, route) {
   const m = /frame-ancestors ([^;]*)/.exec(value || ''); const fa = m ? m[1].trim() : '';
   if (!fa || fa === "'none'") return '';   // (a policy without frame-ancestors is checked by headers-parity)

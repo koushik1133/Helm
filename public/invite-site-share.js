@@ -17,13 +17,13 @@
 (function () {
   "use strict";
   var OPT_TEXT = "Client agreed to receive WhatsApp messages about this event from Helm Events on behalf of the studio.";
-  var TRIAL_NOTE = "Test mode — in the free trial we don't send real messages; copy the link instead.";
+  var TRIAL_NOTE = "Test mode — in the free trial nothing is sent. Use the preview to see what your client would get.";
   // R114 (0323): the trial preview
   var SIM_NOTE = "Trial simulation — nothing is sent to your client. Preview shows the message they would get and opens their page for you.";
   var SIM_DONE = "Preview only — nothing was sent to your client (trial simulation). Their page opened in a new tab.";
   // 0212: an ACTIVE free trial - e-mail is real, WhatsApp is not offered
   var TRIAL_EMAIL_NOTE = "Free trial: nothing is sent to your client - you see a preview (trial simulation). WhatsApp and SMS unlock on a paid plan.";   // R116 (0323)
-  var TRIAL_CAP = "Not sent: the free trial e-mail limit for today is reached (30 a day, 5 to one address). Use Copy link to share it yourself.";
+  var TRIAL_CAP = "Not sent: the free trial e-mail limit for today is reached (30 a day, 5 to one address).";
   var EMAIL_RE = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
   var STATUS = { queued: "Queued", pending: "Queued", sent: "Sent", skipped: "Not sent", failed: "Failed" };
   // r21 email audit: a send still "Queued" after this long has not gone out (Helm's sender runs every few minutes)
@@ -63,8 +63,8 @@
     if (st === "queued") return "Queued — it goes out " + how + to + " within a few minutes.";
     if (st === "already_queued") return "Already queued a moment ago" + to + " — no second message was added.";
     if (st === "skipped" && r.reason === "trial_email_cap") return TRIAL_CAP;
-    if (st === "skipped" && r.reason === "free_trial" && channel === "whatsapp") return "Not sent: WhatsApp unlocks on a paid plan. Send it by email or use Copy link.";
-    if (st === "skipped" && r.reason === "free_trial") return "Test mode: nothing was sent (free trial). Use Copy link to share it yourself.";
+    if (st === "skipped" && r.reason === "free_trial" && channel === "whatsapp") return "Not sent: WhatsApp unlocks on a paid plan.";
+    if (st === "skipped" && r.reason === "free_trial") return "Test mode: nothing was sent (free trial).";
     if (st === "skipped" && r.reason === "demo") return "Not sent: this is a demo event. Use Copy link to share it yourself.";
     if (st === "skipped") return "Not sent. Use Copy link to share it yourself.";
     return "Done.";

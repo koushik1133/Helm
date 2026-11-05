@@ -24,7 +24,7 @@ t("editor: trial asked from the server after init; photo refusals get a clear li
 });
 t("box: publish-first gate, trial note wording, consent text, no innerHTML, stays out of dirty tracking", () => {
   assert.match(box, /Publish first \u2014 then you can send the link to your client\./);
-  assert.match(box, /Test mode \u2014 in the free trial we don't send real messages; copy the link instead\./);
+  assert.match(box, /Test mode \u2014 in the free trial nothing is sent\. Use the preview to see what your client would get\./);
   assert.match(box, /Client agreed to receive WhatsApp messages about this event/);
   assert.doesNotMatch(box, /innerHTML|insertAdjacentHTML|style=/);
   assert.match(box, /\["input", "change"\]\.forEach\(function \(t\) \{ box\.addEventListener\(t, function \(e\) \{ e\.stopPropagation\(\); \}\); \}\)/);

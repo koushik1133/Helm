@@ -86,3 +86,17 @@ The studio becomes read-only until a plan is paid. Everything stays as it was, a
 - **Before first paint (0181):** `trial-lock.js` caches `helm.trial = 1` in the browser. On the next page load `shell-proto.js` (app pages), `trial-early.js` (builder, booklet) or `store-api.js` (any other page) adds `html.helm-trial` at once, so export, render and print buttons never flash usable. When the server says the studio is not on a trial (paid, upgraded, signed out), the class comes off again and the flag is cleared. Sign-out clears it too.
 - **SQL:** `supabase/APPLY-0173.sql`, then `supabase/APPLY-0181.sql`, are the paste files. Run them on staging first, then production. They are safe to run twice, and their VERIFY rows should all be `true`.
 - **Tests:** `tests/db/trial-lockdown-0173.sql` and `tests/db/trial-guards-0181.sql` (DB), and `test/trial-lockdown-ui.test.mjs` (UI).
+
+## R125 (0334): nothing leaves a free trial
+
+No link and no message leaves Helm in a free trial, except sign-up, sign-in and team invitations for teammates. The studio's own
+trial and security e-mails stay.
+
+- Every send button is a "(Preview)" button. The pop-up (`public/trial-preview.js`) shows the real pages with the studio's own
+  data: they run in a same-origin frame (`/trial-preview-<page>`, `public/trial-preview-frame.js`) on data the signed-in member
+  fetched with `trial_preview_bundle`. That address holds no token: alone it shows "This link isn't available".
+- The server decides: `_r125_closed(org)` (active and ended trials). A closed studio's link answers exactly like a random token,
+  and no link can be created. Nothing is deleted, so links work again after an upgrade unless they expired.
+- Test approval and Simulate payment are members-only (`trial_member_test_approve`, `trial_member_simulate_payment`), stay marked
+  TEST and never reach income.
+- `test/r125-trial-preview.harness.mjs` walks every pop-up in a real browser. It is not part of `npm test`.

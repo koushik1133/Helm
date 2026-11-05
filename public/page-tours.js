@@ -87,7 +87,7 @@
       { sel: "#sec-proposal", title: "3 · Proposal", desc: "Your pitch to the client — it sits above the floor layout so you sell first, then plan." },
       { sel: "#sec-layout", title: "4 · Floor layout", desc: "Open the builder. The chairs you place here feed straight back into the quotation." },
       { sel: "#sec-quote", title: "5 · Quote", desc: "Final pricing and confirmation. Confirming sets the event live." },
-      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. Change the \"Valid until\" date (dd/mm/yyyy); Undo fixes a mis-click. Client 2D / 3D images come with a paid plan, so they are off in the free trial. Trial: code 000000, simulated pay, no sends." },
+      { sel: "#sec-approve", title: "Share & approval", desc: "Send the client one private link to approve. Change the \"Valid until\" date (dd/mm/yyyy); Undo fixes a mis-click. Client 2D / 3D images need a paid plan. Trial: (Preview) buttons show it all, no link is made." },
       { sel: "#sec-pay", need: "finance", title: "6 · Payment", desc: "Record the advance (amount, method, receipt no.) to confirm the booking, and pick a payment schedule - you see the split (e.g. 30% / 50% / 20%) before you add it." },
     ],
     "logistics.html": [
@@ -319,7 +319,7 @@
       { sel: "#inviteBtn", title: "Invitation website", desc: "Once confirmed, build a public invitation site for the client to share with guests." },
       { sel: "#paySchedCard", need: "finance", title: "Payments", desc: "The client's payment plan: what is paid, what is due and when." },
       { sel: "#filesPanel", title: "Files", desc: "Keep this event's papers in one place: contracts, permits, drawings." },
-      { sel: "#evMenuBtn", title: "More actions", desc: "Share the booklet, re-share links, or cancel the event." },
+      { sel: "#evMenuBtn", title: "More actions", desc: "Share the booklet, re-share links, or cancel the event. Free trial: Share booklet (Preview) shows it inside your studio." },
     ],
     /* ---------------- pages added in R46: every app page has a tour ---------------- */
     "dashboard.html": { own: "#helpBtn" },   // the first-run tour (const TOUR in dashboard.html)
@@ -392,7 +392,7 @@
       { sel: "#p_color", title: "Colours", desc: "Add the colour palette as swatches." },
       { sel: "#p_img", title: "Mood board", desc: "Add inspiration images by link." },
       { sel: "#p_scope", title: "What's included", desc: "List what the client gets." },
-      { sel: "#pubBtn", title: "Publish", desc: "Make the proposal live and copy the client link." },
+      { sel: "#pubBtn", title: "Publish", desc: "Make the proposal live and copy the client link. Free trial: Share proposal (Preview) shows what your client would get - no link is made." },
       { sel: "#rk_title", title: "Risks", desc: "Note what could go wrong and how you will handle it." },
     ],
     "resources.html": [
@@ -482,9 +482,9 @@
       { sel: "#rsvpModeGroup", title: "How guests reply", desc: "Phone & WhatsApp buttons (the default), an RSVP form where guests say Yes / Maybe / No and how many are coming, or both. With the form only, your number stays private." },
       { sel: "#addrGroup", title: "Address privacy", desc: "Show the full address and map to everyone with the link (the default), or only the venue name and city until a guest replies Yes or Maybe. This needs the RSVP form. Below it you choose whether the footer says “Made with Helm Studios”." },
       { sel: "#photos", title: "Photos, music & schedule", desc: "Add photos and choose how the background looks. Further down: a song for the site and the day's programme (ceremony, dinner, dancing)." },
-      { sel: "#shareCard", title: "Send to client", desc: "Share the site link with the client. Free trial: Preview shows what they would get - nothing is sent." },
+      { sel: "#shareCard", title: "Send to client", desc: "Share the site link with the client. Free trial: Publish invitation (Preview) shows what they would get - no link is made and nothing is sent." },
       { sel: "#repliesCard", title: "Guest replies", desc: "With the RSVP form on, every reply lands here: who is coming, how many, and a CSV download. Shown once the site is published." },
-      { sel: ["#pvToggle", "#pubBtn"], title: "Preview & publish", desc: "Check the live preview, then publish and copy the link for the client. Turn off link takes the site down again." },
+      { sel: ["#pvToggle", "#pubBtn"], title: "Preview & publish", desc: "Check the live preview, then publish and copy the link for the client. Turn off link takes the site down again. Free trial: Publish invitation (Preview) walks through the template, full site, RSVP and guest view." },
     ],
     /* ---------------- pages with their own layout (no app shell) ---------------- */
     "hq.html": [

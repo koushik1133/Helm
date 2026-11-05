@@ -25,7 +25,7 @@ export PGDATABASE=helm_runall
 # 0290: the older suites run as if every message were inside the studio send window; r41-send-window-0290.sql turns it on
 # 0296: fixtures / cleanups delete events and vendors as the superuser; the older suites run with the purge mark on
 # (it never helps a delete made AS anon / authenticated). r55-no-hard-delete-0296.sql + the 0184 re-run below turn it off.
-export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off -c helm.allow_hq_mfa_lockout=on -c helm.send_window=off -c helm.allow_purge=on"   # 0249: fixtures turn hq_require_mfa on with fake operators; r21-security-0249.sql turns the guard back on
+export PGOPTIONS="${PGOPTIONS:-} -c helm.maintenance=off -c helm.allow_hq_mfa_lockout=on -c helm.send_window=off -c helm.allow_purge=on -c helm.r125_gate=off"   # 0249: fixtures turn hq_require_mfa on with fake operators; r21-security-0249.sql turns the guard back on
 dropdb --if-exists helm_runall >/dev/null 2>&1; createdb helm_runall
 psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/00-supabase-shim.sql >/dev/null 2>&1
 
@@ -351,6 +351,11 @@ run "r110-trial-polish-0320" "R110-TRIAL-POLISH-0320: ALL PASS \(24/24\)" psql -
 run "r123a-hq-devices-0332" "R123A-HQ-DEVICES-0332: ALL PASS \(32/32\)" psql -q -f tests/db/r123a-hq-devices-0332.sql
 # r124 (0333): trial follow-up e-mails - no old studio on the first run, offsets + catch-up day, once per kind, stops on plan / suspension / unsubscribe / later end, current owner, deletion off + on, send window, 2-day rule, privileges; re-applies 0329 then itself three times (earlier suites re-apply 0184 / 0329 over it), rolled back
 run "r124-trial-followups-0333" "R124-TRIAL-FOLLOWUPS-0333: ALL PASS \(49/49\)" psql -q -f tests/db/r124-trial-followups-0333.sql
+# r125 (0334): free trial - no link leaves Helm. The older suites run with the gate off (PGOPTIONS above); this one turns it on: outsider refusal per page (active + ended, 3 kinds of visitor, same answer as a random token), no link can be created (functions + triggers), members-only preview / test approval / simulated payment leave no token, paid studios unchanged, upgrade unlocks; re-applies itself twice, rolled back
+run "r125-trial-lockdown-0334" "R125-TRIAL-LOCKDOWN-0334: ALL PASS \(104/104\)" psql -q -f tests/db/r125-trial-lockdown-0334.sql
+# r125: a new trial with the gate ON (every older suite runs it off): the sample studio still clones in full, links included (refused like any trial link)
+run "trial-clone-0190-r125-gate" "TRIAL-CLONE-0190: ALL PASS \(24/24\)" env PGOPTIONS="$PGOPTIONS -c helm.r125_gate=on" psql -q -f tests/db/trial-clone-0190.sql
+run "trial-seed-0174-r125-gate" "TRIAL-SEED-0174: ALL PASS \(12/12\)" env PGOPTIONS="$PGOPTIONS -c helm.r125_gate=on" psql -q -f tests/db/trial-seed-0174.sql
 # r126 (0335): HQ walkthrough fixes - one studio count (sample master left out), client logins out of People / search / Show, one trial day, job history says why, activity log names the studio, removed staff out of readiness, gates unchanged; re-applies itself twice, rolled back
 run "r126-hq-fixes-0335" "R126-HQ-FIXES-0335: ALL PASS \(39/39\)" psql -q -f tests/db/r126-hq-fixes-0335.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

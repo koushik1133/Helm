@@ -1,6 +1,6 @@
 -- APPLY-0335.sql - paste into the Supabase SQL editor (STAGING first; production when the owner says go).
 -- It stops with "STOP 0335: ..." if 0330 (R122) or an earlier migration it builds on is missing.
--- [numbering: 0334 is reserved for another round. This file needs nothing from it and works before or after it.]
+-- [numbering: goes after 0334 (R125). This file needs nothing from it.]
 -- R126 (owner: "start fixing the hq issues"): what Helm HQ SHOWS, nothing stored changes:
 --   System health says why job history can't be read; one trial end day everywhere; the sample-data master leaves the
 --   studio counts, so tile and list agree; People no longer lists a studio's client logins and shows HQ staff correctly;
@@ -17,7 +17,7 @@ begin;
 -- database half. READ FUNCTIONS ONLY: what HQ shows changes, no stored row changes.
 -- REQUIRES 0166 (is_sample_master), 0223 (_td223_zone), 0249 (hq_mfa_readiness), 0272 (hq_metrics), 0277 (HQ roles),
 --          0298 (masking), 0330 (current hq_users / hq_studios / hq_studio_detail / hq_reveal / hq_audit / hq_overview).
--- [numbering: 0334 is reserved for another round. This file needs nothing from it and works in either order.]
+-- [numbering: goes after 0334 (R125). This file needs nothing from it.]
 --
 -- In plain words:
 --   1  System health said only "Job history isn't readable". hq_metrics now says WHY: pg_cron is not switched on for this
