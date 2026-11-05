@@ -387,7 +387,7 @@
 </style>
 <link rel="stylesheet" href="theme.css?v=84"><link rel="stylesheet" href="/ui-pickers.css?v=3"><script src="/ui-pickers.js?v=4" defer></script>
 <link rel="stylesheet" href="/public-pages-v2.css?v=6">
-<link rel="stylesheet" href="/hq-responsive.css?v=1">
+<link rel="stylesheet" href="/hq-responsive.css?v=2">
 <script src="/public-theme.js?v=4"></script>
 </head>
 <body>
@@ -549,7 +549,7 @@
       <div class="hd"><h2 id="hReq">Plan requests</h2>
         <select id="fReq" aria-label="Filter requests"><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
         <button class="btn" id="btnReq" type="button">Show</button></div>
-      <p class="hint">Studio admins ask for a plan from the plan page or the read-only banner. Click a row to read it and reply. Once they have paid: open the studio &rarr; <b>Plan &amp; billing</b> &rarr; <b>Activate plan</b>.</p>
+      <p class="hint">Studio admins ask for a plan from the plan page or the read-only banner. Click a row to read it and reply. Once they have paid: open the studio &rarr; <b>Billing &amp; plan</b> &rarr; <b>Activate plan</b>.</p>
       <p class="muted" id="reqCounts"></p>
       <div class="scroll"><table class="rq rt"><thead><tr><th>When</th><th>Studio</th><th>Contact</th><th>Plan</th><th>Message</th><th>Status</th></tr></thead><tbody id="tReq"></tbody></table></div>
     </section>
@@ -610,6 +610,7 @@
           <button class="btn primary" id="btnRecord" type="button">Record payment</button>
         </div>
         <p class="muted">Never type card numbers, CVV or bank passwords anywhere in HQ. A UTR / UPI reference is enough.</p>
+        <p class="gnote" role="note"><b>This does not renew the studio.</b> It adds the payment and its invoice only: the plan dates do not move and Past due is not cleared. To renew, open the studio &rarr; <b>Billing &amp; plan</b> &rarr; <b>Activate plan</b>.</p>
       </section>
       <div class="stack">
         <section class="card"><h2>Past due</h2><ul class="list" id="pastDue"></ul></section>
@@ -621,9 +622,9 @@
 
   <section id="pane-plans" hidden>
     <section class="card">
-      <div class="hd"><h2>Plans</h2><span class="muted">prices shown in US dollars</span><button class="btn primary" id="btnPlanNew" type="button" data-perm="billing.write">New plan</button></div>
-      <p class="hint">“Visible” plans appear on the website pricing page (/pricing) and at checkout. Edits here show on /pricing automatically once SQL 0280 is applied (until then it keeps its built-in prices). The home page’s pricing section still shows its fixed prices - live prices there are coming soon.</p>
-      <div class="scroll"><table class="rt"><thead><tr><th>Plan</th><th class="n">₹ price / month (≈ $)</th><th class="n">USD / month</th><th class="n">USD / year</th><th>Visible</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
+      <div class="hd"><h2>Plans</h2><button class="btn primary" id="btnPlanNew" type="button" data-perm="billing.write">New plan</button></div>
+      <p class="hint">“Visible” plans appear on the website pricing page (/pricing) and at checkout. Edits here show on /pricing automatically. The home page’s pricing section still shows its fixed prices - live prices there are coming soon.</p>
+      <div class="scroll"><table class="rt"><thead><tr><th>Plan</th><th class="n">₹ price / month</th><th class="n">USD / month</th><th class="n">USD / year</th><th>Visible</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
     </section>
     <section class="card" id="planEditor" aria-labelledby="peH" data-perm="billing.write" hidden>
       <div class="hd"><h2 id="peH">Edit plan</h2><button class="btn ghost" id="btnPlanCancel" type="button">Cancel</button></div>
@@ -675,8 +676,8 @@
 
   <section id="pane-people" hidden>
     <section class="card">
-      <div class="hd"><h2>Everyone with a Helm login</h2><input type="search" id="qUsers" placeholder="Search e-mail or studio" aria-label="Search users"></div>
-      <p class="hint">E-mail addresses are masked. Search works with the full address; “Show” is recorded.</p>
+      <div class="hd"><h2>Studio teams and Helm staff</h2><input type="search" id="qUsers" placeholder="Search e-mail or studio" aria-label="Search users"></div>
+      <p class="hint">Everyone on a studio’s team, Helm’s own staff, and logins with no studio yet. A studio’s client logins are never listed. E-mail addresses are masked. Search works with the full address; “Show” is recorded.</p>
       <div class="scroll"><table class="rt"><thead><tr><th>E-mail</th><th>Studio</th><th>Role</th><th>Joined</th><th>Last sign-in</th><th>Confirmed</th><th>2-step</th></tr></thead><tbody id="tUsers"></tbody></table></div>
       <div class="pager" id="pUsers"></div>
     </section>
@@ -737,13 +738,13 @@
     <section class="card" id="sgCard" aria-labelledby="sgH" data-perm="staff.manage" hidden>
       <div class="hd"><h2 id="sgH">Google-only sign-in for Helm staff</h2><span class="pill" id="sgState">Off</span></div>
       <p class="hint">When this is on, everyone with a helm.events address signs in ONLY with their helm.events Google Workspace account. Passwords, magic links and password-reset links stop working for them. Two-step stays required for HQ. Studio customers are not affected.</p>
-      <div class="gwarn" role="note"><b>Careful.</b> If Google sign-in does not work for you, you are locked out of HQ. HQ people whose address is not on helm.events lose HQ access while this is on. The only way back is the emergency SQL in STAFF-GOOGLE-ONLY-STEPS.md, run in the Supabase SQL editor.</div>
+      <div class="gwarn" role="note"><b>Careful.</b> If Google sign-in does not work for you, you are locked out of HQ. HQ people whose address is not on helm.events lose HQ access while this is on. The only way back is the emergency undo, run directly on the database.</div>
       <h3>Test my Google sign-in first</h3>
       <ol class="sgsteps">
         <li>Sign out. On helm.events/login use <b>Continue with Google</b> with your helm.events account, then enter your two-step code.</li>
         <li>Come back here. &ldquo;Your sign-in right now&rdquo; must say <b>Google &#10003;</b>.</li>
         <li>Ask every HQ person to do the same. Their row below must say <b>Google &#10003;</b>.</li>
-        <li>Keep STAFF-GOOGLE-ONLY-STEPS.md open: it has the emergency undo.</li>
+        <li>Have the emergency undo steps to hand before you turn this on.</li>
       </ol>
       <p class="muted" id="sgMe"></p>
       <ul class="list" id="sgList"></ul>
@@ -787,7 +788,7 @@
     </div>
     <section class="card" aria-labelledby="stAccH">
       <h2 id="stAccH">Existing logins on reserved domains</h2>
-      <p class="muted">Read-only. Logins made before this protection existed are not changed automatically. To turn one off, review it here, then use R21-RESERVED-DOMAIN-DISABLE.sql (reversible, nothing is deleted).</p>
+      <p class="muted">Read-only. Logins made before this protection existed are not changed automatically. To turn one off, review it here, then ask the developer to switch off its sign-in (reversible, nothing is deleted).</p>
       <div class="scroll"><table class="rt"><thead><tr><th>E-mail</th><th>Studio</th><th>Created</th><th>Last sign-in</th><th>Status</th></tr></thead><tbody id="tStAcc"></tbody></table></div>
     </section>
   </section>
@@ -796,7 +797,7 @@
   <section id="pane-settings" hidden>
     <section class="card" aria-labelledby="adrH">
       <h2 id="adrH">Helm e-mail addresses</h2>
-      <p class="hint">The addresses Helm uses in public. Where each one should appear is listed in the HQ v2 report (legal pages are changed only by the owner).</p>
+      <p class="hint">The addresses Helm uses in public. Legal pages are changed only by the owner.</p>
       <dl class="kv">
         <dt>General contact (public)</dt><dd><b>info@helm.events</b></dd>
         <dt>Sales</dt><dd>sales@helm.events</dd>
@@ -817,6 +818,7 @@
     </section>
     <section class="card" data-perm="billing.write">
       <h2>Invoice settings</h2>
+      <p class="gnote" id="sellerWarn" role="note" hidden></p>
       <div class="form">
         <label class="fld"><span>Legal name</span><input type="text" id="sName" maxlength="160"></label>
         <label class="fld"><span>GSTIN</span><input type="text" id="sGstin" maxlength="15"></label>
@@ -850,7 +852,7 @@
       <h2 id="dhH">The rules HQ follows</h2>
       <ul class="rules">
         <li><span class="dotk" aria-hidden="true">1</span><span><b>No studio business data</b>HQ shows studios, their people and what they paid Helm. Never a studio’s clients, quotes, prices, events or messages. For that data Helm only processes it for the studio, so HQ staff see it only if the studio asks (none today).</span></li>
-        <li><span class="dotk" aria-hidden="true">2</span><span><b>Masked by default</b>E-mails, phone numbers, PAN, GSTIN and tax ids show as ka•••@studio.in / +91 ••••••••23. “Show” reveals one value and records who, when and which field &mdash; never the value.</span></li>
+        <li><span class="dotk" aria-hidden="true">2</span><span><b>Masked by default</b>Studio and customer e-mails, phone numbers, PAN, GSTIN and tax ids show as ka•••@studio.in / +91 ••••••••23. “Show” reveals one value and records who, when and which field &mdash; never the value. Helm’s own people are the exception: HQ team addresses, the activity log and logins on Helm’s own domains show in full, so it is clear who did what.</span></li>
         <li><span class="dotk" aria-hidden="true">3</span><span><b>Only what your role needs</b>Each HQ role sees only its pages; the database refuses everything else. Two-step always, sign-out after <span id="pvIdle">the set idle time</span>, sign-ins end after <span id="pvMax">the set number of hours</span> (HQ team &rarr; Sign-in rules), a fresh code for big changes.</span></li>
         <li><span class="dotk" aria-hidden="true">4</span><span><b>Never stored</b>Passwords (only hashes, kept by Supabase Auth), card numbers or CVV (Razorpay holds them), Aadhaar numbers.</span></li>
         <li><span class="dotk" aria-hidden="true">5</span><span><b>Everything is logged</b>Page views, changes, reveals and exports are in Security &amp; activity, with who and when.</span></li>
@@ -869,7 +871,7 @@
         <tr><td><b>HQ staff sessions, devices, short IP, rough location</b></td><td>Protecting HQ</td><td>Owner, Admin, Security; each person sees their own (Your devices)</td><td>12&ndash;18 months</td></tr>
         <tr><td><b>HQ activity log (views, changes, reveals)</b></td><td>Accountability (DPDP Rules: logs at least 1 year)</td><td>Owner, Admin, Security</td><td>At least 1 year, better 2&ndash;3 years</td></tr>
       </tbody></table></div>
-      <p class="muted gap-t">Breaches: tell the Data Protection Board and each affected person without delay, with a detailed report to the Board within 72 hours; certain cyber incidents go to CERT-In within 6 hours. Details and sources: HQ-SUPERADMIN-RESEARCH.md.</p>
+      <p class="muted gap-t">Breaches: tell the Data Protection Board and each affected person without delay, with a detailed report to the Board within 72 hours; certain cyber incidents go to CERT-In within 6 hours. Details and sources are in Helm’s HQ research note.</p>
     </section>
     <section class="card" aria-labelledby="dlH">
       <h2 id="dlH">Helm’s legal pages</h2>
@@ -916,13 +918,13 @@
 <script src="config.js?v=112"></script>
 <script src="phone-input.js?v=9"></script>
 <script src="event-name.js?v=9"></script>
-<script src="country-profile.js?v=7"></script><script src="store-api.js?v=334"></script>
-<script src="auth-ui.js?v=59"></script>
+<script src="country-profile.js?v=7"></script><script src="store-api.js?v=335"></script>
+<script src="auth-ui.js?v=60"></script>
 <script src="hq-invoice.js?v=3"></script>
-<script src="hq-mfa.js?v=1"></script>
+<script src="hq-mfa.js?v=2"></script>
 <script src="hq-staff.js?v=3"></script>
-<script src="hq.js?v=35"></script>
-<script src="page-tours.js?v=19"></script>
-<script src="tour.js?v=39"></script>
+<script src="hq.js?v=36"></script>
+<script src="page-tours.js?v=20"></script>
+<script src="tour.js?v=40"></script>
 </body>
 </html>

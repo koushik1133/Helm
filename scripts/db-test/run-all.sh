@@ -351,6 +351,8 @@ run "r110-trial-polish-0320" "R110-TRIAL-POLISH-0320: ALL PASS \(24/24\)" psql -
 run "r123a-hq-devices-0332" "R123A-HQ-DEVICES-0332: ALL PASS \(32/32\)" psql -q -f tests/db/r123a-hq-devices-0332.sql
 # r124 (0333): trial follow-up e-mails - no old studio on the first run, offsets + catch-up day, once per kind, stops on plan / suspension / unsubscribe / later end, current owner, deletion off + on, send window, 2-day rule, privileges; re-applies 0329 then itself three times (earlier suites re-apply 0184 / 0329 over it), rolled back
 run "r124-trial-followups-0333" "R124-TRIAL-FOLLOWUPS-0333: ALL PASS \(49/49\)" psql -q -f tests/db/r124-trial-followups-0333.sql
+# r126 (0335): HQ walkthrough fixes - one studio count (sample master left out), client logins out of People / search / Show, one trial day, job history says why, activity log names the studio, removed staff out of readiness, gates unchanged; re-applies itself twice, rolled back
+run "r126-hq-fixes-0335" "R126-HQ-FIXES-0335: ALL PASS \(39/39\)" psql -q -f tests/db/r126-hq-fixes-0335.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

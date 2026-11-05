@@ -1,14 +1,15 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=62"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=63"; document.head.appendChild(s); } } catch (e) {} })();
 /* 0173 free-trial lock (trial studios only; a paid studio gets "not a trial" and nothing changes) */
 /* 0181: a studio last seen in its trial gets html.helm-trial at once (cached flag), so export / render buttons never
    flash usable; trial-lock.js takes it back off if the server says "not a trial". App pages already did this in <head>
    (shell-proto.js, trial-early.js); this is the fallback for every other page. */
-(function () { try { if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
+/* r126: never on Helm HQ (hq, hq-referrals): it is not a studio, and my_trial_status is refused for HQ staff. */
+(function () { try { if (/^\/(hq|hq-referrals)(\.html)?\/?$/.test(location.pathname || "")) return; if (localStorage.getItem("helm.trial") === "1") { var d = document.documentElement;
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
   if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8"; document.head.appendChild(l); } } } catch (e) {} })();
-(function () { try { if (!document.getElementById("trialLock")) {
+(function () { try { if (/^\/(hq|hq-referrals)(\.html)?\/?$/.test(location.pathname || "")) return; if (!document.getElementById("trialLock")) {
   var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=9"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
@@ -1500,7 +1501,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "59";
+  const AUTH_UI_VERSION = "60";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -13522,6 +13523,8 @@ window.HelmUrl = HelmUrl;
     // get_pricing_config RPC — it 401s for anon and floods the API logs (Oct 2026).
     try { BPStore.init().then(function () {
       if (BPStore.mode() === "supabase" && !BPStore.auth.user()) return null;
+      // r126: Helm HQ is not a studio - get_pricing_config / get_item_rate_cards are refused there (HQ phones default to India)
+      try { if (/^\/(hq|hq-referrals)(\.html)?\/?$/.test(location.pathname || "")) return null; } catch (e) {}
       return BPStore.config.getPricing();
     }).then(function (p) { if (!p) return; var c = p.country || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {}
       try { if (window.HelmPhone && window.HelmPhone.setDefaultCountry) window.HelmPhone.setDefaultCountry(c); } catch (e) {} }).catch(function () {}); } catch (e) {}

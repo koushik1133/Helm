@@ -2426,6 +2426,7 @@
       onDismiss: function () { try { sessionStorage.setItem(key, "1"); } catch (e) {} }, dismissLabel: "Hide for this session" });
   }
 
+  function hqPage() { return /^(hq|hq-referrals)$/.test(pageName()); }
   var chromeMounted = false;
   function mountAppChrome() {
     if (chromeMounted) return; chromeMounted = true;
@@ -2451,6 +2452,7 @@
         setTimeout(function () { openTwoStepSetup(); }, 400);
       }
     } catch (e) {}
+    if (hqPage()) return;   // r126: the HQ pages are not a studio - these four ask the studio app's server calls, and HQ staff are refused
     profileNudge();
     subscriptionStatus();
     trialStatus();

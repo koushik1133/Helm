@@ -137,8 +137,7 @@ t('I "appears after SQL" only when the function is missing; other failures say t
   const c = pure(['meMissing', 'partFailed'], { RegExp });
   assert.equal(c.partFailed({ message: 'Could not find the function public.hq_trial_info in the schema cache' }, 'soon'), 'soon');
   assert.match(c.partFailed({ message: 'network down' }, 'soon'), /^Couldn't load this part: network down/);
-  for (const s of ['Trial details appear after migration 0186', 'Credits appear after SQL 0280', 'The studio owner appears after SQL 0283', 'Activity appears after SQL 0272'])
-    assert.ok(J.includes('partFailed(e, "' + s), s);
+  assert.ok((J.match(/partFailed\(e, SOON\)/g) || []).length >= 4);   // r126: one plain sentence, no SQL number
 });
 t('I stale replies: loadDetail / loadTrialInfo drop an answer for a studio that is no longer open', () => {
   const ld = fnSrc(J, 'loadDetail');

@@ -16,7 +16,7 @@ t('chat_ensure_broadcast runs once per page, not per poll (la-fetch: only on Cha
   assert.equal((api.match(/rpc\("chat_ensure_broadcast"\)/g) || []).length, 1);
 });
 t('signed-out pages skip the members-only get_pricing_config RPC', () => {
-  assert.match(api, /if \(BPStore\.mode\(\) === "supabase" && !BPStore\.auth\.user\(\)\) return null;\s*return BPStore\.config\.getPricing\(\);/);
+  assert.match(api, /if \(BPStore\.mode\(\) === "supabase" && !BPStore\.auth\.user\(\)\) return null;[\s\S]{0,300}?return BPStore\.config\.getPricing\(\);/);   // r126: + the Helm HQ line in between
 });
 t('sign-out clears per-user browser state (shared-computer hygiene, audit Phase 4)', () => {
   const m = api.match(/const USER_LOCAL_KEYS = \[([^\]]+)\]/); assert.ok(m, 'USER_LOCAL_KEYS missing');

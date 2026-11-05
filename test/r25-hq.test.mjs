@@ -40,7 +40,7 @@ t('overview: hq_metrics with a fallback when 0272 is missing; tiles, charts, att
   assert.match(J, /renderOverview\(r\[0\] \|\| \{\}, r\[1\] && !Array\.isArray\(r\[1\]\) && r\[1\]\.studios \? r\[1\] : null\)/);
   for (const l of ['"Paying studios"', '"On free trial"', '"Trial → paid"', '"Open requests"', '"Failed e-mails (7 days)"', '"ARR "'])
     assert.ok(J.includes(l), l);
-  assert.match(J, /Appears after SQL 0272 is applied/);
+  assert.match(J, /Not available on this database yet\./);   // r126: plain words
   assert.match(J, /document\.createElementNS\(SVGNS, tag\)/);
 });
 t('chart helpers: nice axis tops and short rupees', () => {
