@@ -799,6 +799,15 @@ window.HelmUrl = HelmUrl;
     try { qs = new URLSearchParams(m[2] || "").toString(); } catch (e) { qs = ""; }
     return page + ".html" + (qs ? "?" + qs : "");
   }
+  // r124: where the SIGN-IN step goes next. safeNext never answers "checkout" (nothing may send /checkout to itself), but
+  // an owner who opens /checkout from an e-mail while signed out must land back on it, in the same studio.
+  function loginNext(raw) {
+    const m = /^\/?checkout(?:\.html)?(?:\?([^#]*))?$/i.exec(typeof raw === "string" ? raw : "");
+    if (!m) return safeNext(raw);
+    let qs = "";
+    try { qs = new URLSearchParams(m[1] || "").toString(); } catch (e) { qs = ""; }
+    return "checkout.html" + (qs ? "?" + qs : "");
+  }
   function gotoLogin() {
     let page = "dashboard";
     try { page = HelmUrl.here(); } catch (e) {}
@@ -2078,7 +2087,8 @@ window.HelmUrl = HelmUrl;
     pendingStep: () => pendingStep,
     resolveGate: () => evaluateGate(),
     // same-site ?next= sanitiser (login.html) — always returns one of the app's own pages
-    safeNext: (raw) => safeNext(raw),
+    // r124: on the sign-in page only, an owner who came for /checkout goes back to it (loginNext); everywhere else unchanged
+    safeNext: (raw) => (/^\/login(\.html)?\/?$/.test(location.pathname) ? loginNext(raw) : safeNext(raw)),
     // Helm platform operator? Only meaningful (and only asked) for an account with no
     // studio; false on any error. UI routing only — hq_* RPCs enforce it server-side.
     isPlatformAdmin: () => isPlatformAdmin(),

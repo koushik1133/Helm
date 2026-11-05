@@ -7,5 +7,5 @@
 6. Invited members keep READ-ONLY access after expiry; nobody can add/edit/delete until upgrade.
 7. One free trial per organisation/email; exception only via admin-approved extension.
 8. Extension: one-time, up to 7 days, Super-Admin approval, reason recorded, max one.
-9. Trial reminders: 3 days before, 1 day before, on expiry day, 7 days after expiry (upgrade reminder).
+9. Trial reminders: 3 days before, 1 day before, on expiry day. After expiry (R124, migration 0333): follow-up e-mails to the current owner on Day 0, 2, 7 and 14, marketing mail (Helm unsubscribe applies), stopped by a plan or an unsubscribe, only for trials that ended after 0333 was applied.
 10. Expired login: user can enter the studio read-only with a prominent banner: "Your trial has ended. Your data is preserved and available in read-only mode. Upgrade now to continue creating and editing records."

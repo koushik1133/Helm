@@ -227,3 +227,86 @@ Deno.test("handler, opted-out follow-up is skipped on SMTP too (0165 fail closed
     assertEquals(marks[ID3], "skipped");
   } finally { f(); smtp.restore(); }
 });
+
+// R124 (0333): the trial follow-ups - the 0184 claim (Day 7) + the new claim (Day 0 / 2 / 14), one mark, unsubscribe respected
+const F0 = "b0000000-0000-4000-8000-000000000001", F7 = "b0000000-0000-4000-8000-000000000002", W7 = "b0000000-0000-4000-8000-000000000003";
+function wireFollowups(opted = false) {
+  resetSupaMock();
+  const marks: Record<string, string> = {};
+  const row = (id: string, kind: string, delete_on: string | null) => ({ id, to: "owner@sita-events.in", kind, studio: "Sita Events",
+    expired_at: "2026-11-09T04:30:00Z", delete_on, timezone: "Asia/Kolkata", retention_days: 60 });
+  g.__supaRpc = (name: string, args: any) => {
+    if (name === "trial_retention_email_claim") return { data: [row(F7, "x7", null), row(W7, "del7", "2026-12-09")], error: null };
+    if (name === "trial_followup_email_claim") return { data: [row(F0, "x0", null)], error: null };
+    if (name === "email_is_opted_out") return { data: opted, error: null };
+    if (name === "email_unsub_token") return { data: TOKEN, error: null };
+    if (name === "trial_retention_email_mark") { marks[args.p_id] = args.p_status; return { data: null, error: null }; }
+    return { data: [], error: null };
+  };
+  return marks;
+}
+
+Deno.test("R124 handler, SMTP: designed HTML + text, one Unsubscribe in the card, one-click headers, reply-to; warning stays transactional", async () => {
+  const marks = wireFollowups();
+  const smtp = installFakeSmtp();
+  const f = installFetch((url) => { throw new Error("unexpected fetch " + url); });
+  try {
+    const { out } = await run({ ...SMTP });
+    assertEquals(out.sent, 3);
+    assertEquals(marks[F0], "sent"); assertEquals(marks[F7], "sent"); assertEquals(marks[W7], "sent");
+    const parts = smtp.sent.map((s) => ({ ...partsOf(s.data), raw: s.data }));
+    const x0 = parts.find((p) => p.text.includes("nothing is lost"))!, x7 = parts.find((p) => p.text.includes("One place") || p.text.includes("all together in Helm"))!;
+    const del = parts.find((p) => p.text.includes("permanent deletion"))!;
+    for (const p of [x0, x7]) {
+      assert(p.html.includes("helm-logo-v3.png"), "designed layout");
+      assert(!p.html.includes("<!--helm-footer-->"), "footer slot filled");
+      assertEquals(p.html.split(">Unsubscribe<").length, 2);
+      assert(p.text.includes("Unsubscribe: https://www.helm.events/unsubscribe?t=" + TOKEN));
+      assert(p.text.includes("https://www.helm.events/checkout"));
+      assert(/List-Unsubscribe-Post: List-Unsubscribe=One-Click/.test(p.headers));
+      assert(/Reply-To: <support@helm\.events>/.test(p.headers));
+    }
+    assert(!/List-Unsubscribe/.test(del.headers), "deletion warning is a service notice");
+    assert(!del.text.includes("Unsubscribe"));
+  } finally { f(); smtp.restore(); }
+});
+
+Deno.test("R124 handler, Resend: the same message, footer once, headers + reply-to", async () => {
+  wireFollowups();
+  const smtp = installFakeSmtp();
+  const f = installFetch((url) => { if (url === "https://api.resend.com/emails") return jsonResponse({ id: "e1" }); throw new Error("unexpected " + url); });
+  try {
+    const { out } = await run({ ...RESEND });
+    assertEquals(out.sent, 3);
+    const bodies = fetchLog().map((c) => JSON.parse(String(c.init?.body)));
+    const x0 = bodies.find((b) => String(b.text).includes("nothing is lost"))!;
+    assertEquals(x0.subject, "Your Helm free trial has ended. Sita Events is safe.");
+    assertEquals(x0.html.split(">Unsubscribe<").length, 2);
+    assert(x0.text.includes("Unsubscribe: "));
+    assertEquals(x0.reply_to, "support@helm.events");
+    assertEquals(x0.headers["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
+  } finally { f(); smtp.restore(); }
+});
+
+Deno.test("R124 handler: an unsubscribed owner gets no follow-up (skipped), the deletion warning still goes", async () => {
+  const marks = wireFollowups(true);
+  const smtp = installFakeSmtp();
+  const f = installFetch((url) => { throw new Error("unexpected fetch " + url); });
+  try {
+    const { out } = await run({ ...SMTP });
+    assertEquals(marks[F0], "skipped"); assertEquals(marks[F7], "skipped"); assertEquals(marks[W7], "sent");
+    assertEquals(out.sent, 1); assertEquals(smtp.sent.length, 1);
+  } finally { f(); smtp.restore(); }
+});
+
+Deno.test("R124 handler: a database without 0333 (no new claim) carries on with the rest", async () => {
+  const marks = wireFollowups();
+  const prev = g.__supaRpc;
+  g.__supaRpc = (n: string, a: any) => n === "trial_followup_email_claim" ? { data: null, error: { code: "PGRST202", message: "not found" } } : prev(n, a);
+  const smtp = installFakeSmtp();
+  const f = installFetch((url) => { throw new Error("unexpected fetch " + url); });
+  try {
+    const { out } = await run({ ...SMTP });
+    assertEquals(out.sent, 2); assertEquals(marks[F7], "sent"); assertEquals(marks[W7], "sent"); assertEquals(marks[F0], undefined);
+  } finally { f(); smtp.restore(); }
+});
