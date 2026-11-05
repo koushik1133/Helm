@@ -39,16 +39,11 @@ t('a warning without a usable date is never sent; unknown kinds -> null', () => 
   assert.equal(m.ddmmyyyy('2026-12-09T00:00:00Z'), '09/12/2026');
   assert.equal(m.ddmmyyyy('09/12/2026'), '');
 });
-t('+7 reminder: read-only + preserved; names the deletion date only when one is set', () => {
+t('+7 reminder: replaced by the R124 Day 7 follow-up (test/r124-trial-followups.test.mjs); checkout link, no deletion talk', () => {
   const a = m.trialRetentionEmail('x7', 'Demo 7', { deleteOn: '2026-12-09', expiredAt: '2026-10-09T04:30:00Z', timeZone: 'Asia/Kolkata', retentionDays: 60 }, '');
-  assert.match(a.subject, /free trial has ended/);
-  assert.match(a.text, /ended a week ago \(9 October 2026\)/);
-  assert.match(a.text, /Your data is preserved and available in read-only mode/);
-  assert.match(a.text, /kept for 60 days after the trial ends/);
-  assert.ok(a.text.includes(SENTENCE));
-  assert.match(a.text, /Upgrade now to continue creating and editing records: https:\/\/www\.helm\.events\/checkout/);
-  const b = m.trialRetentionEmail('x7', 'Demo 7', { deleteOn: '', expiredAt: '2026-10-09T04:30:00Z' }, '');
-  assert.ok(!/deletion/.test(b.text), 'no deletion talk while deletion is off');
+  assert.equal(a.subject, 'One place for your next event');
+  assert.match(a.text, /See plans: https:\/\/www\.helm\.events\/checkout/);
+  assert.ok(!/deletion/.test(a.text), 'deletion warnings stay separate');
 });
 t('day 5 / 7 / 8 copy: unchanged by default, says "kept for 60 days" only when deletion is on', () => {
   const END = '2026-10-09T04:30:00Z';
@@ -71,8 +66,8 @@ t('comms-dispatch: claims + marks retention rows after the kill switch; warnings
   assert.ok(at > FN.indexOf('Deno.env.get("HELM_COMMS_ENABLED")'));
   assert.match(FN, /admin\.rpc\("trial_retention_email_mark", \{ p_id: id, p_status: res === "failed" \? "retry" : res \}\)/);
   assert.match(FN, /RETENTION_NOTICE_KINDS\.includes\(kind\)\) extra = \{ footer: txFooter\(RETENTION_TX_REASON/);
-  assert.match(FN.slice(at), /extra = marketingExtra\(u, "Helm", "you started a free trial of Helm", origin\)/);
-  assert.match(FN.slice(at), /const res: Res = msg && extra \? await sendEmail\(id, to, msg\.subject, msg\.text, "Helm", \{\}, extra\) : "skipped"/);
+  assert.match(FN.slice(at), /extra = marketingExtra\(u, "Helm", FOLLOWUP_REASON, origin\)/);
+  assert.match(FN.slice(at), /const res: Res = msg && extra \? await sendEmail\(id, to, msg\.subject, msg\.text, "Helm", follow \? \{ reply_to: FOLLOWUP_REPLY_TO \} : \{\}, extra, html\) : "skipped"/);
   assert.match(FN, /admin\.rpc\("trial_retention_mail_settings"\)/);
   assert.match(FN, /String\(r\?\.timezone \?\? ""\), origin, retention\)/);
   assert.ok(!/console\.(log|error)\([^)]*\bto\b[,)]/.test(FN), 'no address in logs');

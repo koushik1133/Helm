@@ -82,7 +82,7 @@ t('comms-dispatch: e-mail via the shared SMTP mailer first, Resend only without 
   const cd = read('supabase/functions/comms-dispatch/index.ts'), ml = read('supabase/functions/_shared/mailer.ts');
   assert.match(cd, /import \{ brandMode, sendMail, type SmtpSend \} from "\.\.\/_shared\/mailer\.ts";/);
   assert.match(cd, /if \(e\("SMTP_HOST"\) && e\("SMTP_USER"\) && e\("SMTP_PASS"\)\) return "smtp";\n  return e\("RESEND_API_KEY"\) \? "resend" : null;/);
-  assert.match(cd, /if \(via === "smtp"\) return await sendEmailSmtp\(to, subject, text, studio, ident, extra\);/);
+  assert.match(cd, /if \(via === "smtp"\) return await sendEmailSmtp\(to, subject, text, studio, ident, extra, \{ html \}\);/);
   assert.match(cd, /footer: extra\.footer,\n    \.\.\.\(extra\.headers && Object\.keys\(extra\.headers\)\.length \? \{ headers: extra\.headers \} : \{\}\) \}/);
   assert.match(cd, /\{ env: e, prefer: "smtp"/);
   assert.match(ml, /if \(prefer === "smtp" && smtpOn\) return smtpCfg\(\);\n  if \(key && rfrom\) return \{ provider: "resend", from: rfrom \};/, 'default order unchanged for other callers');

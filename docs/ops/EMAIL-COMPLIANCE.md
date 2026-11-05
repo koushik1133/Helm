@@ -38,6 +38,7 @@ Code: `supabase/functions/_shared/email-compliance.mjs`, `supabase/functions/ema
 | Sales follow-up (`follow_up`) | `comms-dispatch` | **Non-transactional** | yes | **yes** (per studio) |
 | Nurture greetings (birthday, anniversary, ...) | `queue_nurture_greeting` -> `notifications` (simulated today, no real send yet) | **Non-transactional** | yes, when a sender is built | **yes** (per studio); opted-out rows are stored `suppressed` |
 | Free-trial nudges (day 5/7/8; trial_7d/3d/1d/ended) | `comms-dispatch` (0120), `billing-reminder` (0058) | **Non-transactional** | yes | **yes** (scope: Helm itself) |
+| Trial follow-ups (Day 0 / 2 / 7 / 14 after the trial ended) | `comms-dispatch` (0333) | **Non-transactional** | yes | **yes** (scope: Helm itself) |
 | WhatsApp messages | `send-whatsapp`, `wa-*` | Not e-mail | - | STOP handled by 0155 |
 
 Non-transactional senders **fail closed**: no token (0165 not applied) or opted out = the row is

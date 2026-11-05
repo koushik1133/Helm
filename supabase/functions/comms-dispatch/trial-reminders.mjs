@@ -1,8 +1,10 @@
 // trial-reminders.mjs - e-mail copy for the 8-day free-trial reminders (migration 0120) and the
-// post-trial mails of migration 0184 (7 days after the trial ended + the 30 / 7 / 1 day deletion warnings).
+// post-trial mails of migration 0184 (the 30 / 7 / 1 day deletion warnings) and the R124 follow-ups (0333: Day 0, 2, 7, 14).
 // Pure (no I/O); shared by comms-dispatch (Deno) and the node tests. The link is always
 // APP_URL + "/checkout" (never taken from a row). Plain text: comms-dispatch's sendEmail
-// wraps it in the branded HTML shell and escapes it.
+// wraps it in the branded HTML shell and escapes it; the follow-ups bring their own designed HTML.
+import * as L from "../_shared/email-layout.mjs";
+
 export const TRIAL_MILESTONES = ["d5", "d7", "d8"];
 // r21: the ONE retention promise (same words in the app, billing-reminder and the policy pages; 60 days after the
 // trial ends - the deletion switch helm_trial_retention.delete_enabled stays OFF until the owner turns it on)
@@ -50,10 +52,12 @@ export function trialReminderEmail(milestone, studio, endsAt, timeZone, appUrl, 
 }
 
 // ---- 0184: post-trial mails ---------------------------------------------------------------------------
-// x7     one upgrade reminder 7 days after the trial ended (non-transactional: Helm unsubscribe applies)
+// x0 / x2 / x7 / x14   R124 (0333): the follow-up series after the trial ended, x7 replaces the old single +7 e-mail
+//        (non-transactional: Helm unsubscribe applies, Day 0 too)
 // del30 / del7 / del1   the deletion warnings 30, 7 and 1 day before the trial data is permanently deleted
 //        (service notices: transactional footer, always sent while deletion is switched on)
-export const RETENTION_KINDS = ["x7", "del30", "del7", "del1"];
+export const FOLLOWUP_KINDS = ["x0", "x2", "x7", "x14"];
+export const RETENTION_KINDS = [...FOLLOWUP_KINDS, "del30", "del7", "del1"];
 export const RETENTION_NOTICE_KINDS = ["del30", "del7", "del1"];
 export const RETENTION_TX_REASON = "you own a studio on Helm whose free trial has ended and its trial data is due to be deleted";
 
@@ -84,21 +88,12 @@ export function lastDayLabel(expiredAt, timeZone) {
 // info = { deleteOn: "YYYY-MM-DD" | "", expiredAt, timeZone, retentionDays }
 export function trialRetentionEmail(kind, studio, info, appUrl) {
   if (!RETENTION_KINDS.includes(kind)) return null;
+  if (FOLLOWUP_KINDS.includes(kind)) return trialFollowupEmail(kind, studio, info, appUrl);
   const i = info || {};
   const app = String(appUrl || "https://www.helm.events").replace(/\/+$/, "");
   const hi = "Hi " + (String(studio || "").trim().slice(0, 80) || "there") + ",";
   const del = ddmmyyyy(i.deleteOn);
-  const days = Math.floor(Number(i.retentionDays)) >= 30 ? Math.floor(Number(i.retentionDays)) : 60;
   const sign = "- The Helm team";
-  if (kind === "x7") {
-    const ended = lastDayLabel(i.expiredAt, i.timeZone);
-    const lines = [hi,
-      "Your Helm free trial ended a week ago" + (ended ? " (" + ended + ")" : "") + ". Your data is preserved and available in read-only mode: you can still sign in and view your studio.",
-      ...(del ? ["Trial data is kept for " + days + " days after the trial ends. " + deletionSentence(del)] : [RETENTION_PROMISE]),
-      "Upgrade now to continue creating and editing records: " + app + "/checkout",
-      sign];
-    return { subject: "Your Helm free trial has ended - upgrade to keep going", text: lines.join("\n\n") };
-  }
   if (!del) return null;   // a deletion warning always names the date
   const c = {
     del30: { subject: "Your Helm trial data will be deleted on " + del, lead: "" },
@@ -107,4 +102,75 @@ export function trialRetentionEmail(kind, studio, info, appUrl) {
   }[kind];
   const what = c.lead + "On that date the studio's events, quotes, leads, clients, inventory, vendors, staff and layouts are permanently removed and cannot be recovered. Until then everything stays available in read-only mode.";
   return { subject: c.subject, text: [hi, deletionSentence(del), what, "Upgrade now: " + app + "/checkout", sign].join("\n\n") };
+}
+
+// ---- R124 (0333): the follow-up series -------------------------------------------------------------------
+// Replies come to a real inbox: Day 7 invites questions, Day 14 asks for feedback.
+export const FOLLOWUP_REPLY_TO = "support@helm.events";
+export const FOLLOWUP_REASON = "you started a free trial of Helm";
+// the footer (with Unsubscribe) belongs inside the card, not under the page: see placeFooter
+export const FOOTER_SLOT = "<!--helm-footer-->";
+
+// the studio name for a subject line or a sentence: one line, no control characters
+const oneLine = (s) => String(s ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+
+// the rows of copy, one place, so the HTML and the plain text can never say different things
+function followupCopy(kind, name, Name, keptTo, app) {
+  const url = app + "/checkout";
+  return {
+    x0: { subject: "Your Helm free trial has ended. " + Name + " is safe.", head: Name + " is safe",
+          pre: "Nothing is lost. Your data is saved and you can still sign in.",
+          lines: ["Your Helm free trial has ended, and nothing is lost. Everything in " + name + " is saved.",
+                  "You can still sign in and look at it whenever you like. " + (keptTo ? "Your data is kept until " + keptTo + "." : RETENTION_PROMISE)],
+          cta: "Choose a plan", url },
+    x2: { subject: Name + " is waiting for you", head: Name + " is waiting for you",
+          pre: "On a plan, it all goes live.",
+          lines: ["You've seen how Helm works. On a plan, it all goes live:"],
+          list: ["Your client approves online with a one-time code.",
+                 "Booklets and invitations reach real clients and guests.",
+                 "Downloads, branding and your own templates unlock."],
+          after: ["The plan goes on " + name + ", so everything you set up stays."],
+          cta: "Create your studio", url },
+    x7: { subject: "One place for your next event", head: "One place for your next event",
+          pre: "Your studio is ready and your work is still there.",
+          lines: ["Enquiry, quote, layout, team, payments and profit, all together in Helm.",
+                  Name + " is ready and your work is still there.",
+                  "Any questions about plans? Just reply to this e-mail."],
+          cta: "See plans", url },
+    x14: { subject: "Should we keep " + name + " for you?", head: "Should we keep " + name + " for you?",
+           pre: "This is our last reminder.",
+           lines: ["This is our last reminder about a plan, and we won't keep writing about it.",
+                   keptTo ? "Your data stays until " + keptTo + "." : RETENTION_PROMISE,
+                   "If Helm wasn't right for you, could you reply with one line telling us why? It really helps."],
+           cta: "Keep my studio", url },
+  }[kind];
+}
+
+const bullets = (items) => `<tr><td class="body" style="padding:0 0 20px;font-family:${L.FONT};font-size:15px;line-height:24px;color:${L.C.body};">
+<ul style="margin:0;padding:0 0 0 20px;">${items.map((t) => `<li style="margin:0 0 8px;">${L.escHtml(t)}</li>`).join("")}</ul></td></tr>`;
+
+// info = { deleteOn: "YYYY-MM-DD" | "" }. Returns { subject, text, html }. The date is named only when one exists.
+export function trialFollowupEmail(kind, studio, info, appUrl) {
+  if (!FOLLOWUP_KINDS.includes(kind)) return null;
+  const app = String(appUrl || "https://www.helm.events").replace(/\/+$/, "");
+  const clean = oneLine(studio);
+  const name = clean || "your studio", Name = clean || "Your studio";
+  const c = followupCopy(kind, name, Name, ddmmyyyy((info || {}).deleteOn), app);
+  const after = c.after || [];
+  const text = ["Hi " + (clean || "there") + ",", ...c.lines, ...(c.list ? [c.list.map((t) => "- " + t).join("\n")] : []), ...after,
+    c.cta + ": " + c.url, "- The Helm team"].join("\n\n");
+  const href = L.escHtml(c.url);
+  const html = L.layout(c.subject, c.pre,
+    L.h1(L.escHtml(c.head)) +
+    c.lines.map((t) => L.para(L.escHtml(t))).join("") +
+    (c.list ? bullets(c.list) : "") +
+    after.map((t) => L.para(L.escHtml(t))).join("") +
+    L.button(href, L.escHtml(c.cta)) + L.fallback(href) +
+    `<tr><td style="font-family:${L.FONT};">${FOOTER_SLOT}</td></tr>`);
+  return { subject: c.subject, text, html };
+}
+
+// the compliance footer goes into the card. The mailer sees "You received this because" and adds only the text footer.
+export function placeFooter(html, footer) {
+  return String(html).split(FOOTER_SLOT).join(footer.html);
 }

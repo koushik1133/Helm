@@ -44,8 +44,8 @@ await t('retention: the countdown e-mails use the promise while deletion is swit
   assert.equal(m.RETENTION_PROMISE, PROMISE);
   const off = m.trialReminderEmail('d5', 'Demo 7', '2026-10-27T18:30:00Z', 'Asia/Kolkata', '').text;
   assert.ok(off.includes(PROMISE)); assert.doesNotMatch(off, /Nothing is deleted/);
-  const x7 = m.trialRetentionEmail('x7', 'Demo 7', { expiredAt: '2026-10-20T18:30:00Z', timeZone: 'Asia/Kolkata' }, '');
-  assert.ok(x7.text.includes(PROMISE));
+  // R124: the follow-up series replaced the +7 copy; Day 0 and Day 14 carry the promise while no deletion date exists
+  for (const k of ['x0', 'x14']) assert.ok(m.trialRetentionEmail(k, 'Demo 7', { expiredAt: '2026-10-20T18:30:00Z', timeZone: 'Asia/Kolkata' }, '').text.includes(PROMISE), k);
 });
 
 /* ---------------- read-only banner ---------------- */
