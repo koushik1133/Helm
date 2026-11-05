@@ -134,7 +134,7 @@ t('F-08 Referrals menu: each item links its /hq tab (#hash), no ?demo=1; hq.js o
 });
 t('F-10 HQ tour: the search step no longer promises invoices; every desc <= 240 characters', () => {
   assert.doesNotMatch(PT, /Find a studio, person or invoice/);
-  assert.match(PT, /\{ sel: "#gSearch", title: "Search studios and people", desc: "Find a studio by name or link, or a person by e-mail\. Invoices are under Billing\." \}/);
+  assert.match(PT, /\{ sel: "#gSearch", title: "Search studios and people", desc: "Find a studio by name or link, or a person by e-mail\.[^"]* Invoices are under Billing\." \}/);
 });
 t('F-11 one trial-end day: the drawer Overview fact uses trialDay and is repainted by hq_trial_info like the Plan tab', () => {
   assert.match(body(J, 'trialFact'), /trialDay\(sub\.trial_ends_at, null\)/); assert.match(body(J, 'trialFact'), /v\.id = "ovTrialEnd"/);

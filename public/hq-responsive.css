@@ -17,3 +17,21 @@
 @media (max-width:719px){
   html body .htour-fab{bottom:calc(74px + env(safe-area-inset-bottom,0px))}
 }
+
+/* R126 (HQ walkthrough): kept here, not in hq.html's inline <style>, because that block is pinned by a CSP hash. */
+.hnote{font-size:13px;padding:var(--s2) 0}
+.kpi.mail .v{font-size:13px;letter-spacing:0;overflow-wrap:break-word}
+/* a first mono cell could shrink to nothing beside long muted text: one letter per line */
+.list li>.m:first-child{flex:1 1 160px}
+.list li>.m+.muted{flex:0 1 auto;min-width:0}
+/* a history line (owner history): what happened on top, who + why under it */
+.list.hist li{flex-direction:column;align-items:stretch;gap:2px}
+.list.hist li>.m:first-child{flex:none}
+.list.hist li>.m+.muted{text-align:left}
+.gnote{border-left:4px solid var(--warn);background:#fdf3e1;color:#5c3a00;border-radius:var(--r);padding:var(--s3) var(--s4);font-size:13.5px;line-height:1.55;margin:var(--s3) 0 0}
+.card h2+.gnote{margin:0 0 var(--s3)}
+/* laptop width: Last active stayed off the right edge. Created (it is on the studio's page) gives way, cells get tighter */
+@media (min-width:720px) and (max-width:1439px){
+  #vApp .st th:nth-child(6),#vApp .st td:nth-child(6){display:none}
+  #vApp .st th,#vApp .st td{padding-left:10px;padding-right:10px}
+}

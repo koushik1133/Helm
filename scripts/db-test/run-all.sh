@@ -356,6 +356,8 @@ run "r125-trial-lockdown-0334" "R125-TRIAL-LOCKDOWN-0334: ALL PASS \(104/104\)" 
 # r125: a new trial with the gate ON (every older suite runs it off): the sample studio still clones in full, links included (refused like any trial link)
 run "trial-clone-0190-r125-gate" "TRIAL-CLONE-0190: ALL PASS \(24/24\)" env PGOPTIONS="$PGOPTIONS -c helm.r125_gate=on" psql -q -f tests/db/trial-clone-0190.sql
 run "trial-seed-0174-r125-gate" "TRIAL-SEED-0174: ALL PASS \(12/12\)" env PGOPTIONS="$PGOPTIONS -c helm.r125_gate=on" psql -q -f tests/db/trial-seed-0174.sql
+# r126 (0335): HQ walkthrough fixes - one studio count (sample master left out), client logins out of People / search / Show, one trial day, job history says why, activity log names the studio, removed staff out of readiness, gates unchanged; re-applies itself twice, rolled back
+run "r126-hq-fixes-0335" "R126-HQ-FIXES-0335: ALL PASS \(39/39\)" psql -q -f tests/db/r126-hq-fixes-0335.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

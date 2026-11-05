@@ -29,7 +29,7 @@
     var admins = null;
     if (src === "readiness" && r.studio_admins && typeof r.studio_admins === "object") {
       var t = Math.max(0, Number(r.studio_admins.total) || 0), w = Math.max(0, Number(r.studio_admins.with_2step) || 0);
-      admins = "Studio admins with two-step: " + w + " of " + t + ". When studio admins are required to use it (config.js mfaRequiredForAdmins), the others are asked to set it up at their next sign-in.";
+      admins = "Studio admins with two-step: " + w + " of " + t + ". If Helm starts requiring it for studio admins, the others are asked to set it up at their next sign-in.";
     }
     return { source: src, on: on, safe: safe, state: state, hint: hint, lines: lines, admins: admins,
       blocking: blocking.length, pending: pending.length, showEnroll: !!(me && !me.twoStep) };

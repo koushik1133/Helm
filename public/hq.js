@@ -18,7 +18,10 @@
    browser (hq-demo.js, never deployed - .vercelignore).
    r123a (0332): "Where you're logged in" (Team & safety) - my own HQ sign-ins (device, location, masked IP, signed in,
    last active, Current), 10 a page, "Sign out" per other device + "Log out of all other devices" (hq_my_sessions,
-   hq_sign_out_my_session, hq_sign_out_my_other_sessions); the HQ team list shows device + location per sign-in. */
+   hq_sign_out_my_session, hq_sign_out_my_other_sessions); the HQ team list shows device + location per sign-in.
+   r126 (0335): the HQ walkthrough fixes - plain words everywhere (no SQL numbers, file names or internal names on screen),
+   "1 person" not "1 people", one trial day everywhere (the studio's own), System health says why job history can't be read,
+   the activity log names what was looked at, Record a payment says it does not move plan dates. */
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
@@ -35,6 +38,8 @@
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
   function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
   function int(v) { return num(v).toLocaleString("en-IN"); }
+  // pure (r126): "1 person", "2 people", "0 studios" (exported for tests)
+  function plural(n, one, many) { return int(n) + " " + (num(n) === 1 ? one : many); }
   // the exact amount in its own currency (forms, confirmations, plan prices, invoices)
   function moneyRaw(v, cur) {
     try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(num(v)); }
@@ -386,7 +391,7 @@
   var SUBS = { overview: "Studios, people and Helm subscriptions. Never a studio’s clients, quotes or prices.",
     studios: "Every studio on Helm: plan, status, people and what they paid Helm.", billing: "Money studios paid Helm, invoices, past due and settings.",
     requests: "Plan requests, sales enquiries and suggestions in one inbox.", plans: "The plans studios can buy, their prices and tax rules.",
-    people: "Everyone with a Helm login, their studio and two-step.", activity: "What the HQ team did, and security events across studios.",
+    people: "Studio teams and Helm staff with a login, their studio and two-step.", activity: "What the HQ team did, and security events across studios.",
     staff: "Who can use Helm HQ, what they can do, and when they last used it.",
     settings: "Money display, Helm addresses, invoice and checkout settings.",
     privacy: "What HQ stores and shows about studios and people, why, for how long, and who can see it.",
@@ -458,6 +463,7 @@
     labelTables(document);
   }
 
+  var SOON = "Not available on this database yet.";   // r126: plain words, never a migration number
   /* ---------------- r25: small inline-SVG charts (no library; textContent / attributes only) ---------------- */
   var SVGNS = "http://www.w3.org/2000/svg";
   function svg(tag, attrs, kids) {
@@ -575,7 +581,7 @@
       k.appendChild(kpi("Studios", int(ms.total), int(ms.active_30d) + " signed in within 30 days", "", goStudios("")));
       k.appendChild(kpi("Paying studios", int(ms.paying), int(ms.past_due) + " past due · " + int(ms.suspended) + " suspended", "good", goStudios("active")));
       k.appendChild(kpi("On free trial", int(ms.trial), int((m.attention || {}).trials_ending_count) + " end within 7 days", "", goStudios("trial")));
-      k.appendChild(kpi("MRR", moneyList(b.mrr), "ARR " + moneyList(b.mrr, 12) + " · from active plans"));
+      k.appendChild(kpi("MRR", moneyList(b.mrr), "ARR " + moneyList(b.mrr, 12) + " · active + past-due plans"));   // r126: _hq_mrr counts both
       k.appendChild(kpi("New studios (30 days)", int(ms.new_30d), (growth >= 0 ? "+" : "") + int(growth) + " vs the 30 days before"));
       k.appendChild(kpi("Trial → paid", conv.pct == null ? "—" : num(conv.pct) + "%", int(conv.converted) + " of " + int(conv.trials_ended) + " ended trials paid"));
       k.appendChild(kpi("Open requests", int(nReq), "plan requests, sales, suggestions", nReq > 0 ? "warn" : "", goTab("requests", loadRequestsTab)));
@@ -595,7 +601,7 @@
     renderTop(m);
     var st = clear($("#byStatus"));
     ["trial", "active", "past_due", "suspended", "cancelled", "none"].forEach(function (key) {
-      st.appendChild(el("li", null, [statusPill(key), el("span", { cls: "muted", text: int(bs[key] || 0) + " studios" })]));
+      st.appendChild(el("li", null, [statusPill(key), el("span", { cls: "muted", text: plural(bs[key] || 0, "studio", "studios") })]));
     });
     var mf = clear($("#mfa"));
     if (o.mfa) {
@@ -622,17 +628,17 @@
       var last = mm[mm.length - 1] || {};
       $("#cMrrSum").textContent = "this month " + shortMoney(last.mrr);
       lineChart($("#cMrr"), mm.map(function (r) { return { label: monthLabel(r.month), a: r.mrr, b: r.collected }; }), shortMoney, "MRR and money received per month");
-    } else { $("#cMrrSum").textContent = ""; emptyChart($("#cMrr"), "Appears after SQL 0272 is applied"); }
+    } else { $("#cMrrSum").textContent = ""; emptyChart($("#cMrr"), SOON); }
     var mix = (m && m.plan_mix) || null;
     if (mix) { var paying = mix.reduce(function (a, r) { return a + num(r.studios); }, 0);
       donut($("#cMix"), mix.map(function (r) { return { label: r.plan, value: r.studios }; }), int(paying), "studios"); }
-    else clear($("#cMix")).appendChild(el("div", { cls: "empty", text: "Appears after SQL 0272 is applied." }));
+    else clear($("#cMix")).appendChild(el("div", { cls: "empty", text: SOON }));
     var f = (m && m.funnel) || null;
     if (f) {
       var p = function (a, b2) { return num(b2) > 0 ? Math.round(100 * num(a) / num(b2)) + "%" : null; };
       funnel($("#cFun"), [{ label: "Signed up", value: f.signed_up }, { label: "Still on trial", value: f.on_trial, pct: p(f.on_trial, f.signed_up) },
         { label: "Added a teammate", value: f.added_team, pct: p(f.added_team, f.signed_up) }, { label: "Paid Helm", value: f.paid, pct: p(f.paid, f.signed_up) }]);
-    } else clear($("#cFun")).appendChild(el("div", { cls: "empty", text: "Appears after SQL 0272 is applied." }));
+    } else clear($("#cFun")).appendChild(el("div", { cls: "empty", text: SOON }));
   }
   // r42: small line icons for "Needs attention" (same 24-grid stroke style as the side menu; no emoji / text glyphs)
   var ATT_ICONS = {
@@ -663,7 +669,7 @@
     reqs.forEach(function (r) { var c = num(a[r[0]]); if (c > 0) add(attRow("mail", "warn", int(c) + " new " + (c === 1 ? r[1] : r[2]), "waiting for a reply",
       canTab("requests") ? function () { showTab("requests"); reqTab(r[3]); loadRequestsTab(); } : null, "Reply")); });
     (a.past_due || []).forEach(function (x) { add(attRow("payment", "bad", (x.name || "Studio") + " — payment pending", "plan period ended " + date(x.period_end), open(x.org_id), "Open")); });
-    (a.trials_ending || []).forEach(function (x) { add(attRow("clock", "warn", (x.name || "Studio") + " — trial ends " + trialDay(x.ends_at), "talk to them before it ends", open(x.org_id), "Open")); });
+    (a.trials_ending || []).forEach(function (x) { add(attRow("clock", "warn", (x.name || "Studio") + " — trial ends " + trialDay(x.ends_at, x.timezone), "talk to them before it ends", open(x.org_id), "Open")); });
     var nf = failedEmails(m); if (nf > 0) add(attRow("alert", "bad", int(nf) + " e-mail" + (nf === 1 ? "" : "s") + " failed in 7 days", "see System health", null));
     (a.at_risk || []).forEach(function (x) { add(attRow("quiet", "", (x.name || "Studio") + " — paying, quiet", "no sign-in " + (x.last_sign_in ? "since " + date(x.last_sign_in) : "yet"), open(x.org_id), "Open")); });
     if (!m) { var pd = num((o.billing || {}).past_due_count); if (pd) add(attRow("payment", "bad", int(pd) + " studio" + (pd === 1 ? "" : "s") + " past due", "see Billing", goTab("billing"))); }
@@ -673,7 +679,7 @@
   var QUEUE_OK_MIN = 60;   // a waiting e-mail older than this many minutes = the sender is probably not running
   function renderHealth(m) {
     var box = clear($("#health")), st = clear($("#healthState"));
-    if (!m || !m.health) { box.appendChild(el("div", { cls: "empty", text: "Appears after SQL 0272 is applied." })); return; }
+    if (!m || !m.health) { box.appendChild(el("div", { cls: "empty", text: SOON })); return; }
     var qs = m.health.queues || [], bad = 0;
     qs.forEach(function (q) {
       var oldMin = q.oldest_waiting ? (Date.now() - new Date(q.oldest_waiting).getTime()) / 6e4 : 0;
@@ -683,10 +689,11 @@
         el("span", { cls: "pill " + (stuck ? "warn" : ""), text: int(q.waiting) + " waiting" }),
         el("span", { cls: "pill " + (failed ? "bad" : ""), text: int(q.failed_7d) + " failed" }),
         el("span", { cls: "pill ok", text: int(q.sent_24h) + " sent today" })])]));
+      if (stuck) box.appendChild(el("div", { cls: "muted hnote", text: "Oldest waiting: " + ago2(q.oldest_waiting) + ". The sender may be off on this database." }));
     });
     var c = m.health.cron || {};
     box.appendChild(el("h3", { cls: "muted", text: "Scheduled jobs" }));
-    if (!c.readable) box.appendChild(el("div", { cls: "empty", text: "Job history isn’t readable on this database." }));
+    if (!c.readable) { box.appendChild(el("div", { cls: "muted hnote", id: "cronWhy", text: cronWhy(c) })); bad++; }
     else {
       var jobs = c.jobs || [], failedJobs = jobs.filter(function (j) { return num(j.failed_24h) > 0 || j.last_status === "failed"; });
       if (failedJobs.length) bad++;
@@ -696,6 +703,14 @@
       failedJobs.slice(0, 5).forEach(function (j) { box.appendChild(el("div", { cls: "hrow" }, [el("span", { cls: "m", text: j.name }), el("span", { cls: "pill bad", text: int(j.failed_24h) + " failed in 24 h" })])); });
     }
     st.appendChild(el("span", { cls: "pill " + (bad ? "warn" : "ok"), text: bad ? "Check" : "All good" }));
+  }
+  // pure (r126): why job history can't be shown here (hq_metrics health.cron.reason, 0335) - exported for tests
+  function cronWhy(c) {
+    c = c || {};
+    if (c.reason === "not_installed") return "The job timer (pg_cron) is not switched on for this database, so scheduled jobs do not run here. Failed jobs can't show here either.";
+    if (c.reason === "no_history") return plural(c.job_count, "job is", "jobs are") + " set up, but their run history can't be read on this database, so a failed job can't show here.";
+    if (c.reason === "no_access") return "This database refused HQ the job history" + (c.code ? " (error " + c.code + ")" : "") + ", so a failed job can't show here.";
+    return "Job history can't be read on this database, so a failed job can't show here.";
   }
   function ago2(v) { var mins = (Date.now() - new Date(v).getTime()) / 6e4; if (!isFinite(mins)) return "—"; if (mins < 1) return "just now"; if (mins < 60) return Math.round(mins) + " min ago"; if (mins < 1440) return Math.round(mins / 60) + " h ago"; return ago(v); }
   function renderTop(m) {
@@ -708,7 +723,7 @@
       if (canTab("studios")) tr.addEventListener("click", go); tr.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
       tb.appendChild(tr);
     });
-    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: m ? "No sign-ins in the last 30 days." : "Appears after SQL 0272 is applied." })]));
+    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: m ? "No sign-ins in the last 30 days." : SOON })]));
   }
 
   /* ---------------- studios ---------------- */
@@ -776,6 +791,7 @@
     });
     if (!tbody.firstChild) tbody.appendChild(el("tr", null, [el("td", { colspan: withStudio ? "8" : "7", cls: "empty", text: "No payments." })]));
   }
+  var RECORD_ONLY = "A recorded payment adds the payment and its invoice only. It does not move the plan dates or clear Past due: to renew, use Activate plan above.";   // r126
   var openOrg = null;
   function refreshAfterWrite(org) {
     if (org && openOrg === org) loadDetail(org, curDTab).catch(showErr);
@@ -784,7 +800,7 @@
     if (canTab("billing")) loadBilling().catch(showErr);
     if (canTab("overview")) loadOverview().catch(showErr);
   }
-  // r122 (I): "appears after SQL nnnn" only when the function really is missing (older database); any other failure says so
+  // r122 (I): the "not on this database" line only when the function really is missing (older database); any other failure says so
   function partFailed(e, soonText) {
     return meMissing(e) ? soonText : "Couldn't load this part: " + String((e && e.message) || "unknown error").slice(0, 200);
   }
@@ -836,7 +852,7 @@
     if (!d) return; openOrg = org;
     var sub = d.subscription || {}, acc = d.account || {};
     $("#dName").textContent = d.name || "Studio";
-    $("#dMeta").textContent = [d.slug ? "helm.events/" + d.slug : "", "joined " + date(d.created_at), int(d.users_count) + " people"].filter(Boolean).join(" · ");
+    $("#dMeta").textContent = [d.slug ? "helm.events/" + d.slug : "", "joined " + date(d.created_at), plural(d.users_count, "person", "people")].filter(Boolean).join(" · ");
     clear($("#dStatus")).appendChild(statusPill(sub.status || d.status));
     var panes = {};
     DTABS.forEach(function (t) { panes[t] = el("div", { cls: "dpane", id: "dp-" + t, role: "tabpanel", "aria-labelledby": "dt-" + t }); box.appendChild(panes[t]); });
@@ -950,7 +966,7 @@
         if (!window.confirm("Reactivate " + (d.name || "this studio") + "? Members can create and change data again.")) return;
         busy(sus, function () { return call("hq_reactivate_studio", { p_org: org }).then(function () { okMsg("Studio reactivated."); refreshAfterWrite(org); }); });
       } else {
-        var why = ask("Suspend " + (d.name || "this studio") + "? Members can still sign in, view and export, but cannot create, change or delete anything. No data is touched. Reason:");
+        var why = ask("Suspend " + (d.name || "this studio") + "? Members can still sign in, view and export, but cannot create, change or delete anything. Client links (approval, portal, invitation, crew) become read-only too. No data is touched. Reason:");
         if (!why) return;
         busy(sus, function () { return call("hq_suspend_studio", { p_org: org, p_reason: why }).then(function () { okMsg("Studio suspended (read-only)."); refreshAfterWrite(org); }); });
       }
@@ -966,7 +982,7 @@
     var trialBox = el("div", { id: "trialExt" }); trialCard.appendChild(trialBox);
     loadTrialInfo(org, d.name, trialBox, my).catch(function (e) {
       if (my !== detailSeq) return;
-      clear(trialBox).appendChild(el("div", { cls: "muted", text: partFailed(e, "Trial details appear after migration 0186 is applied.") }));
+      clear(trialBox).appendChild(el("div", { cls: "muted", text: partFailed(e, SOON) }));
     });
 
     // r28 (owner): referral info + credits (e.g. referral free months) - records kept by Helm HQ only
@@ -975,7 +991,7 @@
       ["Referred by", rf.referred_by || acc.referred_by], ["Studios they referred", rf.referred_count != null ? int(rf.referred_count) : null],
       ["Credits earned", rf.credits != null ? money(rf.credits, rf.credits_currency || "INR") : null]])]));
     var credBox = el("div", { cls: "card" }, [el("h2", { text: "Credits & free months" })]); wrap.appendChild(credBox);
-    loadCredits(org, d.name, credBox).catch(function (e) { credBox.appendChild(el("p", { cls: "muted", text: partFailed(e, "Credits appear after SQL 0280 is applied.") })); });
+    loadCredits(org, d.name, credBox).catch(function (e) { credBox.appendChild(el("p", { cls: "muted", text: partFailed(e, SOON) })); });
 
     // payments
     var payCard = el("div", { cls: "card" }, [el("h2", { text: "Payments to Helm" })]); wrap.appendChild(payCard);
@@ -984,7 +1000,8 @@
     var rec = el("button", { cls: "btn", type: "button", text: "Record a payment for this studio" });
     rec.addEventListener("click", function () { closeDrawer(); showTab("billing"); $("#rOrg").value = org; $("#rOrgName").textContent = d.name || "";
       $("#rCur").value = studioCur; $("#rFx").value = ""; });   // r122 (A): the studio's billing currency by default
-    if (can("billing.write")) payCard.appendChild(el("div", { cls: "actions" }, [rec]));
+    if (can("billing.write")) { payCard.appendChild(el("div", { cls: "actions" }, [rec]));
+      payCard.appendChild(el("p", { cls: "muted", text: RECORD_ONLY })); }
 
     // ---- People (no phone, no client data)
     wrap = panes.people;
@@ -1010,7 +1027,7 @@
     // r33 (0283): the studio owner, its history, and "Recover studio owner" (owner gone: HQ Owner role, two-step, reason)
     var ownBox = el("div"); wrap.appendChild(ownBox);
     loadOwner(org, ownBox, d.name).catch(function (e) { clear(ownBox).appendChild(el("div", { cls: "card" }, [el("h2", { text: "Studio owner" }),
-      el("div", { cls: "muted", text: partFailed(e, "The studio owner appears after SQL 0283 is applied.") })])); });
+      el("div", { cls: "muted", text: partFailed(e, SOON) })])); });
 
     // ---- Name & link: r23 (0257) studio name + link are fixed for the studio; only Helm HQ changes them (two-step,
     // reason, audited, studio admins told by bell + e-mail, the old link keeps working)
@@ -1022,7 +1039,7 @@
     // ---- Activity: numbers only + what HQ changed on this studio
     wrap = panes.activity;
     var actBox = el("div"); wrap.appendChild(actBox);
-    loadUsage(org, actBox, d, useBox).catch(function (e) { clear(actBox).appendChild(el("div", { cls: "card" }, [el("div", { cls: "empty", text: partFailed(e, "Activity appears after SQL 0272 is applied.") })])); });
+    loadUsage(org, actBox, d, useBox).catch(function (e) { clear(actBox).appendChild(el("div", { cls: "card" }, [el("div", { cls: "empty", text: partFailed(e, SOON) })])); });
 
     dTab(tab || curDTab || "overview");
     openDrawer();
@@ -1033,7 +1050,7 @@
     var r = await call("hq_studio_credits", { p_org: org }); r = r && !Array.isArray(r) ? r : {};
     while (box.childNodes.length > 1) box.removeChild(box.lastChild);
     var list = Array.isArray(r.credits) ? r.credits : [];
-    box.appendChild(el("p", { cls: "hint", text: int(r.months_total) + " free month" + (num(r.months_total) === 1 ? "" : "s") + " on record. A credit is a record for HQ: apply it when you activate or renew the plan (it never changes an invoice by itself)." }));
+    box.appendChild(el("p", { cls: "hint", text: plural(r.months_total, "free month", "free months") + " on record. A credit is a record for HQ: apply it when you activate or renew the plan (it never changes an invoice by itself)." }));
     var ul = el("ul", { cls: "list" });
     list.forEach(function (c) { ul.appendChild(el("li", null, [el("span", null, [el("b", { text: (CREDIT_KIND[c.kind] || c.kind) + " · " + int(c.months) + " month" + (num(c.months) === 1 ? "" : "s") }),
       el("div", { cls: "muted", text: c.reason || "" })]), el("span", { cls: "muted", text: date(c.granted_at) + (c.granted_by ? " · " + c.granted_by : "") + (c.voided_at ? " · voided" : "") })])); });
@@ -1046,13 +1063,13 @@
     var go = el("button", { cls: "btn primary", type: "button", text: "Add credit…" });
     go.addEventListener("click", function () {
       var rs = String(why.value || "").trim();
-      if (rs.length < 5) { showErr(new Error("Write the reason (at least 5 characters).")); return; }
-      if (!window.confirm("Add " + months.value + " free month(s) (" + CREDIT_KIND[kind.value] + ") to " + (name || "this studio") + "? It is recorded in the HQ log and can't be deleted (only voided).")) return;
+      if (rs.length < 15) { showErr(new Error("Write the reason (at least 15 characters).")); return; }   // r126: the same limit as hq_grant_studio_credit
+      if (!window.confirm("Add " + months.value + " free month(s) (" + CREDIT_KIND[kind.value] + ") to " + (name || "this studio") + "? It is recorded in the HQ log and can't be deleted.")) return;
       go.disabled = true;
       call("hq_grant_studio_credit", { p_org: org, p_kind: kind.value, p_months: Number(months.value), p_reason: rs })
         .then(function () { okMsg("Credit added."); loadCredits(org, name, box).catch(showErr); }).catch(showErr).then(function () { go.disabled = false; });
     });
-    box.appendChild(el("div", { cls: "form" }, [field("Kind", kind), field("Months", months), el("label", { cls: "fld wide" }, [el("span", { text: "Reason (required)" }), why]), go]));
+    box.appendChild(el("div", { cls: "form" }, [field("Kind", kind), field("Months", months), el("label", { cls: "fld wide" }, [el("span", { text: "Reason (required, at least 15 characters)" }), why]), go]));
   }
   /* ---------------- r33 (0283) studio owner + "Recover studio owner" (Helm HQ only, never self-serve) ---------------- */
   var OWNER_SOURCE = { backfill_creator: "Recorded: studio creator", backfill_admin: "Recorded: earliest admin (creator missing)", backfill_none: "No admin found",
@@ -1087,11 +1104,11 @@
     // r118 (0326, F-01): every e-mail on this card arrives masked; Show = hq_reveal('member', user id) - logged
     card.appendChild(kvList([["Owner", o ? el("span", null, [(o.name || "-") + " (", ownerMail(o.email, o.user_id, org) || "-", ")"]) : "Nobody recorded"],
       ["Status", r.owner_missing ? "Needs attention: the owner is not an active admin" : "Active admin"]]));
-    var ul = el("ul", { cls: "list" });
+    var ul = el("ul", { cls: "list hist" });
     (r.history || []).forEach(function (h) {
       var om = ownerMail(h.owner_email, h.owner_user_id, org), bm = ownerMail(h.by_email, h.by_user_id, org);
       ul.appendChild(el("li", null, [el("span", { cls: "m", text: (OWNER_SOURCE[h.source] || h.source || "") + (h.hq_flag ? " - check this" : "") }),
-        el("span", { cls: "muted" }, [ist(h.at), om ? " · " : null, om, bm ? " · by " : null, bm, h.reason ? " · " + h.reason : null])]));
+        el("span", { cls: "muted" }, [ist(h.at), om ? " · " : null, om, bm ? " · by " : null, bm, h.reason ? " · " + plainText(h.reason) : null])]));
     });
     if (ul.firstChild) card.appendChild(ul);
     var admins = (r.admins || []).filter(function (a) { return a && a.active && (!o || a.user_id !== o.user_id); });
@@ -1120,6 +1137,10 @@
     det.appendChild(el("div", { cls: "form" }, [field("New owner (an active admin)", sel), field("Reason", why), go]));
     card.appendChild(det);
   }
+  // pure (r126): stored notes written by Helm's own set-up carry a build number ("... owner (0283)."): never shown (exported for tests)
+  function plainText(v) { return String(v == null ? "" : v).replace(/\s*\(0\d{3}[a-z]?\)/g, ""); }
+  // pure (r126): who did it - a stored "migration 0277" / "owner decision 0277b" reads as Helm's set-up; an address stays (exported for tests)
+  function plainBy(v) { var s = String(v == null ? "" : v).trim(); return s && s.indexOf("@") < 0 && /\b0\d{3}[a-z]?\b/.test(s) ? "Helm set-up" : s; }
   var ACTION_WORDS = { "hq.studio.suspend": "Suspended", "hq.studio.reactivate": "Reactivated", "hq.studio.identity": "Name / link changed",
     "hq.subscription.set": "Subscription changed", "hq.subscription.activate": "Plan activated", "hq.payment.record": "Payment recorded",
     "hq.payment.void": "Payment voided", "hq.trial.extend": "Trial extended", "hq.studio_account.set": "Business details saved", "hq.mfa.reset": "Two-step reset",
@@ -1131,7 +1152,7 @@
       clear(useBox);
       [fact("Using Helm", since == null ? "—" : int(since) + " day" + (since === 1 ? "" : "s")),
         fact("Active days (last 30)", u.active_days_30d != null ? int(u.active_days_30d) + " of 30" : "—"),
-        fact("Sign-ins (last 30 days)", u.sign_ins_30d != null ? int(u.sign_ins_30d) : int(u.people_active_30d) + " people")].forEach(function (f) { useBox.appendChild(f); });
+        fact("Sign-ins (last 30 days)", u.sign_ins_30d != null ? int(u.sign_ins_30d) : plural(u.people_active_30d, "person", "people"))].forEach(function (f) { useBox.appendChild(f); });
     }
     clear(box);
     box.appendChild(el("div", { cls: "facts" }, [fact("People", int(u.people)), fact("Signed in (7 days)", int(u.people_active_7d)),
@@ -1139,7 +1160,7 @@
       fact("Payments to Helm", int(u.payments_to_helm)), fact("Last payment", date(u.last_payment_on))]));
     var ul = el("ul", { cls: "list" });
     (u.hq_changes || []).forEach(function (x) {
-      ul.appendChild(el("li", null, [el("span", { cls: "m", text: ACTION_WORDS[x.action] || String(x.action || "").replace(/^hq\./, "").replace(/[._]/g, " ") }),
+      ul.appendChild(el("li", null, [el("span", { cls: "m", text: ACTION_WORDS[x.action] || actWord(x.action) }),
         el("span", { cls: "muted", text: ist(x.at) + (x.actor_email ? " · " + x.actor_email : "") })]));
     });
     if (!ul.firstChild) ul.appendChild(el("li", { cls: "empty", text: "Helm HQ hasn’t changed anything on this studio." }));
@@ -1230,6 +1251,7 @@
     var box = el("div", { id: "activatePlan", cls: "card" });
     box.appendChild(el("h2", { text: "Activate plan" }));
     box.appendChild(el("div", { cls: "muted", text: "When the studio has paid (UPI / bank transfer): records the payment with a GST invoice, makes the plan active for the period and lifts the trial limits and read-only - in one step. The studio admin then chooses what happens to the sample data." }));
+    box.appendChild(el("div", { cls: "muted", text: "This is also how a paid studio renews: Activate plan moves the plan dates and clears Past due. Only plans marked Visible in Plans can be chosen." }));
     var selPlan = el("select", { "aria-label": "Plan to activate" });
     plans.filter(function (p) { return p.active; }).forEach(function (p) {
       var o = el("option", { value: p.code, text: p.name + " · " + moneyBoth(p.price_monthly, p.currency) + "/month" });
@@ -1554,7 +1576,7 @@
       if (!st.length) box.appendChild(el("div", { cls: "empty", text: "  No studio matches." }));
       box.appendChild(el("h4", { text: "People" }));
       us.forEach(function (u) {
-        var b = el("button", { type: "button" }, [el("span", { text: maskEmail(u.email) || "—" }), el("span", { cls: "muted", text: [u.studio, u.role].filter(Boolean).join(" · ") })]);
+        var b = el("button", { type: "button" }, [el("span", { text: maskEmail(u.email) || "—" }), el("span", { cls: "muted", text: [u.studio, roleWord(u)].filter(Boolean).join(" · ") })]);
         // r122 (C): the People search gets what was TYPED (the list e-mail is masked - searching for it finds nobody)
         b.addEventListener("click", function () { closeSearch(); if (!canTab("people")) return; showTab("people"); $("#qUsers").value = q; loadUsers(0).catch(showErr); });
         box.appendChild(b);
@@ -1652,12 +1674,15 @@
   }
 
   /* ---------------- people ---------------- */
+  // pure (r126): the role in People. 0335 sends "HQ Owner" / "No studio yet"; an older database sends role client for a
+  // login with no studio (exported for tests)
+  function roleWord(r) { r = r || {}; return r.role === "client" && !r.org_id ? "No studio yet" : (r.role || "—"); }
   async function loadUsers(off) {
     uOff = off || 0;
     var rows = await call("hq_users", { p_search: $("#qUsers").value || null, p_limit: PAGE, p_offset: uOff });
     var tb = clear($("#tUsers")); rows = Array.isArray(rows) ? rows : [];
     rows.forEach(function (r) {
-      tb.appendChild(el("tr", null, [el("td", null, [masked(r.email, "email", "person", r.user_id || null, "email") || "—"]), el("td", { text: r.studio || "—" }), el("td", { text: r.role || "—" }),
+      tb.appendChild(el("tr", null, [el("td", null, [masked(r.email, "email", "person", r.user_id || null, "email") || "—"]), el("td", { text: r.studio || "—" }), el("td", { text: roleWord(r) }),
         el("td", { text: date(r.created_at) }), el("td", { text: ago(r.last_sign_in_at) }),
         el("td", null, [el("span", { cls: "pill " + (r.email_confirmed ? "ok" : "warn"), text: r.email_confirmed ? "yes" : "no" })]),
         el("td", null, mfaCell(r.email, r.mfa_enabled, function () { loadUsers(uOff).catch(showErr); }, r.user_id ? ["person", r.user_id] : null))]));
@@ -1671,12 +1696,12 @@
     var r = await call("hq_billing", { p_from: $("#bFrom").value || null, p_to: $("#bTo").value || null });
     r = r && !Array.isArray(r) ? r : {}; lastBilling = r;
     var k = clear($("#bKpis"));
-    k.appendChild(kpi("Collected", moneyList(r.collected), int(r.payments_count) + " payments · " + int(r.voided_count) + " void"));
+    k.appendChild(kpi("Collected", moneyList(r.collected), plural(r.payments_count, "payment", "payments") + " · " + int(r.voided_count) + " void"));
     k.appendChild(kpi("MRR", moneyList(r.mrr), "active + past-due"));
-    k.appendChild(kpi("Past due", int((r.past_due || []).length), "studios", (r.past_due || []).length ? "warn" : ""));
+    k.appendChild(kpi("Past due", int((r.past_due || []).length), (r.past_due || []).length === 1 ? "studio" : "studios", (r.past_due || []).length ? "warn" : ""));
     paymentRows(clear($("#tPay")), r.payments, true);
     var pd = clear($("#pastDue"));
-    (r.past_due || []).forEach(function (x) { pd.appendChild(el("li", null, [el("span", { text: x.name || "—" }), el("span", { cls: "muted", text: (x.plan_code || "") + " · ended " + date(x.current_period_end) + " · " + int(x.days_overdue) + " days" })])); });
+    (r.past_due || []).forEach(function (x) { pd.appendChild(el("li", null, [el("span", { text: x.name || "—" }), el("span", { cls: "muted", text: (x.plan_code || "") + " · ended " + date(x.current_period_end) + " · " + plural(x.days_overdue, "day", "days") })])); });
     if (!pd.firstChild) pd.appendChild(el("li", { cls: "empty", text: "No studio is past due." }));
     var rm = clear($("#reminders"));
     (r.reminders || []).slice(0, 30).forEach(function (x) { rm.appendChild(el("li", null, [el("span", { text: (x.studio || "—") + " · " + String(x.kind || "").replace("_", " ") }), el("span", { cls: "muted", text: "period " + date(x.period_end) + " · " + (x.sent_at ? "sent " + date(x.sent_at) + " (" + (x.channel || "") + ")" : "queued") })])); });
@@ -1742,7 +1767,7 @@
     var b = $("#btnRecord"); if (b.disabled) return; b.disabled = true;
     call("hq_record_payment", { p_org: org, p_amount: amt, p_paid_on: $("#rPaidOn").value || istDay(Date.now()), p_method: $("#rMethod").value,
       p_currency: cur, p_fx_rate_to_inr: fx, p_period_start: $("#rPs").value || null, p_period_end: $("#rPe").value || null, p_reference: $("#rRef").value || null })
-      .then(function (p) { okMsg("Payment recorded" + (p && p.invoice_no ? " — invoice " + p.invoice_no : "") + "."); $("#rAmount").value = ""; $("#rRef").value = ""; refreshAfterWrite(org); })
+      .then(function (p) { okMsg("Payment recorded" + (p && p.invoice_no ? " — invoice " + p.invoice_no : "") + ". Plan dates did not change."); $("#rAmount").value = ""; $("#rRef").value = ""; refreshAfterWrite(org); })
       .catch(showErr).then(function () { b.disabled = false; });
   }
   async function loadSettings() {
@@ -1752,6 +1777,16 @@
     $("#sLut").value = s.lut_number || ""; $("#sLutFrom").value = s.lut_valid_from || ""; $("#sLutTo").value = s.lut_valid_to || "";
     $("#sRate").value = s.gst_rate != null ? s.gst_rate : 18; $("#sPrefix").value = s.invoice_prefix != null ? s.invoice_prefix : "HELM-";
     showCheckoutSettings(s);
+    var gaps = sellerGaps(s), w = $("#sellerWarn");
+    if (w) { w.hidden = !gaps.length; w.textContent = gaps.length ? "Before the first real invoice, fill in: " + gaps.join(", ") + ". Invoices print what is saved here." : ""; }
+  }
+  // pure (r126): what a real tax invoice still needs from Helm's own details (exported for tests)
+  function sellerGaps(s) {
+    s = s || {}; var out = [], nm = String(s.legal_name || "").trim();
+    if (!nm || nm.toLowerCase() === "helm") out.push("the full legal name");
+    if (!String(s.gstin || "").trim()) out.push("GSTIN");
+    if (!String(s.address || "").trim()) out.push("address");
+    return out;
   }
   /* ---------------- 0056 studio checkout switches ---------------- */
   function showCheckoutSettings(s) {
@@ -1759,7 +1794,7 @@
     $("#coLive").checked = !!(s && s.online_payments_live); $("#coBypass").checked = !!(s && s.allow_trial_bypass);
     $("#coTermsV").value = (s && s.terms_version) || "";
     ["#coLive", "#coBypass", "#coTermsV", "#btnCheckout"].forEach(function (q) { $(q).disabled = !has; });
-    $("#coState").textContent = !has ? "Checkout settings appear after migration 0056 is applied."
+    $("#coState").textContent = !has ? SOON
       : "Online payment: " + (s.online_payments_live ? "LIVE" : "off (free trial)") + " · Testing bypass: " + (s.allow_trial_bypass ? "ON — turn off before launch" : "off");
   }
   // pure: validated args for hq_set_checkout_settings (exported for tests)
@@ -1851,7 +1886,7 @@
       var edit = el("button", { cls: "btn sm", type: "button", text: "Edit" }), u = usd[p.code] || {};
       edit.addEventListener("click", function () { openPlanEditor(p, u, inr[p.code] || {}); });
       tb.appendChild(el("tr", null, [el("td", null, [el("strong", { text: p.name }), el("div", { cls: "muted m", text: p.code })]),
-        el("td", { cls: "n", text: money(p.price_monthly, p.currency), title: moneyRaw(p.price_monthly, p.currency) }),
+        el("td", { cls: "n", text: moneyRaw(p.price_monthly, p.currency) }),   // r126: this column is the plan's own currency, the two USD columns sit beside it
         el("td", { cls: "n", text: u.monthly == null ? "—" : moneyRaw(u.monthly, "USD") }), el("td", { cls: "n", text: u.yearly == null ? "—" : moneyRaw(u.yearly, "USD") }),
         el("td", null, [el("span", { cls: "pill " + (p.active ? "ok" : ""), text: p.active ? "visible" : "hidden" })]), el("td", { cls: "n", text: int(p.studios) }), el("td", null, [can("billing.write") ? edit : null])]));
     });
@@ -1901,7 +1936,7 @@
   async function loadPlanCheckout() {
     var tb = clear($("#tPlanCo"));
     try { var r = await call("hq_plan_checkout"); planCo = Array.isArray(r) ? r : []; }
-    catch (e) { planCo = []; tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: "Checkout details appear after migration 0056 is applied." })])); return; }
+    catch (e) { planCo = []; tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: SOON })])); return; }
     planCo.forEach(function (p) {
       var ids = (Array.isArray(p.prices) ? p.prices : []).map(function (x) {
         return x.currency + ": " + (x.razorpay_plan_id_monthly || "— monthly") + " / " + (x.razorpay_plan_id_yearly || "— yearly"); }).join("; ") || "no prices yet";
@@ -1944,12 +1979,31 @@
     var r = await call("hq_audit", { p_from: $("#aFrom").value || null, p_to: $("#aTo").value || null }); r = r && !Array.isArray(r) ? r : {};
     var tb = clear($("#tAudit")), writesOnly = $("#aWrites").checked;
     (r.rows || []).filter(function (x) { return !writesOnly || x.action !== "hq.view"; }).slice(0, 500).forEach(function (x) {
-      var what = (x.entity || "") + (x.entity_id ? " · " + x.entity_id : "") + (x.action === "hq.reveal" && x.changed && x.changed.field ? " · " + String(x.changed.field).replace(/_/g, " ") : "");
       tb.appendChild(el("tr", null, [el("td", { text: x.at ? ist(x.at) : "—" }), el("td", { cls: "m", text: x.actor_email || "system" }),
-        el("td", null, [el("span", { cls: "pill " + (x.action === "hq.reveal" ? "warn" : x.action === "hq.view" ? "" : "ok"), text: actWord(x.action) }), el("div", { cls: "muted m", text: x.action || "" })]),
-        el("td", { text: what })]));
+        el("td", null, [el("span", { cls: "pill " + (x.action === "hq.reveal" ? "warn" : x.action === "hq.view" ? "" : "ok"), text: actWord(x.action), title: x.action || "" })]),
+        el("td", { text: auditWhat(x), title: x.entity_id || "" })]));
     });
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "No HQ activity in this range." })]));
+  }
+  // r126: what an HQ log row was about, in plain words. The full reference stays on hover.
+  var AUDIT_WHAT = { hq_overview: "Overview", hq_metrics: "Overview numbers", hq_studios: "Studios list", hq_studio_detail: "Studio page", hq_studio_usage: "Studio activity",
+    hq_trial_info: "Studio trial", hq_users: "People list", hq_billing: "Billing", hq_billing_settings: "Invoice settings", hq_audit: "Activity log", hq_security_alerts: "Security notices",
+    hq_mfa_readiness: "Two-step readiness", hq_staff_list: "HQ team", hq_staff_access: "Helm e-mail addresses", hq_operators: "HQ team", hq_sales_requests: "Plan requests",
+    hq_sales_enquiries: "Sales enquiries", hq_suggestions: "Suggestions", hq_plans: "Plans", hq_tax_rules: "Tax rules", hq_unrealised_exports: "Export payments",
+    organization: "Studio", organizations: "Studio", studio: "Studio", member: "Studio member", person: "Person", request: "Plan request", enquiry: "Sales enquiry", suggestion: "Suggestion",
+    billing: "Billing", subscription_payments: "Payment", studio_subscriptions: "Subscription", helm_plans: "Plan", helm_plan_prices: "Plan price", platform_admins: "HQ team",
+    staff_email_allowlist: "Staff allowlist", reserved_email_domains: "Reserved domains", hq_staff_settings: "Sign-in rules", helm_tax_rules: "Tax rules", sales_requests: "Plan request",
+    sales_enquiries: "Sales enquiry", suggestions: "Suggestion", studio_account: "Business details", trial_extensions: "Trial" };
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // pure (r126): one log row -> "Studio page · Org A" / "Studio member · email" / "Billing · 2026-11-01 to 2026-11-05" (exported for tests)
+  function auditWhat(x) {
+    x = x || {};
+    var ent = String(x.entity || ""), id = String(x.entity_id == null ? "" : x.entity_id), parts = [];
+    parts.push(AUDIT_WHAT[ent] || (ent.replace(/^hq_/, "").replace(/_/g, " ").replace(/^./, function (c) { return c.toUpperCase(); }) || "HQ"));
+    if (x.studio) parts.push(x.studio);
+    else if (id && !UUID_RE.test(id)) parts.push(/^\d{4}-\d{2}-\d{2}\.\./.test(id) ? id.replace("..", " to ") : x.action === "hq.view" ? "search: " + id.replace(/\|$/, "") : id);
+    if (x.action === "hq.reveal" && x.changed && x.changed.field) parts.push(String(x.changed.field).replace(/_/g, " "));
+    return parts.join(" · ");
   }
   // 0054: cross-studio security feed (operators only; names, no e-mails)
   async function loadSecurity() {
@@ -1978,14 +2032,26 @@
     "hq.subscription.activate": "activated a plan", "hq.payment.record": "recorded a payment", "hq.payment.void": "voided a payment",
     "hq.trial.extend": "extended a trial", "hq.mfa.reset": "reset someone's two-step", "hq.sales_request.status": "answered a plan request",
     "hq.sales_enquiry.update": "answered a sales enquiry", "hq.suggestion.update": "marked a suggestion", "hq.reveal": "showed a masked detail", "hq.credit.grant": "added a studio credit",
-    "hq.self.signout_others": "logged out of all other devices", "hq.self.signout_one": "signed out one of their devices" };
+    "hq.self.signout_others": "logged out of all other devices", "hq.self.signout_one": "signed out one of their devices",
+    "hq.subscription.set": "changed a subscription by hand", "hq.subscription.activated": "activated a plan", "hq.studio_account.set": "saved a studio's business details",
+    "hq.studio.owner_recover": "recovered a studio owner", "hq.studio.flag_clear": "cleared a studio flag", "hq.billing.auto_past_due": "marked a studio past due (automatic)",
+    "hq.billing.refresh": "refreshed past-due", "hq.billing.settings": "changed invoice settings", "hq.checkout.settings": "changed checkout settings",
+    "hq.payment.provider_settled": "a payment settled online", "hq.payment.realised": "marked an export payment realised", "hq.plan.checkout": "changed a plan's website text",
+    "hq.plan.price": "changed a plan price", "hq.plan.upsert": "saved a plan", "hq.tax_rule.upsert": "saved a tax rule", "hq.operator.add": "added someone to HQ", "hq.operator.remove": "removed someone from HQ",
+    "hq.referral.approve": "approved a referral", "hq.referral.attach": "attached a referral", "hq.referral.code_off": "turned a referral code off", "hq.referral.code_on": "turned a referral code on",
+    "hq.referral.partner_code": "saved a partner code", "hq.referral.reject": "rejected a referral", "hq.referral.settings": "changed referral settings", "hq.referral.tick": "checked referrals (automatic)",
+    "hq.reserved_domain.add": "reserved a domain", "hq.reserved_domain.remove": "released a domain", "hq.sales_enquiry.settings": "changed e-mail alerts", "hq.settings.require_mfa": "changed the two-step rule",
+    "hq.settings.rpc_captcha": "changed the bot check", "hq.staff.google_only": "changed Google-only sign-in", "hq.staff_allowlist.add": "added to the staff allowlist",
+    "hq.staff_allowlist.remove": "removed from the staff allowlist", "hq.stage_machine.set": "changed a studio stage setting" };
   function actWord(a) { return ACT_WORDS[a] || String(a || "").replace(/^hq\./, "").replace(/[._]/g, " "); }
   function when(v) { return v ? ago2(v) : "never"; }
   // r122 (G): fn(run) - run(promiseFn) keeps the button disabled while the HQ call runs
   function teamAction(text, cls, fn) { var b = el("button", { cls: "btn sm" + (cls ? " " + cls : ""), type: "button", text: text });
     b.addEventListener("click", function () { if (b.disabled) return; fn(function (job) { return busy(b, job); }); }); return b; }
+  // pure (r126): "Active" only for someone who has really signed in; an account set up for them that never was reads No login yet
+  function teamStatus(x) { return x.status === "active" && !x.has_login ? ["No login yet", "warn"] : (S ? S.statusOf(x.status) : [x.status, ""]); }
   function teamRow(x) {
-    var st = S ? S.statusOf(x.status) : [x.status, ""];
+    var st = teamStatus(x);
     var nm = el("div", { cls: "nm" }, [el("span", { text: x.name ? x.name + " · " + x.email : x.email }),
       el("span", { cls: "pill", text: x.role_label || x.role }), el("span", { cls: "pill " + st[1], text: st[0] }),
       el("span", { cls: "pill " + (x.has_2step ? "ok" : "warn"), text: x.has_2step ? "2-step on" : "2-step not set up" }),
@@ -1994,8 +2060,8 @@
     var meta = [x.has_login ? "Last sign-in " + when(x.last_sign_in_at) : "No login yet", "Last active in HQ " + when(x.last_active_at) + (lastDev && x.last_active_at ? " on " + lastDev : ""),
       int(x.views_7d) + " page view" + (num(x.views_7d) === 1 ? "" : "s") + " this week"];
     var body = el("div", { cls: "sp-1" }, [nm, el("div", { cls: "meta", text: meta.join(" · ") })]);
-    if (x.status === "invited") body.appendChild(el("div", { cls: "meta", text: "Added " + date(x.invited_at || x.added_at) + (x.invited_by ? " by " + x.invited_by : "") + " - waiting for their first sign-in." }));
-    if (x.status === "suspended") body.appendChild(el("div", { cls: "meta", text: "Paused " + date(x.suspended_at) + (x.suspended_by ? " by " + x.suspended_by : "") + (x.suspend_reason ? " - " + x.suspend_reason : "") }));
+    if (x.status === "invited") body.appendChild(el("div", { cls: "meta", text: "Added " + date(x.invited_at || x.added_at) + (x.invited_by ? " by " + plainBy(x.invited_by) : "") + " - waiting for their first sign-in." }));
+    if (x.status === "suspended") body.appendChild(el("div", { cls: "meta", text: "Paused " + date(x.suspended_at) + (x.suspended_by ? " by " + plainBy(x.suspended_by) : "") + (x.suspend_reason ? " - " + x.suspend_reason : "") }));
     var sessions = Array.isArray(x.sessions) ? x.sessions : [], recent = Array.isArray(x.recent) ? x.recent : [];
     var sl = el("ul", { cls: "mini" });
     sessions.forEach(function (z) {
@@ -2071,18 +2137,19 @@
     var r = await call("hq_staff_list", { p_include_removed: !!$("#tmRemoved").checked }); r = r && !Array.isArray(r) ? r : {};
     TEAM_SET = r.settings || null;
     var list = Array.isArray(r.staff) ? r.staff : [], box = clear($("#tmList"));
-    var on = list.filter(function (x) { return x.status === "active"; }).length, inv = list.filter(function (x) { return x.status === "invited"; }).length;
-    $("#tmCount").textContent = int(on) + " active" + (inv ? " · " + int(inv) + " invited" : "");
+    var on = list.filter(function (x) { return x.status === "active" && x.has_login; }).length, inv = list.filter(function (x) { return x.status === "invited"; }).length,
+      none = list.filter(function (x) { return x.status === "active" && !x.has_login; }).length;
+    $("#tmCount").textContent = int(on) + " active" + (inv ? " · " + int(inv) + " invited" : "") + (none ? " · " + int(none) + " no login yet" : "");
     list.forEach(function (x) { box.appendChild(teamRow(x)); });
     if (!list.length) box.appendChild(el("div", { cls: "empty", text: "Nobody on the HQ team yet." }));
     paintTeamSettings(r.settings || {});
     paintMatrix();
     var ev = clear($("#tmEvents"));
     (Array.isArray(r.events) ? r.events : []).forEach(function (e) {
-      if (e.kind === "settings") { ev.appendChild(el("li", null, [el("span", { text: "Sign-in rules changed" + (e.by ? " by " + e.by : "") }), el("span", { cls: "muted", text: when(e.at) })])); return; }
+      if (e.kind === "settings") { ev.appendChild(el("li", null, [el("span", { text: "Sign-in rules changed" + (e.by ? " by " + plainBy(e.by) : "") }), el("span", { cls: "muted", text: when(e.at) })])); return; }
       var w = (S && S.EVENT_WORDS[e.kind]) || e.kind;
       ev.appendChild(el("li", null, [el("span", { cls: "m", text: e.email + " - " + w + (e.role && (e.kind === "invited" || e.kind === "role_changed") ? " (" + (S ? S.roleLabel(e.role) : e.role) + ")" : "") }),
-        el("span", { cls: "muted", text: (e.by && e.by !== e.email ? "by " + e.by + " · " : "") + when(e.at) })]));
+        el("span", { cls: "muted", text: (e.by && e.by !== e.email ? "by " + plainBy(e.by) + " · " : "") + when(e.at) })]));
     });
     if (!ev.firstChild) ev.appendChild(el("li", { cls: "empty", text: "No changes yet." }));
   }
@@ -2144,7 +2211,7 @@
     var on = !!sgData.on, st = $("#sgState");
     st.textContent = on ? "On" : "Off"; st.className = "pill" + (on ? " ok" : "");
     $("#sgMe").textContent = "Your sign-in right now: " + (sgData.my_session_google ? "Google \u2713" : "not Google - sign out and use Continue with Google first")
-      + (sgData.changed_at ? " · last changed " + when(sgData.changed_at) + (sgData.changed_by ? " by " + sgData.changed_by : "") : "");
+      + (sgData.changed_at ? " · last changed " + when(sgData.changed_at) + (sgData.changed_by ? " by " + plainBy(sgData.changed_by) : "") : "");
     var ul = clear($("#sgList"));
     (Array.isArray(sgData.staff) ? sgData.staff : []).forEach(function (x) {
       var p = !x.on_domain ? ["not on helm.events - loses HQ while this is on", "bad"] : x.google_ok ? ["Google \u2713" + (x.google_last_sign_in ? " · " + when(x.google_last_sign_in) : ""), "ok"]
@@ -2190,7 +2257,7 @@
       + int(acc.length) + " existing login" + (acc.length === 1 ? "" : "s") + " on these domains" + (open ? " (" + int(open) + " not staff — review below)" : "");
     var ul = clear($("#stAllow"));
     allow.forEach(function (a) {
-      var right = el("span", { cls: "muted", text: (a.is_platform_admin ? "HQ operator · " : "") + (a.has_login ? "has a login" : "no login yet") + (a.note ? " · " + a.note : "") });
+      var right = el("span", { cls: "muted", text: (a.hq_status === "removed" ? "removed from HQ · " : a.is_platform_admin ? "HQ operator · " : "") + (a.has_login ? "has a login" : "no login yet") + (a.note ? " · " + a.note : "") });
       var li = el("li", null, [el("span", { cls: "m", text: a.email }), right]);
       if (!a.is_platform_admin && can("security.write")) {
         var rm = el("button", { cls: "btn sm danger", type: "button", text: "Remove" });
