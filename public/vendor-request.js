@@ -51,7 +51,7 @@
       if (d && d.reason === "paused") return bad("Link not active", "This link has expired. Ask the studio to share it again.");   // r23-0260: restored, not re-shared yet
       if (d && d.reason === "rate") return bad("Please wait a moment", "Too many tries from this link. Try again in a few minutes.");
       if (d && d.reason === "closed" && d.status) { /* fall through with the fresh state */ }
-      else return bad("Link not valid", "This link is not valid or has expired. Ask the studio for a new link.");
+      else return bad("This link isn't available", "Please ask the person who sent it to you for a new one.");
     }
     cur = d;
     var item = String(d.what || "") + (Number(d.qty) > 0 ? " × " + Number(d.qty).toLocaleString("en-IN") : "");

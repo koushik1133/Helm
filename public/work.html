@@ -89,7 +89,7 @@
   <header><div class="mark"></div><div><b>Helm Events</b><small>Staff tasks</small></div></header>
   <main id="main">
   <div id="loading" class="card" role="status"><p class="muted">Loading your tasks…</p></div>
-  <div id="badlink" class="card" hidden><h1>Link not found</h1><p class="sub">This task link is invalid. Please ask your manager for a new one.</p></div>
+  <div id="badlink" class="card" hidden><h1>This link isn't available</h1><p class="sub">Please ask the person who sent it to you for a new one.</p></div>
   <div id="offlineFirst" class="card" role="alert" hidden><h1>You’re offline</h1><p class="sub">We couldn’t load your tasks because you’re not connected. They’ll load automatically when you’re back online.</p><button class="btn primary s-56f4356" id="retryFirst" type="button">↻ Try again</button></div>
   <div id="content" hidden>
     <div class="card">
@@ -150,12 +150,13 @@
   </div>
 </div>
 
+<script src="/trial-preview-frame.js?v=1"></script>
 <script src="/trusted-types.js?v=6"></script>
 <script src="/console-warning.js?v=1"></script>
 <script src="/telemetry.js?v=9"></script>
 <script src="/config.js?v=112"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=334"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=335"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -242,8 +243,8 @@
         const bad=/invalid link/i.test(em);
         data=null; $("#content").hidden=true; $("#offline").hidden=true; $("#offlineFirst").hidden=true; $("#loading").hidden=true;
         const gone=/has been cancelled/i.test(em);   // r23-0260: the event was cancelled
-        $("#badlink").querySelector("h1").textContent=gone?"This event has been cancelled":bad?"Link not valid":"Link expired";
-        $("#badlink").querySelector(".sub").textContent=gone?"This task link is no longer active. Your manager will tell you if anything changes.":bad?"This task link isn't valid. Please check you opened the full link, or ask your manager to send it again.":"This task link has expired. Please ask your manager for a new one.";
+        $("#badlink").querySelector("h1").textContent=gone?"This event has been cancelled":bad?"This link isn't available":"Link expired";
+        $("#badlink").querySelector(".sub").textContent=gone?"This task link is no longer active. Your manager will tell you if anything changes.":bad?"Please ask the person who sent it to you for a new one.":"This task link has expired. Please ask your manager for a new one.";
         $("#badlink").hidden=false; return;
       }
       if(strict && !data){

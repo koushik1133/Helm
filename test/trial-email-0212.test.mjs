@@ -67,7 +67,7 @@ await t('terms version: 0212 = public/trial-facts.js VERSION (0207 format); MANI
   const F = require('../public/trial-facts.js');
   // 0212 shipped 'trial-2026-10-19'; the CURRENT version (= trial-facts.js) is re-issued by the latest migration (0238)
   assert.match(code, /select 'trial-2026-10-19'::text;/);
-  assert.match(read('supabase/migrations/0325_r117_trial_terms_proposal.sql'), new RegExp("select '" + F.VERSION + "'::text;"));   // R117: 0325 is the latest version
+  assert.match(read('supabase/migrations/0334_r125_trial_preview_lockdown.sql'), new RegExp("select '" + F.VERSION + "'::text;"));   // R117: 0325 is the latest version
   assert.match(F.VERSION, /^trial-[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
   assert.notEqual(F.VERSION, 'trial-2026-10-18', 'new wording = new version');
   const man = read('supabase/migrations/MANIFEST');

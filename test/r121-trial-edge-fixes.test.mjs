@@ -104,7 +104,7 @@ t('plan_active: own kind in SQL (catalog "Plan active", admin-only, 4 policies) 
   assert.match(API, /if \(k === "plan_active"\) return "checkout\.html";/);
 });
 t('event.html: trial approval card says "ready (trial preview - not sent to the client)"; paid text unchanged', () => {
-  assert.match(EV, /trialNow\(\)\s*\n\s*\? 'Approval link ready \(trial preview - not sent to the client\)\./);
+  assert.match(EV, /trialNow\(\)\s*\n\s*\? 'In a free trial nothing is sent and no link is made\./);
   assert.match(EV, /: 'Approval link sent — waiting for the client\. Record the advance once it arrives\.'\)/);
   assert.match(EV, /window\.addEventListener\("helm:trial",\(\)=>\{ try\{ if\(ev\) render\(\); \}catch\(_\)\{ \} \}\);/);
 });

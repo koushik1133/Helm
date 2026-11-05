@@ -18,9 +18,9 @@ const MIG = read('supabase/migrations/0207_trial_terms_acceptance.sql'), APPLY =
 // 0211: the terms wording changed (quotes / events not capped) -> trial-2026-10-19
 const M211 = read('supabase/migrations/0211_trial_quotes_uncapped.sql');
 // 0238 (owner r20): quotes / events capped at 2 again -> the current version (trial-2026-10-20) lives in 0238
-// R117 (owner): the trial is a simulation ("nothing is sent to clients") -> the current version (trial-2026-11-01) lives in 0325
+// R117 (owner): the trial is a simulation ("nothing is sent to clients") -> the current version (trial-2026-11-05) lives in 0325
 const M238 = read('supabase/migrations/0238_trial_quotes_cap_two.sql');
-const M325 = read('supabase/migrations/0325_r117_trial_terms_proposal.sql');
+const M325 = read('supabase/migrations/0334_r125_trial_preview_lockdown.sql');   // R125: 0334 re-issued the version last
 // 0212 (trial client e-mail) re-issued _trial_terms_version() with the new wording's version
 const MIG212 = read('supabase/migrations/0212_trial_client_email.sql');
 const DBT = read('tests/db/trial-terms-0207.sql'), M181 = read('supabase/migrations/0181_trial_guards.sql');
@@ -75,7 +75,7 @@ const byText = (root, re) => find(root, (x) => x.tagName === 'BUTTON' && re.test
 
 // ---- the shared facts ------------------------------------------------------------------------------------
 await t('facts: the real numbers (verified on a trial clone; same literal as the DB suite)', () => {
-  assert.equal(F.VERSION, 'trial-2026-11-01'); assert.equal(F.DAYS, 8); assert.equal(F.KEEP_DAYS, 60); assert.equal(F.TEAM_EXTRA, 2);
+  assert.equal(F.VERSION, 'trial-2026-11-05'); assert.equal(F.DAYS, 8); assert.equal(F.KEEP_DAYS, 60); assert.equal(F.TEAM_EXTRA, 2);
   assert.equal(F.CREATE_CAP, 2); assert.equal(F.EXTENSION_DAYS, 7); assert.deepEqual(F.DELETE_WARN_DAYS, [30, 7, 1]);
   assert.deepEqual(F.REGION, { currency: 'INR', symbol: '₹', timezone: 'Asia/Kolkata', tz: 'IST' });
   const m = DBT.match(/v_want jsonb := '(\{[^']+\})'::jsonb;/); assert.ok(m, 'SAMPLE-COUNTS literal in tests/db/trial-terms-0207.sql');
@@ -84,7 +84,7 @@ await t('facts: the real numbers (verified on a trial clone; same literal as the
   assert.deepEqual(want, { leads: 16, events: 7, requirements: 41, inventory: 165, vendors: 16, staff: 12, venues: 4, menus: 6, dishes: 145, layouts: 3, coupons: 3 });
 });
 await t('facts: VERSION = the server version; the capped lists = the server cap list (0181 / 0238: quotes capped again)', () => {
-  assert.match(M325, new RegExp("select '" + F.VERSION + "'::text;"), '_trial_terms_version() re-issued by 0325 (the latest)');
+  assert.match(M325, new RegExp("select '" + F.VERSION + "'::text;"), '_trial_terms_version() re-issued by 0334 (the latest)');
   assert.match(M238, /select 'trial-2026-10-20'::text;/, '0238 itself is unchanged (forward-only)');
   assert.match(M211, /select 'trial-2026-10-19'::text;/, '0211 itself is unchanged (forward-only)');
   assert.match(MIG212, /select 'trial-2026-10-19'::text;/, '0212 itself is unchanged (forward-only)');
@@ -207,7 +207,7 @@ await t('welcome step 1 "Your 8-day free trial": Continue disabled until ticked,
   cb.checked = false; cb.fire('change'); assert.equal(go.disabled, true, 'unticked -> disabled again');
   cb.checked = true; cb.fire('change');
   await go.on.click[0]({ currentTarget: go });
-  assert.deepEqual(r.calls, ['accept:trial-2026-11-01']);
+  assert.deepEqual(r.calls, ['accept:trial-2026-11-05']);
   assert.match(d.textContent, /Step 2 of 3/); assert.match(d.textContent, /Your trial studio/);
   assert.ok(!d.classList.contains('tw-dlg'), 'back to the small dialog'); assert.ok(!find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox'), 'tick box gone');
   const ev = { prevented: false, preventDefault() { this.prevented = true; } }; d.on.cancel[0](ev); assert.equal(ev.prevented, true, 'Esc never closes the welcome');
@@ -235,7 +235,7 @@ await t('trial that finished the welcome before: one-time window, Esc cannot clo
   const go = byText(d, /Agree and continue/), cb = find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox');
   assert.equal(go.disabled, true); cb.checked = true; cb.fire('change');
   await go.on.click[0]({ currentTarget: go }); await new Promise((x) => setTimeout(x, 10));
-  assert.deepEqual(r.calls, ['accept:trial-2026-11-01']); assert.ok(d.removed, 'closed after agreeing'); assert.equal(gateDone, true, 'tour may run now');
+  assert.deepEqual(r.calls, ['accept:trial-2026-11-05']); assert.ok(d.removed, 'closed after agreeing'); assert.equal(gateDone, true, 'tour may run now');
   assert.equal(d.attrs['data-done'], '1', 'finished: not opened again');
 });
 await t('invited teammate: a short read-only notice with "Got it" (no tick, no agreement)', async () => {
@@ -244,7 +244,7 @@ await t('invited teammate: a short read-only notice with "Got it" (no tick, no a
   assert.match(d.textContent, /You’re in a free-trial studio/); assert.match(d.textContent, /“Demo 7” is trying Helm until 26 October 2026/);
   assert.ok(!find(d, (e) => e.tagName === 'INPUT' && e.type === 'checkbox'), 'nothing to agree to');
   const b = byText(d, /Got it/); await b.on.click[0]({ currentTarget: b }); await new Promise((x) => setTimeout(x, 5));
-  assert.deepEqual(r.calls, ['accept:trial-2026-11-01'], 'seen once (server)'); assert.ok(d.removed);
+  assert.deepEqual(r.calls, ['accept:trial-2026-11-05'], 'seen once (server)'); assert.ok(d.removed);
 });
 await t('paid studio / agreed / ended trial: no window at all, the tour is not held', async () => {
   for (const [tr, terms] of [[{ is_trial_org: false, is_admin: true }, { trial: false }], [owner, { trial: true, owner: true, must_agree: false, accepted: true }],

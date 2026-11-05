@@ -20,8 +20,8 @@ const MIG = read('supabase/migrations/0325_r117_trial_terms_proposal.sql');
 
 // ---- 1 terms -----------------------------------------------------------------------------------------------------
 t('1 VERSION trial-2026-10-20 -> trial-2026-11-01, the same constant in 0325 _trial_terms_version()', () => {
-  assert.equal(F.VERSION, 'trial-2026-11-01');
-  assert.match(MIG, new RegExp("select '" + F.VERSION + "'::text;"));
+  assert.equal(F.VERSION, 'trial-2026-11-05');   // R125: 0334 moved it on
+  assert.match(MIG, /select 'trial-2026-11-01'::text;/);
   assert.match(read('public/trial-facts.js'), /0325 \(trial-2026-11-01, owner R117\)/);
 });
 t('1 "What you can do": the e-mail item is now a simulation (no "really reach")', () => {
@@ -36,11 +36,11 @@ t('1 "What you can do": the e-mail item is now a simulation (no "really reach")'
 });
 t('1 "Locked in the trial": WhatsApp, SMS and online payment links - no code is sent, payments simulated', () => {
   const lk = F.SECTIONS.find((s) => s.id === 'locked').items.find((i) => i.t === 'WhatsApp, SMS and online payment links');
-  assert.equal(lk.s, 'They unlock on a paid plan. In the trial no approval code is sent - the client confirms with the test code 000000 - and payments are simulated.');
+  assert.equal(lk.s, 'They unlock on a paid plan. In the trial no approval code is sent - you try the approval with the test code 000000 - and payments are simulated.');
 });
 t('1 SIGNUP_KEY line 3 + SIGNUP_ALL item 7', () => {
   assert.equal(F.SIGNUP_KEY[2].s, 'Sending to clients is a simulation (previews, test code 000000); real e-mail, WhatsApp and SMS unlock on a plan.');
-  assert.match(F.SIGNUP_ALL[6], /^During the trial nothing is sent to your clients: approval, booklet and invitation links show a preview, the client approves with the test code 000000 and payments are simulated \(TEST receipts, no real money\)\./);
+  assert.match(F.SIGNUP_ALL[6], /^During the trial nothing is sent to your clients and no link is made: every send button shows a preview inside your studio, you try the approval with the test code 000000 and payments are simulated \(TEST receipts, no real money\)\./);
   assert.match(F.SIGNUP_ALL[6], /Your own account e-mails \(welcome, security, login codes, billing, teammate invites\) still work\./);
 });
 t('1 no agreed-terms text still says client e-mail really goes out', () => {
@@ -50,10 +50,10 @@ t('1 no agreed-terms text still says client e-mail really goes out', () => {
 t('1 terms.html free-trial section: "Client messages: the trial is a simulation"', () => {
   const h = read('public/terms.html');
   const sec = h.slice(h.indexOf('<section id="trial"'), h.indexOf('</section>', h.indexOf('<section id="trial"')));
-  assert.match(sec, /<li><b>Client messages:<\/b> the trial is a simulation\. Nothing is sent to your clients by e-mail, WhatsApp or SMS; you see previews instead, the client approves with the test code 000000, and payments are simulated \(TEST receipts, no real money\)\./);
+  assert.match(sec, /<li><b>Client messages:<\/b> the trial is a simulation\. Nothing is sent to your clients by e-mail, WhatsApp or SMS, and no link is made for your clients, guests, crew or vendors; you see previews inside your signed-in studio instead, your own staff can try the approval with the test code 000000, and payments are simulated \(TEST receipts, no real money\)\./);
   assert.match(sec, /Your own account e-mails \(welcome, security, login codes, billing and teammate invitations\) still work\./);
   assert.doesNotMatch(sec, /E-mail to clients:|really reach|recorded by hand/);
-  assert.match(h, /Last updated: <time datetime="2026-11-01">November 1, 2026<\/time>/);
+  assert.match(h, /Last updated: <time datetime="2026-11-05">November 5, 2026<\/time>/);
 });
 t('1 re-acceptance uses the EXISTING flow: must_agree per version -> the one-time "Agree and continue" window (no lock-out)', () => {
   const s207 = read('supabase/migrations/0207_trial_terms_acceptance.sql');

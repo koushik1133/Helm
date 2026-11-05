@@ -354,8 +354,8 @@ do $$ declare r text; begin
     and has_function_privilege('authenticated', 'public.quote_validity_extend(uuid, integer)', 'execute'), null);
   perform pg_temp.t('68 wrappers in place (verify + claim), the 0156 price check still in the chain',
     -- the 0262 verify layer is the top wrapper, or sits right under the r84 0307 one-approval wrapper
-    (position('_qv262_verify' in (select prosrc from pg_proc where oid = 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0
-     or (position('_r307_verify' in (select prosrc from pg_proc where oid = 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0
+    (position('_qv262_verify' in (select prosrc from pg_proc where oid = coalesce(to_regprocedure('public.verify_and_consent__pre0334(uuid,text,text,boolean,text,text,text,text)'), 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure))) > 0
+     or (position('_r307_verify' in (select prosrc from pg_proc where oid = coalesce(to_regprocedure('public.verify_and_consent__pre0334(uuid,text,text,boolean,text,text,text,text)'), 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure))) > 0
          and position('_qv262_verify' in coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.verify_and_consent__pre0307(uuid,text,text,boolean,text,text,text,text)')), '')) > 0))
     -- the 0262 claim layer is the top wrapper, or sits right under a later one (0264 payment schedules wraps it; r33 0283
     -- wraps that one to skip forwards for deactivated members)

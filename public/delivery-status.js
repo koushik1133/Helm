@@ -28,7 +28,7 @@
     if (!d || d.ok !== true) {
       if (d && d.reason === "cancelled") return bad("This event has been cancelled", "This delivery link is no longer active - there is nothing more to do. Thank you.");   // r23-0260
       if (d && d.reason === "rate") return bad("Please wait a moment", "Too many tries from this link. Try again in a few minutes.");
-      return bad("Link not valid", "This status link is not valid or has expired. Use the link in the latest reminder e-mail, or reply to it.");
+      return bad("This link isn't available", "Please ask the person who sent it to you for a new one.");
     }
     cur = d;
     var item = String(d.what || "") + (Number(d.qty) > 0 ? " × " + Number(d.qty).toLocaleString("en-IN") : "");

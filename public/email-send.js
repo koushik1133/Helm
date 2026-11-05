@@ -14,7 +14,7 @@
  * CSP-safe: DOM via createElement / textContent, no inline styles or handlers. */
 (function () {
   "use strict";
-  var TEST_MODE = "Test mode \u2014 in the free trial we don't send real messages; copy the link instead.";
+  var TEST_MODE = "Test mode \u2014 in the free trial nothing is sent. Use the preview to see what your client would get.";
   // R114 (0323): the free trial is a simulation - preview instead of send
   var SIM_LINE = "Trial simulation \u2014 nothing is sent to your client. Press Preview to see the e-mail they would receive.";
   var SIM_LABEL = "Preview e-mail (trial)";
