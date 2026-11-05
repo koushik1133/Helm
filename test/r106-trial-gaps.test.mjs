@@ -179,7 +179,7 @@ await t('control: the guard covers create only; the e-mail flush runs after the 
 });
 
 await t('page tour: the share & approval step mentions client images + the trial', () => {
-  assert.match(R('public/page-tours.js'), /sel: "#sec-approve", title: "Share & approval"[^}]*Client 2D \/ 3D images come with a paid plan, so they are off in the free trial/);
+  assert.match(R('public/page-tours.js'), /sel: "#sec-approve", title: "Share & approval"[^}]*Client 2D \/ 3D images need a paid plan/);
 });
 
 /* ---- coordinator additions (staging trial walk-through, TRIAL-ADMIN-FLOWS.md) ---- */

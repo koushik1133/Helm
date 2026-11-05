@@ -186,7 +186,7 @@ begin
   perform pg_temp.t('08 a consent inserted with a wrong org gets the quote studio; moving it to another studio is still refused',
     v like 'err:42501:%belongs to another studio%', v);
   perform pg_temp.t('09 0307 single-use wrapper still live (verify_and_consent reaches _r307_verify)',
-    position('_r307_verify' in (select prosrc from pg_proc where oid = 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) > 0
+    position('_r307_verify' in (select prosrc from pg_proc where oid = coalesce(to_regprocedure('public.verify_and_consent__pre0334(uuid,text,text,boolean,text,text,text,text)'), 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure))) > 0
     and has_function_privilege('anon', 'public.wa_verify_and_consent(uuid,text,text,boolean,text,text,text,text)', 'execute'), null);
 end $$;
 

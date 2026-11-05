@@ -243,12 +243,12 @@ t('13 Share booklet in a trial: Floor plan / 3D view switches say "(paid plan)" 
 // ---- 14 in-app trial copy (not the agreed terms) -----------------------------------------------------------------
 t('14 teammate notice + in-app lines say simulation; the agreed terms (SECTIONS / SIGNUP_* / VERSION) are untouched', () => {
   const F = read('public/trial-facts.js');
-  assert.match(F, /"Trial simulation: nothing is sent to clients \\u2014 approval, booklet and invitation links show a preview, the approval uses the test code 000000, and payments are simulated \(TEST receipts\)\.",/);
+  assert.match(F, /"Trial simulation: nothing leaves Helm \\u2014 every send button shows a preview inside your signed-in studio and no link is made\. Staff can try the approval with the test code 000000, and payments are simulated \(TEST receipts\)\.",/);
   assert.doesNotMatch(F, /"E-mail works: approval, booklet and invitation links/);
-  assert.match(F, /var VERSION = "trial-2026-11-01";/, 'R117 (0325): the terms text changed, so the version did');
+  assert.match(F, /var VERSION = "trial-2026-11-05";/, 'R117 (0325): the terms text changed, so the version did');
   // R117 (owner approved, 0325): the agreed terms now say "nothing is sent to clients" (test/r117-trial-terms-proposal.test.mjs)
-  assert.match(F, /\{ t: "Try sending to clients \(simulation\)", s: "Approval, booklet and invitation links show a preview/);
-  assert.match(F, /"During the trial nothing is sent to your clients: approval, booklet and invitation links show a preview/);
+  assert.match(F, /\{ t: "Try sending to clients \(simulation\)", s: "Every send button opens a preview/);
+  assert.match(F, /"During the trial nothing is sent to your clients and no link is made: every send button shows a preview/);
   assert.doesNotMatch(read('public/email-send.js'), /this e-mail really goes to your client/);
   assert.doesNotMatch(read('public/getting-started.js'), /it really reaches your client in the trial/); assert.match(read("public/getting-started.js"), /nothing is sent in the trial - you see a preview; the client approves with code 000000/);
   assert.doesNotMatch(read('public/invite-site-share.js'), /the e-mail really goes to your client/);

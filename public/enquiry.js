@@ -36,12 +36,12 @@
     var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; }; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
 
   function start() {
-    if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) return closed("Enquiry form not found", "Please check the link the studio gave you.");
+    if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) return closed("This link isn't available", "Please ask the person who sent it to you for a new one.");
     rpc("public_enquiry_info", { p_slug: slug }).then(function (r) {
       var d = r.ok ? r.data : null;
       if (!d || d.ok !== true) {
         if (d && d.reason === "rate") return closed("Please wait a moment", "Too many tries from this network. Try again in a few minutes.");
-        return closed("Enquiry form not open", "This studio is not taking enquiries online right now. Please contact them directly.");
+        return closed("This link isn't available", "Please ask the person who sent it to you for a new one.");
       }
       studio = String(d.studio || "").slice(0, 80);
       document.title = "Send an enquiry · " + (studio || "Helm");

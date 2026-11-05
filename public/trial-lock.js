@@ -26,7 +26,7 @@
   }
   function css() {
     if (document.getElementById("trialLockCss")) return;
-    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=8";
+    var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=9";
     (document.head || document.documentElement).appendChild(l);
   }
   function note(msg) {
@@ -128,10 +128,22 @@
     try { var A = window.BPStore && window.BPStore.auth; if (A && typeof A.markTrialStep === "function") A.markTrialStep(m[2]).catch(function () {}); } catch (e) {}
   }
   function done() { known = true; waiters.splice(0).forEach(function (f) { try { f(on); } catch (e) {} }); }
+  // R125 (0334): only a free-trial studio ever loads the preview pop-up + the "nothing leaves Helm" rules. Never inside a
+  // preview frame, never on a client page (a signed-in member's browser), never for a paid studio.
+  function previewScript() {
+    try {
+      if (window.parent !== window || window.HELM_TRIAL_PREVIEW || document.getElementById("trialPreviewJs")) return;
+      if (/^\/(approve|portal|booklet|proposal-view|invite|work|vendor-request|enquiry|delivery)(\.html)?\/?$/.test(location.pathname) || /^\/i\//.test(location.pathname)
+          || /^\/[a-z0-9-]+\/(invite|quote|proposal|portal|work|booklet)\/[^/]+/.test(location.pathname) || /^\/[a-z0-9-]+\/enquiry\/?$/.test(location.pathname)) return;
+      var s = document.createElement("script"); s.id = "trialPreviewJs"; s.src = "/trial-preview.js?v=1"; s.defer = true;
+      (document.head || document.documentElement).appendChild(s);
+    } catch (e) {}
+  }
   function check(tries) {
     var S = window.BPStore;
     if (!S || !S.subscription || !S.subscription.trial) { if ((tries || 0) < 80) setTimeout(function () { check((tries || 0) + 1); }, 100); else done(); return; }
     Promise.resolve(S.init ? S.init() : null).then(function () { if (S.auth && S.auth.user && !S.auth.user()) return null; return S.subscription.trial(); }).then(function (t) {
+      if (t && (t.status === "trial" || t.state === "trial" || t.state === "ended")) previewScript();
       if (t && t.status === "trial") apply();
       else { try { localStorage.removeItem("helm.trial"); } catch (e) {} unearly(); done(); }
     }, done);

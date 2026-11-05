@@ -46,3 +46,32 @@ html.helm-trial #obNudge { display: none !important; }   /* review: the dashboar
 .tl-block p { margin: 0 0 16px; color: var(--ink-2, #555); }
 .tl-block a { display: inline-block; padding: 10px 16px; border-radius: 10px; background: var(--accent, #1f7a4d); color: #fff; text-decoration: none; }
 .tl-cover { position: fixed; inset: 0; z-index: 9999; background: var(--paper-0, #f7f8f6); overflow: auto; padding: 0 16px; }
+/* R125 (0334): in a free trial no link leaves Helm - these never show, not even for a moment (trial-preview.js removes the rest).
+   Team invitations are deliberately not here. Never inside the preview pop-up's frames (real client pages). */
+html.helm-trial:not(.tp-framed) #linkModal,
+html.helm-trial:not(.tp-framed) #apprLinks,
+html.helm-trial:not(.tp-framed) [data-email-send],
+html.helm-trial:not(.tp-framed) [data-wa-proposal],
+html.helm-trial:not(.tp-framed) .pkr-link,
+html.helm-trial:not(.tp-framed) #sec-share,
+html.helm-trial:not(.tp-framed) #shareModal,
+html.helm-trial:not(.tp-framed) #shareHost,
+html.helm-trial:not(.tp-framed) #unpubBtn,
+html.helm-trial:not(.tp-framed) #newLinkBtn,
+html.helm-trial:not(.tp-framed) #linkWrap,
+html.helm-trial:not(.tp-framed) #pubLink,
+html.helm-trial:not(.tp-framed) #copyBtn,
+html.helm-trial:not(.tp-framed) #openBtn,
+html.helm-trial:not(.tp-framed) #copyLink,
+html.helm-trial:not(.tp-framed) #openView,
+html.helm-trial:not(.tp-framed) #shareLink,
+html.helm-trial:not(.tp-framed) #oldLinks,
+html.helm-trial:not(.tp-framed) #workerLinks,
+html.helm-trial:not(.tp-framed) .linkline,
+html.helm-trial:not(.tp-framed) .linkline + .muted,
+html.helm-trial:not(.tp-framed) .au-link,
+html.helm-trial:not(.tp-framed) #sm_wa,
+html.helm-trial:not(.tp-framed) #sm_copy,
+html.helm-trial:not(.tp-framed) #sm_link,
+html.helm-trial:not(.tp-framed) #lib_wa,
+html.helm-trial:not(.tp-framed) [data-key="refer"]{display:none!important}

@@ -61,7 +61,7 @@ begin
     and (select count(*) from public.quote_consents where quote_id = q) = n0 + 2, r);
   perform pg_temp.t('08 live function: empty search_path, marker, anon may execute',
     coalesce((select p.prosecdef and array_to_string(p.proconfig, ',') like '%search_path=""%' and position('r84-otp-once-0307' in p.prosrc) > 0
-       from pg_proc p where p.oid = 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure), false)
+       from pg_proc p where p.oid = coalesce(to_regprocedure('public.verify_and_consent__pre0334(uuid,text,text,boolean,text,text,text,text)'), 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)), false)
     and has_function_privilege('anon', 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)', 'execute'), null);
   perform pg_temp.t('09 __pre0307 kept, not callable by anon / authenticated',
     to_regprocedure('public.verify_and_consent__pre0307(uuid,text,text,boolean,text,text,text,text)') is not null

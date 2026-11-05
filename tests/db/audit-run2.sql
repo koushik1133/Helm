@@ -296,8 +296,8 @@ do $$ declare s text; begin perform pg_temp.su();
   perform pg_temp.res('RC3-22 denied: visitors can''t call admin_revoke_work_links', s like '42501%', s);
   perform pg_temp.su();
   perform pg_temp.res('RC3-23 proof-upload grant check also applies the link age + shelf gate',
-    pg_get_functiondef('public.task_proof_upload_ok(text)'::regprocedure) like '%link_age_expired(public.work_link_age_until(g.work_token))%'
-    and pg_get_functiondef('public.task_proof_upload_ok(text)'::regprocedure) like '%_a42_quote_shelved%'
+    pg_get_functiondef(coalesce(to_regprocedure('public.task_proof_upload_ok__pre0334(text)'), 'public.task_proof_upload_ok(text)'::regprocedure)) like '%link_age_expired(public.work_link_age_until(g.work_token))%'
+    and pg_get_functiondef(coalesce(to_regprocedure('public.task_proof_upload_ok__pre0334(text)'), 'public.task_proof_upload_ok(text)'::regprocedure)) like '%_a42_quote_shelved%'
     and has_function_privilege('anon', 'public.task_proof_upload_ok(text)', 'execute'), '');
 end $$;
 

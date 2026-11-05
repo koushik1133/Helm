@@ -10,8 +10,8 @@
   "use strict";
   var OPT_TEXT = "Client agreed to receive WhatsApp updates about this event from Helm Events on behalf of the studio.";
   // qa-quote-flow B21: same test-mode wording + label as the booklet / invitation send boxes (invite-site-share.js)
-  var TRIAL_NOTE = "Test mode \u2014 in the free trial we don't send real messages; copy the link instead.";
-  var TRIAL_SENT = "Test mode: nothing was sent (free trial). Use Copy link to share it yourself.";
+  var TRIAL_NOTE = "Test mode \u2014 in the free trial nothing is sent. Use the preview to see what your client would get.";
+  var TRIAL_SENT = "Test mode: nothing was sent (free trial).";
   var LABEL = { simulated: "Simulated", queued: "Sending", sent: "Sent", delivered: "Delivered", read: "Read", failed: "Failed" };
 
   // "+919876543210" from whatever was typed (country-aware, like the wa.me link), or ""

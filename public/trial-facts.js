@@ -19,11 +19,14 @@
    clients (previews instead), the client approves with the test code 000000, payments are simulated TEST receipts;
    the studio's OWN account e-mails still work. The 0212 "e-mail really reaches clients" wording is gone, so the
    version changed: trial owners agree once more (the same one-time "Agree and continue" window; nobody is locked out).
+   0334 (trial-2026-11-05, owner R125): no link and no message leaves a free trial, except sign-up, sign-in and team
+   invitations. Every send button opens a preview inside the signed-in studio; client pages exist only there; test
+   approval and simulated payment are for signed-in staff. Trial owners agree once more (same one-time window).
    CSP: DOM built with createElement / textContent only; styles in trial-terms.css.
    ========================================================================= */
 (function (global) {
   "use strict";
-  var VERSION = "trial-2026-11-01";
+  var VERSION = "trial-2026-11-05";
   var DAYS = 8, KEEP_DAYS = 60, TEAM_EXTRA = 2, CREATE_CAP = 2, EXTENSION_DAYS = 7;
   var DELETE_WARN_DAYS = [30, 7, 1];
   var EMAIL_PER_DAY = 30, EMAIL_PER_RECIPIENT = 5;   // 0212 trial client e-mail caps (trial_email_settings)
@@ -69,7 +72,7 @@
         { t: "Change menu prices", s: "Price per plate, chair and plate prices. Dishes and menu packages cannot be added, renamed or removed in the trial." },
         { t: "Invite up to " + TEAM_EXTRA + " teammates", s: "You + " + TEAM_EXTRA + " people. Open invitations count toward the " + TEAM_EXTRA + "." },
         // R117 (0325): the trial is a simulation - nothing reaches a client (EMAIL_PER_DAY / EMAIL_PER_RECIPIENT kept for older callers)
-        { t: "Try sending to clients (simulation)", s: "Approval, booklet and invitation links show a preview of what your client would get - nothing is sent to clients in the trial. The client approves with the test code 000000 and payments are simulated (TEST receipts, no real money). Your own account e-mails (welcome, security, login codes, billing, teammate invites) still arrive." },
+        { t: "Try sending to clients (simulation)", s: "Every send button opens a preview inside your signed-in studio: the e-mail, the WhatsApp message and the real client page with your own data. No link is made, so nothing is sent to clients in the trial and there is nothing to copy or share. Your own staff can try the approval with the test code 000000, and payments are simulated (TEST receipts, no real money). Your own account e-mails (welcome, security, login codes, billing, teammate invites) still arrive." },
         { t: "Plan layouts in 2D and 3D", s: "Start from the " + count("layouts") + " layout templates, a blank floor or a past event." },
         { t: "Set pricing, coupons and rules", s: "Pricing & coupons, layout rules, and roles & access are all editable." }
       ] },
@@ -81,7 +84,8 @@
         { t: "Photo renders", s: null },
         { t: "Notification settings and client link auto-expire", s: null },
         { t: "Your own templates and the activity log", s: "Saving layout or checklist templates, the Templates page and the audit (activity) log." },
-        { t: "WhatsApp, SMS and online payment links", s: "They unlock on a paid plan. In the trial no approval code is sent - the client confirms with the test code 000000 - and payments are simulated." }
+        { t: "Links for clients, guests, crew and vendors", s: "Approval, portal, booklet, invitation, proposal, crew, vendor, delivery and enquiry links do not exist in the trial, and any made before now stay closed until you choose a plan. On a paid plan a private link is created and sent by WhatsApp or e-mail." },
+        { t: "WhatsApp, SMS and online payment links", s: "They unlock on a paid plan. In the trial no approval code is sent - you try the approval with the test code 000000 - and payments are simulated." }
       ] },
     { id: "after", icon: "clock", title: "After the trial",
       items: [
@@ -99,7 +103,7 @@
   var NOTICE = [
     "This studio is on Helm’s " + DAYS + "-day free trial. It runs on sample data marked “Demo ·” / “Sample”.",
     // R116 (0323: a free trial is a full SIMULATION): this teammate notice is not part of the agreed terms (no VERSION change)
-    "Trial simulation: nothing is sent to clients \u2014 approval, booklet and invitation links show a preview, the approval uses the test code 000000, and payments are simulated (TEST receipts).",
+    "Trial simulation: nothing leaves Helm \u2014 every send button shows a preview inside your signed-in studio and no link is made. Staff can try the approval with the test code 000000, and payments are simulated (TEST receipts).",
     "Downloads, prints, imports and photo renders unlock when the studio chooses a plan.",
     "The studio can create up to " + CREATE_CAP + " new quotes (events), and up to " + CREATE_CAP + " new leads, inventory items, vendors, staff and venues each (shared by the whole team). Sample records do not count.",
     "When the trial ends the studio becomes read-only for everyone until it chooses a plan."
@@ -123,7 +127,7 @@
     "You plus up to " + TEAM_EXTRA + " teammates can use the trial studio (open invitations count).",
     "You can create up to " + CREATE_CAP + " new quotes (events), and add up to " + CREATE_CAP + " new records of each other kind (" + joinList(OTHER_LISTS) + "). Sample records (the " + count("events") + " sample events too) do not count, and deleting a record does not free a slot.",
     "Menu prices are editable. New dishes, menu packages, chair or plate types cannot be added during the trial.",
-    "During the trial nothing is sent to your clients: approval, booklet and invitation links show a preview, the client approves with the test code 000000 and payments are simulated (TEST receipts, no real money). Your own account e-mails (welcome, security, login codes, billing, teammate invites) still work.",
+    "During the trial nothing is sent to your clients and no link is made: every send button shows a preview inside your studio, you try the approval with the test code 000000 and payments are simulated (TEST receipts, no real money). Your own account e-mails (welcome, security, login codes, billing, teammate invites) still work.",
     "WhatsApp messages, SMS approval codes and online payment links are not sent during the trial; they unlock on a paid plan.",
     "Downloads (PDF, CSV, prints), imports and photo renders unlock on a paid plan.",
     "After " + DAYS + " days the studio becomes read-only: you and your teammates can still look, but nobody can add or change anything until you choose a plan.",
