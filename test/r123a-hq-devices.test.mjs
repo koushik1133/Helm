@@ -132,7 +132,7 @@ t('F tour step, log words, privacy table row', () => {
 });
 t('F asset versions bumped together; MANIFEST + APPLY-0332 (0331 left free)', () => {
   assert.match(H, /<script src="hq-staff\.js\?v=3"><\/script>/);
-  assert.match(H, /<script src="hq\.js\?v=36"><\/script>/);
+  assert.match(H, /<script src="hq\.js\?v=37"><\/script>/);
   assert.match(H, /<script src="page-tours\.js\?v=21"><\/script>/);
   const M = rd('supabase/migrations/MANIFEST');
   assert.match(M, /^forward  supabase\/migrations\/0332_r123a_hq_devices\.sql$/m);

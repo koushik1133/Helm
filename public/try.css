@@ -108,7 +108,10 @@ html[data-try-mode="3d"] #tryRotate{display:none}
 .try-tray-h{margin:2px 8px 6px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--try-ink-2)}
 .try-tray button{text-align:left;min-height:36px;padding:0 10px;border:0;border-radius:12px;background:none;font-size:13px;font-weight:500;color:var(--try-ink)}
 .try-tray button:hover,.try-tray button:focus-visible{background:rgba(15,92,69,.08);color:var(--try-em)}
-.try-hint{position:fixed;z-index:19;left:16px;bottom:22px;margin:0;font-size:12px;color:var(--try-ink-2);max-width:calc(100% - 420px)}
+.try-hint{position:fixed;z-index:19;left:16px;bottom:30px;margin:0;font-size:12px;color:var(--try-ink-2);max-width:calc(100% - 420px)}
+/* r127: copyright + terms notice (the demo has no sign-up, so this is the only place it can say so) */
+.try-legal{position:fixed;z-index:19;left:16px;bottom:10px;margin:0;font-size:11px;line-height:1.35;color:var(--try-ink-2);max-width:calc(100% - 420px)}
+.try-legal a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .try-defs{position:absolute;width:0;height:0;overflow:hidden}
 .try-modes button:focus-visible,.try-btn:focus-visible,.try-units button:focus-visible,.try-cta:focus-visible,.try-logo:focus-visible{outline:2px solid var(--try-em);outline-offset:2px}
 
@@ -125,11 +128,13 @@ html.try-swap .viewport{animation:tryFade .42s var(--try-ease)}
   .try-title{padding-left:10px}
   .try-title h1{font-size:13px}
   .try-cta{font-size:12px;padding-left:12px}
-  .try-modes{top:auto;bottom:14px;width:calc(100% - 20px);max-width:360px}
+  .try-modes{top:auto;bottom:36px;width:calc(100% - 20px);max-width:360px}
   .try-modes button{min-width:0;padding:0 6px;min-height:40px}
-  .try-dock{right:10px;bottom:76px}
-  html.helm-sandbox .scroll{left:6px;top:64px;right:6px;bottom:124px}
+  .try-dock{right:10px;bottom:98px}
+  html.helm-sandbox .scroll{left:6px;top:64px;right:6px;bottom:146px}
   .try-hint{display:none}
+  .try-legal{left:10px;right:10px;bottom:4px;max-width:none;font-size:10px;text-align:center}
+  .try-legal a{display:inline-block;padding:2px 0}
 }
 .try-cta-s{display:none}
 @media (max-width:460px){ .try-signin{font-size:13px;padding:8px 2px;margin-left:auto} .try-title{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);border:0;padding:0} .try-cta-l{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)} .try-cta-s{display:inline} }

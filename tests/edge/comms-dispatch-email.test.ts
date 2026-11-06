@@ -262,7 +262,7 @@ Deno.test("R124 handler, SMTP: designed HTML + text, one Unsubscribe in the card
       assert(!p.html.includes("<!--helm-footer-->"), "footer slot filled");
       assertEquals(p.html.split(">Unsubscribe<").length, 2);
       assert(p.text.includes("Unsubscribe: https://www.helm.events/unsubscribe?t=" + TOKEN));
-      assert(p.text.includes("https://www.helm.events/checkout"));
+      assert(/(^|\s)https:\/\/www\.helm\.events\/checkout(\s|$)/.test(p.text));
       assert(/List-Unsubscribe-Post: List-Unsubscribe=One-Click/.test(p.headers));
       assert(/Reply-To: <support@helm\.events>/.test(p.headers));
     }
