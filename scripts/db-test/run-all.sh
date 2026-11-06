@@ -38,7 +38,7 @@ reseed() { psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/10-fixtures.sql >
 run() { local name="$1" marker="$2"; shift 2; reseed; local out; out="$("$@" 2>&1)"; if echo "$out" | grep -qE "$marker"; then echo "  ✓ $name"; else echo "  ✗ $name"; echo "$out" | tail -3; fail=1; fi; }
 echo "== behavioral suites =="
 # 0156 first: later suites re-apply older migrations over the 0156 wrappers
-run "audit-p2-0156"      "AUDIT-P2-0156: ALL PASS \(76/76\)" psql -q -f tests/db/audit-p2-0156.sql
+run "audit-p2-0156"      "AUDIT-P2-0156: ALL PASS \(77/77\)" psql -q -f tests/db/audit-p2-0156.sql
 # before anything that re-applies older migrations (0011/0012/0015/0025/0026) over the 0071/0072 bodies
 # 0260 early (later suites commit grant changes it probes); it re-applies itself twice (re-run safe), rolled back
 run "r23-cancel-links-0260" "R23-CANCEL-LINKS-0260: ALL PASS \(40/40\)" psql -q -f tests/db/r23-cancel-links-0260.sql
@@ -358,6 +358,8 @@ run "trial-clone-0190-r125-gate" "TRIAL-CLONE-0190: ALL PASS \(24/24\)" env PGOP
 run "trial-seed-0174-r125-gate" "TRIAL-SEED-0174: ALL PASS \(12/12\)" env PGOPTIONS="$PGOPTIONS -c helm.r125_gate=on" psql -q -f tests/db/trial-seed-0174.sql
 # r126 (0335): HQ walkthrough fixes - one studio count (sample master left out), client logins out of People / search / Show, one trial day, job history says why, activity log names the studio, removed staff out of readiness, gates unchanged; re-applies itself twice, rolled back
 run "r126-hq-fixes-0335" "R126-HQ-FIXES-0335: ALL PASS \(39/39\)" psql -q -f tests/db/r126-hq-fixes-0335.sql
+# r128 (0336): the open security list - crew limit address, counter purge, contact change cancels an unapproved link, shown-total check, trial preview + snapshot
+run "r128-security-fixes-0336" "R128-SECURITY-FIXES-0336: ALL PASS \(43/43\)" psql -q -f tests/db/r128-security-fixes-0336.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

@@ -272,6 +272,10 @@ do $$ declare r text; q uuid := 'a0000000-0000-4000-8000-00000000da01'; o uuid; 
   perform pg_temp.t('contact change: written to the audit log',
     exists (select 1 from public.audit_log where action = 'client_contact_change' and quote_id = q), null);
   perform pg_temp.t('contact change: the quote records when', (select client_contact_changed_at from public.quotes where id = q) is not null, null);
+  -- r128 (0336): the change also cancels the unapproved link; the sections below need a live one again
+  perform pg_temp.t('contact change: the unapproved link is cancelled (0336)', (select approval_token is null and approval_token_revoked_at is not null from public.quotes where id = q), null);
+  update public.quotes set approval_token = 'a0000000-0000-4000-8000-0000000000aa', approval_token_revoked_at = null,
+         approval_token_expires_at = now() + interval '7 days', approval_status = 'sent' where id = q;
 end $$;
 
 -- ---- 12) Smart Import obeys linked-staff + demo guards -----------------------------------------

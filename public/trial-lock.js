@@ -135,7 +135,7 @@
       if (window.parent !== window || window.HELM_TRIAL_PREVIEW || document.getElementById("trialPreviewJs")) return;
       if (/^\/(approve|portal|booklet|proposal-view|invite|work|vendor-request|enquiry|delivery)(\.html)?\/?$/.test(location.pathname) || /^\/i\//.test(location.pathname)
           || /^\/[a-z0-9-]+\/(invite|quote|proposal|portal|work|booklet)\/[^/]+/.test(location.pathname) || /^\/[a-z0-9-]+\/enquiry\/?$/.test(location.pathname)) return;
-      var s = document.createElement("script"); s.id = "trialPreviewJs"; s.src = "/trial-preview.js?v=1"; s.defer = true;
+      var s = document.createElement("script"); s.id = "trialPreviewJs"; s.src = "/trial-preview.js?v=2"; s.defer = true;
       (document.head || document.documentElement).appendChild(s);
     } catch (e) {}
   }

@@ -10,7 +10,7 @@
   if (!d.classList.contains("helm-trial")) { d.classList.add("helm-trial"); d.classList.add("helm-trial-early"); }
   if (!document.getElementById("trialLockCss")) { var l = document.createElement("link"); l.id = "trialLockCss"; l.rel = "stylesheet"; l.href = "/trial-lock.css?v=9"; document.head.appendChild(l); } } } catch (e) {} })();
 (function () { try { if (/^\/(hq|hq-referrals)(\.html)?\/?$/.test(location.pathname || "")) return; if (!document.getElementById("trialLock")) {
-  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=9"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "trialLock"; s.src = "/trial-lock.js?v=10"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -3713,6 +3713,9 @@ window.HelmUrl = HelmUrl;
     verifyConsent: (token, phone, code, agreed, termsVersion, consentText, clientName, ua) =>
       rpc("verify_and_consent", { p_token: token, p_phone: phone, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
+    // r128 (0336): is the total on the client's screen still the quote's total? Asked just before approving; a staff edit after this
+    // cancels the open code, so it cannot be raced. A database without 0336 (or a network slip) answers ok: the approval's own checks still run.
+    checkShown: (token, total) => mode === "supabase" ? rpc("approval_check_shown", { p_token: token, p_total: total }).catch(() => ({ ok: true })) : Promise.resolve({ ok: true }),
     // simulation → RPC (mock link); live → Razorpay via Edge Function (real payment link)
     // Online pay is offered only when it is real (pay live) or off production: the
     // simulated checkout (/sim-pay) is 404 on prod hosts, so prod never links there.
