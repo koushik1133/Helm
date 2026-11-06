@@ -2001,7 +2001,7 @@
     var ent = String(x.entity || ""), id = String(x.entity_id == null ? "" : x.entity_id), parts = [];
     parts.push(AUDIT_WHAT[ent] || (ent.replace(/^hq_/, "").replace(/_/g, " ").replace(/^./, function (c) { return c.toUpperCase(); }) || "HQ"));
     if (x.studio) parts.push(x.studio);
-    else if (id && !UUID_RE.test(id)) parts.push(/^\d{4}-\d{2}-\d{2}\.\./.test(id) ? id.replace("..", " to ") : x.action === "hq.view" ? "search: " + id.replace(/\|$/, "") : id);
+    else if (id && !UUID_RE.test(id)) parts.push(/^\d{4}-\d{2}-\d{2}\.\./.test(id) ? id.replace(/\.\./g, " to ") : x.action === "hq.view" ? "search: " + id.replace(/\|$/, "") : id);
     if (x.action === "hq.reveal" && x.changed && x.changed.field) parts.push(String(x.changed.field).replace(/_/g, " "));
     return parts.join(" · ");
   }

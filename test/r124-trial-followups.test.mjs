@@ -19,7 +19,10 @@ let n = 0;
 const t = (name, fn) => { try { fn(); n++; console.log('  ok ' + name); } catch (e) { console.error('  FAIL ' + name + '\n' + (e && e.stack || e)); process.exitCode = 1; } };
 const APP = 'https://www.helm.events';
 const mail = (k, s = 'Sita Events', d = '2027-01-05') => m.trialFollowupEmail(k, s, { deleteOn: d }, APP);
-const visible = (h) => h.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ');
+// removes every match, including one that only appears after an inner match is removed
+const stripAll = (h, re) => { let prev; do { prev = h; h = h.replace(re, ''); } while (h !== prev); return h; };
+const noStyle = (h) => stripAll(h, /<style[\s\S]*?<\/style[^>]*>/gi);
+const visible = (h) => stripAll(noStyle(h), /<!--[\s\S]*?-->/g).replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ');
 
 t('A Day 0: subject, reassurance, date, button', () => {
   const e = mail('x0');
@@ -109,8 +112,8 @@ t('D /checkout survives the sign-in step (a signed-out owner used to land on the
 t('D every button is the plan page, never sign-up, and comes from APP_URL, not a row', () => {
   for (const k of m.FOLLOWUP_KINDS) {
     const e = mail(k);
-    assert.ok(!/signup|sign-up|\/login/.test(e.text + e.html.replace(/<style[\s\S]*?<\/style>/, '')), k);
-    assert.equal(m.trialFollowupEmail(k, 'x', { url: 'https://evil.example/' }, 'https://staging.helm.events/').text.includes('https://staging.helm.events/checkout'), true);
+    assert.ok(!/signup|sign-up|\/login/.test(e.text + noStyle(e.html)), k);
+    assert.match(m.trialFollowupEmail(k, 'x', { url: 'https://evil.example/' }, 'https://staging.helm.events/').text, /(^|\s)https:\/\/staging\.helm\.events\/checkout(\s|$)/);
     assert.ok(!m.trialFollowupEmail(k, 'x', { url: 'https://evil.example/' }, APP).html.includes('evil'));
   }
 });
