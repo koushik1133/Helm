@@ -173,7 +173,7 @@
 <script src="/config.js?v=112"></script>
 <script src="/phone-input.js?v=9"></script>
 <script src="/event-name.js?v=9"></script>
-<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=336"></script><script src="/trial-sim.js?v=3" data-trial-sim="quote"></script><script src="/quote-validity.js?v=5"></script><script src="/approve-test-mode.js?v=2"></script>
+<script src="/country-profile.js?v=7"></script><script src="/store-api.js?v=337"></script><script src="/trial-sim.js?v=3" data-trial-sim="quote"></script><script src="/quote-validity.js?v=5"></script><script src="/approve-test-mode.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -422,7 +422,10 @@
     if(code.length!==6){ setMsg("err","Enter the 6-digit OTP."); $("#c_otp").focus(); return; }
     if(!agreed){ setMsg("err","Please tick the box to accept the terms."); $("#c_agree").focus(); return; }
     b.textContent="Verifying…";
-    try{ const r=otpChannel==="sms"
+    try{ const shown=quote&&quote.pricing?Number(quote.pricing.total):NaN;   // r128 (0336): approve only the total on this screen
+      const same=isFinite(shown)&&BPStore.approval.checkShown ? await BPStore.approval.checkShown(token, shown) : null;
+      if(same && same.ok===false){ setMsg("err",same.message||"The price on this quote changed. Please reload the page."); return; }
+      const r=otpChannel==="sms"
         ? await BPStore.approval.verifyConsent(token, phone, code, true, shownTerms.v, consentText(shownTerms.v), $("#c_name").value.trim(), navigator.userAgent)
         : await BPStore.approval.verifyChannel(token, otpChannel, code, true, shownTerms.v, consentText(shownTerms.v), $("#c_name").value.trim(), navigator.userAgent);
       // W10-D1: verify_and_consent now soft-returns {approved:false,message} on OTP

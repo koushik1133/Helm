@@ -212,6 +212,7 @@
     public_link_studio: function () { return val(null); }, public_booklet_studio: function () { return val(null); },
     wa_request_otp: function () { return val({ sent: true, simulated: true, dev_code: "000000", masked: "the address on your quote" }); },
     request_otp: function () { return val({ sent: true, simulated: true, dev_code: "000000", masked: "the number on your quote" }); },
+    approval_check_shown: function () { return val({ ok: true }); },
     verify_and_consent: approveAct, wa_verify_and_consent: approveAct, trial_test_approve_code: approveAct,
     trial_simulate_payment: function () { return store().simulatePayment(S.quoteId, null).then(function (r) { S.changed = true; return { status: 200, json: r }; }); },
     public_booklet_otp_request: function () { return val({ sent: true, simulated: true, dev_code: "000000" }); },
